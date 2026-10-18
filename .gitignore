@@ -40,6 +40,7 @@ backend/data/
 !.vscode/settings.json
 !.vscode/extensions.json
 .idea/
+.claude/
 Thumbs.db
 Desktop.ini
 .DS_Store
