@@ -19,6 +19,7 @@ from uuid import uuid4
 
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import JSONResponse
+from python_multipart.multipart import parse_options_header
 from starlette.datastructures import UploadFile
 from starlette.formparsers import MultiPartException, MultiPartParser
 
@@ -64,7 +65,8 @@ _UPLOAD_BODY = {
 _PROBLEMS = {
     status: {"model": Problem, "description": description}
     for status, description in {
-        400: 'No files ("no_files") or an unreadable upload ("invalid_upload")',
+        400: 'No files ("no_files"), more than MAX_FILES_PER_REQUEST ("too_many_files"), '
+        'or an upload that is cut off or broken ("invalid_upload")',
         413: 'Request over MAX_REQUEST_MB ("request_too_large") or over '
         'MAX_PAGES_PER_REQUEST ("too_many_pages")',
         415: 'Not multipart/form-data ("unsupported_media_type")',
@@ -81,6 +83,31 @@ class _InMemoryParser(MultiPartParser):
 
 class _RequestTooLarge(Exception):
     pass
+
+
+class _Body:
+    """The request body as the parser reads it: capped at `limit`, keeping its last
+    bytes to tell a complete upload from one cut off in the middle. Starlette parses
+    a cut-off upload without an error and just drops the unfinished file."""
+
+    _TAIL = 256  # a boundary is at most 70 characters (RFC 2046)
+
+    def __init__(self, stream: AsyncIterator[bytes], limit: int) -> None:
+        self._stream = stream
+        self._limit = limit
+        self.tail = b""
+
+    async def chunks(self) -> AsyncIterator[bytes]:
+        received = 0
+        async for chunk in self._stream:
+            received += len(chunk)
+            if received > self._limit:  # Content-Length can be missing or wrong
+                raise _RequestTooLarge
+            self.tail = (self.tail + chunk)[-self._TAIL :]
+            yield chunk
+
+    def is_complete(self, boundary: bytes) -> bool:
+        return self.tail.rstrip(b"\r\n").endswith(b"--" + boundary + b"--")
 
 
 class _BadRequest(Exception):
@@ -199,43 +226,40 @@ async def _read_uploads(request: Request, settings: Settings) -> list[UploadedFi
     if length.isdigit() and int(length) > limit:
         raise too_large  # before reading a byte
 
-    parser = _InMemoryParser(
-        request.headers,
-        _capped(request.stream(), limit),  # Content-Length can be missing or wrong
-        max_files=settings.max_files_per_request,
-        max_fields=10,
-    )
+    body = _Body(request.stream(), limit)
+    # No file limit in the parser: the size cap bounds memory, and counting below
+    # gives the user a precise message instead of the parser's generic one.
+    parser = _InMemoryParser(request.headers, body.chunks(), max_files=sys.maxsize, max_fields=10)
     try:
         form = await parser.parse()
     except _RequestTooLarge:
         raise too_large from None
     except MultiPartException as exc:
         raise _BadRequest(
-            400,
-            "invalid_upload",
-            "לא ניתן לקרוא את ההעלאה",
-            f"ייתכן שההעלאה נקטעה, או שנשלחו יותר מ־{settings.max_files_per_request} קבצים",
+            400, "invalid_upload", "לא ניתן לקרוא את ההעלאה", "ייתכן שהיא פגומה. אפשר לשלוח שוב"
         ) from exc
     try:
+        boundary = parse_options_header(request.headers["content-type"])[1].get(b"boundary", b"")
+        if not body.is_complete(boundary):
+            raise _BadRequest(
+                400, "invalid_upload", "ההעלאה נקטעה באמצע", "שום דבר לא נשמר. אפשר לשלוח שוב"
+            )
+        files = [item for item in form.getlist("files") if isinstance(item, UploadFile)]
+        if len(files) > settings.max_files_per_request:
+            raise _BadRequest(
+                400,
+                "too_many_files",
+                f"אפשר להעלות עד {settings.max_files_per_request} קבצים בבקשה אחת",
+            )
         uploads = [
             UploadedFile(filename=item.filename or "upload", data=await item.read())
-            for item in form.getlist("files")
-            if isinstance(item, UploadFile)
+            for item in files
         ]
     finally:
         await form.close()
     if not uploads:
         raise _BadRequest(400, "no_files", "לא נבחרו קבצים")
     return uploads
-
-
-async def _capped(stream: AsyncIterator[bytes], limit: int) -> AsyncIterator[bytes]:
-    received = 0
-    async for chunk in stream:
-        received += len(chunk)
-        if received > limit:
-            raise _RequestTooLarge
-        yield chunk
 
 
 def _problem(problem: Problem) -> JSONResponse:

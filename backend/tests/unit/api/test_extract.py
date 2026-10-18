@@ -1,4 +1,3 @@
-import asyncio
 import os
 import tempfile
 
@@ -183,20 +182,60 @@ def test_too_many_files(make_client):
 
     response = make_client(max_files_per_request=2).post("/api/v1/extract", files=files)
 
-    assert "2 קבצים" in assert_problem(response, 400, "invalid_upload")["detail"]
+    assert "2 קבצים" in assert_problem(response, 400, "too_many_files")["title"]
 
 
-def test_the_stream_is_capped_even_without_content_length():
-    async def chunks():
-        for _ in range(5):
-            yield b"x" * 10
+def multipart(*parts: tuple[str, bytes], boundary: str = "XYZ", closed: bool = True) -> bytes:
+    """A multipart body by hand, to send it chunked or cut it off."""
+    body = b"".join(
+        f'--{boundary}\r\nContent-Disposition: form-data; name="files"; filename="{name}"\r\n'
+        f"Content-Type: application/pdf\r\n\r\n".encode()
+        + data
+        + b"\r\n"
+        for name, data in parts
+    )
+    return body + (f"--{boundary}--\r\n".encode() if closed else b"")
 
-    async def read_all(limit):
-        return [chunk async for chunk in extract._capped(chunks(), limit)]
 
-    assert len(asyncio.run(read_all(50))) == 5
-    with pytest.raises(extract._RequestTooLarge):
-        asyncio.run(read_all(49))
+MULTIPART = {"content-type": "multipart/form-data; boundary=XYZ"}
+
+
+def test_a_chunked_request_with_no_content_length_is_still_capped(make_client):
+    # The test client sends Content-Length for a normal upload; a generator body is
+    # sent chunked, without one, so only the cap while reading can stop it.
+    body = multipart(("big.pdf", make_pdf(noise_px=1000)))
+
+    def chunks():
+        for start in range(0, len(body), 64_000):
+            yield body[start : start + 64_000]
+
+    response = make_client(max_request_mb=1).post(
+        "/api/v1/extract", content=chunks(), headers=MULTIPART
+    )
+
+    assert "content-length" not in response.request.headers
+    assert_problem(response, 413, "request_too_large")
+
+
+def test_a_chunked_request_under_the_limit_goes_through(make_client):
+    body = multipart(("a.pdf", make_pdf(1)))
+
+    response = make_client().post("/api/v1/extract", content=iter([body]), headers=MULTIPART)
+
+    assert response.status_code == 200
+    assert [f["status"] for f in response.json()["files"]] == ["ok"]
+
+
+def test_an_upload_cut_off_in_the_middle_is_invalid_not_empty(make_client):
+    # Starlette parses it without an error and drops the unfinished file, which
+    # looked like "no files chosen".
+    whole = multipart(("a.pdf", make_pdf(1)), ("b.pdf", make_pdf(1)))
+    cut = whole[: len(whole) - 300]
+
+    response = make_client().post("/api/v1/extract", content=cut, headers=MULTIPART)
+
+    body = assert_problem(response, 400, "invalid_upload")
+    assert "נקטעה" in body["title"]
 
 
 def test_records_without_saving_gives_one_record_per_commitment(make_client):
