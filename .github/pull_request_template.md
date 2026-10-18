@@ -1,15 +1,15 @@
-## מה ולמה
+## What and why
 
-<!-- 1–3 שורות: מה השתנה ולמה. קישור לסעיף ב־PLAN או ב־SPEC אם יש. -->
+<!-- 1–3 lines: what changed and why. Link the PLAN or SPEC section if there is one. -->
 
-## איך בדקתי
+## How I tested
 
-<!-- טסטים, הרצה ידנית, צילום מסך לשינוי בממשק. -->
+<!-- Tests, manual run, screenshot for a UI change. -->
 
-## צ׳קליסט
+## Checklist
 
-- [ ] נוגע רק בקבצים שלי, או שזה PR משותף ושתינו מאשרות (ראו `.github/CODEOWNERS`)
-- [ ] שיניתי את `schemas/api.py`? הרצתי `python -m scripts.export_openapi` ב־`backend/` ו־`npm run gen:api` ב־`frontend/`, וה־commit כולל את הקבצים שנוצרו
-- [ ] אין מסמכים אמיתיים של מטופלים, ואין שמות או ת״ז בלוגים, ב־fixtures או בצילומי מסך
-- [ ] אין מפתח API או `.env` ב־diff
-- [ ] אם התקבלה החלטה או משהו זז בלו״ז, עדכנתי את `PLAN.md`
+- [ ] Touches only my own files, or this is a shared PR that both of us approve (see `.github/CODEOWNERS`)
+- [ ] Changed `schemas/api.py`? Ran `python -m scripts.export_openapi` in `backend/` and `npm run gen:api` in `frontend/`, and the commit includes the generated files
+- [ ] No real patient documents, and no names or national IDs in logs, fixtures or screenshots
+- [ ] No API key or `.env` in the diff
+- [ ] If a decision was made or the schedule moved, I updated `PLAN.md`
