@@ -16,6 +16,8 @@ from app.schemas.api import Issue
 _DMY = re.compile(r"(\d{1,2})\s*[-./]\s*(\d{1,2})\s*[-./]\s*(\d{4}|\d{2})")
 # What the date input on the review screen sends.
 _ISO = re.compile(r"(\d{4})-(\d{2})-(\d{2})")
+# "606/50364186": a 3-digit prefix before a long number (organizers' clarification).
+_COMMITMENT_PREFIX = re.compile(r"\d{3}/(\d{6,})")
 
 
 def digits_only(text: str) -> str:
@@ -63,3 +65,40 @@ def normalize_date(raw: str | None) -> tuple[str | None, list[Issue]]:
         return date(year, month, day).isoformat(), []
     except ValueError:
         return None, [make_issue("DATE_INVALID")]
+
+
+def normalize_central_number(raw: str | None) -> tuple[str | None, list[Issue]]:
+    """Digits only (SPEC 5.3). The 6-digit check is in validators."""
+    digits = digits_only(raw or "")
+    return (digits or None), []
+
+
+def normalize_commitment_number(raw: str | None) -> tuple[str | None, list[Issue]]:
+    """Copied as written (SPEC 5.6), except a 3-digit prefix like 606/ is dropped.
+
+    Both the dropped prefix and any other / are flagged, so a person checks them.
+    """
+    text = re.sub(r"\s*/\s*", "/", (raw or "").strip())
+    if not text:
+        return None, []
+    if match := _COMMITMENT_PREFIX.fullmatch(text):
+        return match[1], [make_issue("COMMITMENT_PREFIX")]
+    if "/" in text:
+        return text, [make_issue("COMMITMENT_PREFIX")]
+    return text, []
+
+
+def dedupe_positions(values: list[str | None]) -> list[int]:
+    """Positions to keep: the first of each value, in order (SPEC 7.2).
+
+    None (an item that wasn't read) is never a duplicate of anything.
+    """
+    seen: set[str] = set()
+    keep = []
+    for position, value in enumerate(values):
+        if value is not None:
+            if value in seen:
+                continue
+            seen.add(value)
+        keep.append(position)
+    return keep

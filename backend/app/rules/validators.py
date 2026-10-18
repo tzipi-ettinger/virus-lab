@@ -41,3 +41,10 @@ def validate_received_date(value: str | None, today: date) -> list[Issue]:
     if not EARLIEST_RECEIVED_DATE <= date.fromisoformat(value) <= today:
         return [make_issue("DATE_OUT_OF_RANGE")]
     return []
+
+
+def validate_central_number(value: str | None) -> list[Issue]:
+    """Central numbers are usually 6 digits (SPEC 5.3)."""
+    if value is None or len(value) == 6:
+        return []
+    return [make_issue("CENTRAL_FORMAT")]
