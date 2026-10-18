@@ -14,7 +14,7 @@ import sys
 from collections.abc import AsyncIterator
 from datetime import UTC, datetime
 from functools import lru_cache
-from typing import Annotated
+from typing import Annotated, assert_never
 from uuid import uuid4
 
 from fastapi import APIRouter, Depends, Request
@@ -101,6 +101,8 @@ def get_provider(settings: SettingsDep) -> ExtractionProvider:
     match settings.extraction_provider:
         case "fake":
             return _fake_provider()
+        case unknown:  # a new provider added to Settings but not here
+            assert_never(unknown)
 
 
 async def records_without_saving(page: ExtractedPage) -> list[Record]:

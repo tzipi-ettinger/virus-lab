@@ -35,7 +35,9 @@ class Settings(BaseSettings):
     # The whole request, all files together: it is held in memory, never on disk.
     max_request_mb: int = Field(60, ge=1)
     max_files_per_request: int = Field(20, ge=1)
-    # Pages read at once, so at most this many model calls at a time.
+    # Pages read at once within one upload, so at most this many model calls per
+    # upload. Two uploads at once make twice as many: a limit for the whole server
+    # comes with the Gemini provider.
     max_concurrency: int = Field(4, ge=1)
 
     @property
