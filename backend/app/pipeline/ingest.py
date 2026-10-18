@@ -23,9 +23,10 @@ ROTATIONS = (0, 90, 180, 270)
 
 # PyMuPDF is not thread-safe, so every render runs on this one thread: pages render
 # one at a time while the model calls run concurrently, and the event loop is never
-# blocked. A sample scan takes about 0.9s to render (decoding the embedded image;
-# keeping the document open doesn't help), well under a model call (5-15s). If the
-# model concurrency grows past that, render in a process pool instead.
+# blocked. A sample scan takes about 0.3s to render (48 sample pages: mean 0.3s, up
+# to 1.3s under load), half decoding the embedded scan and half encoding the JPEG,
+# far under a model call (4-9s). If renders ever queue up behind each other, render
+# in a process pool instead.
 _RENDER_THREAD = ThreadPoolExecutor(max_workers=1, thread_name_prefix="render")
 
 _SIGNATURES = {
