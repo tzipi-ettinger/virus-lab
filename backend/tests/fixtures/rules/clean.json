@@ -1,0 +1,87 @@
+{
+  "form_id": "fx_clean#p1",
+  "file_id": "fx_clean",
+  "source_file": "clean.pdf",
+  "page_number": 1,
+  "processing_status": "ok",
+  "error": null,
+  "applied_rotation": 0,
+  "fields": {
+    "first_name": {
+      "raw": "ישראל",
+      "value": null,
+      "model_status": "found",
+      "evidence": "ליד 'שם פרטי'",
+      "issues": [],
+      "needs_review": false,
+      "corrected": false,
+      "confirmed": false
+    },
+    "last_name": {
+      "raw": "ישראלי",
+      "value": null,
+      "model_status": "found",
+      "evidence": "ליד 'שם משפחה'",
+      "issues": [],
+      "needs_review": false,
+      "corrected": false,
+      "confirmed": false
+    },
+    "national_id": {
+      "raw": "11223344",
+      "value": null,
+      "model_status": "found",
+      "evidence": "ליד 'ת.ז.'",
+      "issues": [],
+      "needs_review": false,
+      "corrected": false,
+      "confirmed": false
+    },
+    "received_date": {
+      "raw": "18-06-2026",
+      "value": null,
+      "model_status": "found",
+      "evidence": "חותמת 'התקבל'",
+      "issues": [],
+      "needs_review": false,
+      "corrected": false,
+      "confirmed": false
+    },
+    "sender": {
+      "raw": "מכבי",
+      "value": null,
+      "model_status": "found",
+      "evidence": "כותרת הטופס",
+      "issues": [],
+      "needs_review": false,
+      "corrected": false,
+      "confirmed": false
+    }
+  },
+  "central_numbers": [
+    {
+      "raw": "948062",
+      "value": null,
+      "model_status": "found",
+      "evidence": "מדבקה 'מרכזי'",
+      "issues": [],
+      "needs_review": false,
+      "corrected": false,
+      "confirmed": false
+    }
+  ],
+  "commitment_numbers": [
+    {
+      "raw": "260005102632",
+      "value": null,
+      "model_status": "found",
+      "evidence": "ליד 'מספר התחייבות'",
+      "issues": [],
+      "needs_review": false,
+      "corrected": false,
+      "confirmed": false
+    }
+  ],
+  "issues": [],
+  "needs_review": false
+}

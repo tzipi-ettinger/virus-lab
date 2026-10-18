@@ -1,0 +1,87 @@
+{
+  "form_id": "fx_unclear#p1",
+  "file_id": "fx_unclear",
+  "source_file": "unclear.pdf",
+  "page_number": 1,
+  "processing_status": "ok",
+  "error": null,
+  "applied_rotation": 0,
+  "fields": {
+    "first_name": {
+      "raw": null,
+      "value": null,
+      "model_status": "unclear",
+      "evidence": "שם בכתב יד לא קריא",
+      "issues": [],
+      "needs_review": false,
+      "corrected": false,
+      "confirmed": false
+    },
+    "last_name": {
+      "raw": null,
+      "value": null,
+      "model_status": "unclear",
+      "evidence": "שם בכתב יד לא קריא",
+      "issues": [],
+      "needs_review": false,
+      "corrected": false,
+      "confirmed": false
+    },
+    "national_id": {
+      "raw": "0011223344",
+      "value": null,
+      "model_status": "found",
+      "evidence": "ליד 'מ.ז.'",
+      "issues": [],
+      "needs_review": false,
+      "corrected": false,
+      "confirmed": false
+    },
+    "received_date": {
+      "raw": null,
+      "value": null,
+      "model_status": "unclear",
+      "evidence": "חותמת דהויה",
+      "issues": [],
+      "needs_review": false,
+      "corrected": false,
+      "confirmed": false
+    },
+    "sender": {
+      "raw": "מרפאת הדמה",
+      "value": null,
+      "model_status": "found",
+      "evidence": "כותרת הטופס",
+      "issues": [],
+      "needs_review": false,
+      "corrected": false,
+      "confirmed": false
+    }
+  },
+  "central_numbers": [
+    {
+      "raw": "94806",
+      "value": null,
+      "model_status": "found",
+      "evidence": "מדבקה חתוכה",
+      "issues": [],
+      "needs_review": false,
+      "corrected": false,
+      "confirmed": false
+    }
+  ],
+  "commitment_numbers": [
+    {
+      "raw": "3317702",
+      "value": null,
+      "model_status": "found",
+      "evidence": "ליד 'התחייבות'",
+      "issues": [],
+      "needs_review": false,
+      "corrected": false,
+      "confirmed": false
+    }
+  ],
+  "issues": [],
+  "needs_review": false
+}

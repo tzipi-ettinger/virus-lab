@@ -1,0 +1,117 @@
+{
+  "form_id": "fx_multi_values#p2",
+  "file_id": "fx_multi_values",
+  "source_file": "multi_values.pdf",
+  "page_number": 2,
+  "processing_status": "ok",
+  "error": null,
+  "applied_rotation": 90,
+  "fields": {
+    "first_name": {
+      "raw": "ישראל",
+      "value": null,
+      "model_status": "found",
+      "evidence": null,
+      "issues": [],
+      "needs_review": false,
+      "corrected": false,
+      "confirmed": false
+    },
+    "last_name": {
+      "raw": "ישראלי",
+      "value": null,
+      "model_status": "found",
+      "evidence": null,
+      "issues": [],
+      "needs_review": false,
+      "corrected": false,
+      "confirmed": false
+    },
+    "national_id": {
+      "raw": "011223344",
+      "value": null,
+      "model_status": "found",
+      "evidence": "ליד 'ת.ז.'",
+      "issues": [],
+      "needs_review": false,
+      "corrected": false,
+      "confirmed": false
+    },
+    "received_date": {
+      "raw": "30.8.26",
+      "value": null,
+      "model_status": "found",
+      "evidence": "כתב יד מתחת למרכזי",
+      "issues": [],
+      "needs_review": false,
+      "corrected": false,
+      "confirmed": false
+    },
+    "sender": {
+      "raw": "לאומית",
+      "value": null,
+      "model_status": "found",
+      "evidence": "גורם מפנה",
+      "issues": [],
+      "needs_review": false,
+      "corrected": false,
+      "confirmed": false
+    }
+  },
+  "central_numbers": [
+    {
+      "raw": "948062",
+      "value": null,
+      "model_status": "found",
+      "evidence": null,
+      "issues": [],
+      "needs_review": false,
+      "corrected": false,
+      "confirmed": false
+    },
+    {
+      "raw": "948063",
+      "value": null,
+      "model_status": "found",
+      "evidence": null,
+      "issues": [],
+      "needs_review": false,
+      "corrected": false,
+      "confirmed": false
+    },
+    {
+      "raw": "948062",
+      "value": null,
+      "model_status": "found",
+      "evidence": null,
+      "issues": [],
+      "needs_review": false,
+      "corrected": false,
+      "confirmed": false
+    }
+  ],
+  "commitment_numbers": [
+    {
+      "raw": "260005102611",
+      "value": null,
+      "model_status": "found",
+      "evidence": "דרישה",
+      "issues": [],
+      "needs_review": false,
+      "corrected": false,
+      "confirmed": false
+    },
+    {
+      "raw": "606/50364186",
+      "value": null,
+      "model_status": "found",
+      "evidence": "דרישה",
+      "issues": [],
+      "needs_review": false,
+      "corrected": false,
+      "confirmed": false
+    }
+  ],
+  "issues": [],
+  "needs_review": false
+}

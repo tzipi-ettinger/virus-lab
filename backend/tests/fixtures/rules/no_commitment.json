@@ -1,0 +1,76 @@
+{
+  "form_id": "fx_no_commitment#p1",
+  "file_id": "fx_no_commitment",
+  "source_file": "no_commitment.pdf",
+  "page_number": 1,
+  "processing_status": "ok",
+  "error": null,
+  "applied_rotation": 0,
+  "fields": {
+    "first_name": {
+      "raw": "ישראל",
+      "value": null,
+      "model_status": "found",
+      "evidence": null,
+      "issues": [],
+      "needs_review": false,
+      "corrected": false,
+      "confirmed": false
+    },
+    "last_name": {
+      "raw": "ישראלי",
+      "value": null,
+      "model_status": "found",
+      "evidence": null,
+      "issues": [],
+      "needs_review": false,
+      "corrected": false,
+      "confirmed": false
+    },
+    "national_id": {
+      "raw": "011223344",
+      "value": null,
+      "model_status": "found",
+      "evidence": null,
+      "issues": [],
+      "needs_review": false,
+      "corrected": false,
+      "confirmed": false
+    },
+    "received_date": {
+      "raw": "16/6/26",
+      "value": null,
+      "model_status": "found",
+      "evidence": "חותמת 'התקבל'",
+      "issues": [],
+      "needs_review": false,
+      "corrected": false,
+      "confirmed": false
+    },
+    "sender": {
+      "raw": "כללית",
+      "value": null,
+      "model_status": "found",
+      "evidence": "כותרת הטופס",
+      "issues": [],
+      "needs_review": false,
+      "corrected": false,
+      "confirmed": false
+    }
+  },
+  "central_numbers": [
+    {
+      "raw": "948070",
+      "value": null,
+      "model_status": "found",
+      "evidence": null,
+      "issues": [],
+      "needs_review": false,
+      "corrected": false,
+      "confirmed": false
+    }
+  ],
+  "commitment_numbers": [],
+  "issues": [],
+  "needs_review": false
+}
