@@ -9,7 +9,7 @@ the page if it never does.
 Owner: A
 """
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 from app.extraction.provider import ExtractionProvider, PageImage, ProviderError
 from app.pipeline.ingest import ROTATIONS, SourcePage
@@ -25,8 +25,8 @@ class OrientedPage:
     image: PageImage  # the image the extraction was read from, for the preview
     applied_rotation: int
     unresolved: bool  # the model never reported the page upright: check every field
-    calls: int
-    history: tuple[int, ...] = field(default=())  # rotation the model asked for, per call
+    calls: int  # failed calls included: they count against the quota too
+    history: tuple[int, ...] = ()  # rotation the model asked for, per answered call
 
 
 async def extract_upright(
@@ -53,12 +53,12 @@ async def extract_upright(
             break
         tried.add(target)
         turned = await page.render_async(target)
+        calls += 1
         try:
             corrected = await provider.extract(turned)
         except ProviderError:  # QuotaExhausted is not one: it propagates
             break
         applied, image, extraction = turned.rotation, turned, corrected
-        calls += 1
         history.append(extraction.page_rotation_degrees)
 
     return OrientedPage(

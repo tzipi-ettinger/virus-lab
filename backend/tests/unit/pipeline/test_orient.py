@@ -120,7 +120,9 @@ def test_a_failed_correction_keeps_the_first_reading(source_page):
     result = run(provider, source_page)
 
     assert result.extraction.national_id.value == "call1"
-    assert (result.calls, result.applied_rotation, result.unresolved) == (1, 0, True)
+    # The failed call still counts: Gemini charges failed calls against the quota.
+    assert (result.calls, result.applied_rotation, result.unresolved) == (2, 0, True)
+    assert result.history == (90,)
     assert result.image.rotation == 0  # the preview matches the reading
 
 
