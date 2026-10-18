@@ -1,0 +1,48 @@
+{
+  "page_rotation_degrees": 270,
+  "form_type": "hospital_system_screenshot",
+  "first_name": {
+    "value": "Roei",
+    "status": "found",
+    "evidence": "handwritten in blue English letters above patient info: 'Roei'"
+  },
+  "last_name": {
+    "value": "Doei",
+    "status": "found",
+    "evidence": "handwritten in blue English letters above patient info: 'Doei'"
+  },
+  "national_id": {
+    "value": "11223314",
+    "status": "found",
+    "evidence": "handwritten in blue ink: '11223314'"
+  },
+  "received_date": {
+    "value": "25.8",
+    "status": "found",
+    "evidence": "handwritten next to central number: '947501-25.8'"
+  },
+  "sender": {
+    "value": null,
+    "status": "not_found",
+    "evidence": "גורם מפנה: ממראפה בבי\"ח / תיירות מרפא / ללא קופ\"ח"
+  },
+  "central_numbers": [
+    {
+      "value": "947501",
+      "status": "found",
+      "evidence": "handwritten in black pen with yellow highlight: '947501-25.8'"
+    }
+  ],
+  "commitment_numbers": [
+    {
+      "value": "2603203",
+      "status": "found",
+      "evidence": "מספר התחייבות column in table: '2603203'"
+    },
+    {
+      "value": "2603204",
+      "status": "found",
+      "evidence": "מספר התחייבות column in table: '2603204'"
+    }
+  ]
+}

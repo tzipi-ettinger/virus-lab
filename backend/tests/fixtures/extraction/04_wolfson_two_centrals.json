@@ -1,0 +1,48 @@
+{
+  "page_rotation_degrees": 0,
+  "form_type": "hospital_form",
+  "first_name": {
+    "value": null,
+    "status": "unclear",
+    "evidence": "שם: handwritten in script, partially obscured/scribbled"
+  },
+  "last_name": {
+    "value": null,
+    "status": "unclear",
+    "evidence": "שם: handwritten in script, partially obscured/scribbled"
+  },
+  "national_id": {
+    "value": "11223344",
+    "status": "found",
+    "evidence": "ת.ז.: 11223344"
+  },
+  "received_date": {
+    "value": "25-08-2026",
+    "status": "found",
+    "evidence": "date stamp at middle-left: 25-08-2026"
+  },
+  "sender": {
+    "value": "וולפסון",
+    "status": "found",
+    "evidence": "המרכז הרפואי האוניברסיטאי ע\"ש אדית וולפסון"
+  },
+  "central_numbers": [
+    {
+      "value": "947468",
+      "status": "found",
+      "evidence": "barcode sticker labeled מרכזי: 947468"
+    },
+    {
+      "value": "947469",
+      "status": "found",
+      "evidence": "barcode sticker labeled מרכזי: 947469"
+    }
+  ],
+  "commitment_numbers": [
+    {
+      "value": "7254627",
+      "status": "found",
+      "evidence": "vertical barcode sticker: 7254627"
+    }
+  ]
+}
