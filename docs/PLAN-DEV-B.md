@@ -121,7 +121,7 @@ Dockerfile, .dockerignore, docker-compose.yml   # בשורש הריפו (חדש�
 | `DELETE` | `/api/v1/records/{id}` | — | רק לרשומה ממתינה (A5 ⏳). מאושרת: `409` |
 | `GET` | `/api/v1/pages/{page_id}/image` | — | JPEG, עם `Cache-Control: no-store` |
 | `GET` | `/api/v1/senders` | — | הרשימה הסגורה (שמות קנוניים), לרשימה הנפתחת ולסינון |
-| `POST` | `/api/v1/extract` | (A) | `{files, records, failed_pages}` (A1 ⏳). דורש סשן (D10 ⏳) |
+| `POST` | `/api/v1/extract` | (A) קובץ אחד בכל בקשה | `{files, records, failed_pages, quota_exhausted}` (A1 ⏳). דורש סשן (D10 ⏳). **המכסה נגמרה אחרי שנשמר עמוד:** `200` עם `quota_exhausted: true`, והעמודים שלא נקראו ב־`failed_pages` עם `QUOTA_EXHAUSTED`. **המכסה נגמרה לפני שנשמר עמוד:** `503 quota_exhausted` |
 
 > **סדר ה־routes:** את `/records/export` ואת `/records/approve` מגדירים **לפני** `/records/{record_id}`, אחרת FastAPI יפרש את `export` כמזהה של רשומה.
 
@@ -135,6 +135,7 @@ Dockerfile, .dockerignore, docker-compose.yml   # בשורש הריפו (חדש�
 | `409` | `version_conflict` / `review_required` / `record_approved` / `sibling_approved` |
 | `422` | `validation` |
 | `429` | `too_many_attempts` |
+| `503` | `quota_exhausted` (רק `extract`: המכסה של Gemini נגמרה ולא נשמר אף עמוד, ולכן מותר לשלוח את הקובץ שוב) |
 
 ### 2.3 מודלים בחוזה (`schemas/api.py`, PR משותף)
 
@@ -154,6 +155,8 @@ Dockerfile, .dockerignore, docker-compose.yml   # בשורש הריפו (חדש�
 - **אישור מרובה:** `BulkApproveRequest`, `BulkApproveResponse`, `SkippedRecord`.
 - **endpoints חדשים:** `POST /records/approve`, `GET /records/export`, `DELETE /records/{id}` (A5 ⏳) ו־`GET /senders`.
 - **מחיקה:** קבצי האקסל (`excel.py`, `rows.py`, `api/export.py`, `api/validate.py`, `ExportButton` הישן, `useValidate`).
+
+**PR של צפי (⏳, סוכם ב־19.10):** `quota_exhausted: bool = False` ב־`ExtractResponse`, ו־`QUOTA_EXHAUSTED` ב־`ErrorCode`, כדי שעמוד שלא נקרא יוצג עם הסיבה הנכונה.
 
 ### 2.4 מסד נתונים (Postgres)
 
@@ -412,8 +415,18 @@ src/
 | אישור מרובה חלקי | "אושרו X רשומות. Y נשארו לבדיקה". השורות שדולגו מודגשות, עם הסיבה |
 | ייצוא בלי רשומות | הכפתור מושבת כש־`total = 0`, עם ההסבר "אין רשומות לייצוא לפי הסינון הנוכחי" |
 | `429` בכניסה | "יותר מדי ניסיונות, נסי שוב בעוד 15 דקות" |
-| שגיאת רשת או `5xx` | באנר עם "נסי שוב". הטיוטה לא נמחקת |
+| שגיאת רשת או `5xx` (חוץ מהעלאה) | באנר עם "נסי שוב". הטיוטה לא נמחקת |
 | שגיאה לא צפויה ברינדור | `ErrorBoundary` מציג מסך "משהו השתבש" עם כפתור רענון |
+
+**העלאה (`UploadPanel` של צפי, סוכם ב־19.10):** הקבצים נשלחים בזה אחר זה, קובץ אחד בכל בקשה. "נסי שוב" מופיע רק כשהשרת אמר שלא נשמר כלום, כי שליחה חוזרת של קובץ שחלק מהעמודים שלו נשמרו יוצרת את הרשומות שלהם פעמיים.
+
+| מצב | התנהגות |
+|---|---|
+| `quota_exhausted: true` (המכסה נגמרה באמצע קובץ) | הרשומות שנשמרו נכנסות לטבלה. העמודים שלא נקראו מוצגים מעל הטבלה עם הסיבה "המכסה היומית נגמרה", בלי ניסיון חוזר. ההעלאה נעצרת, ושאר הקבצים מסומנים "לא נשלח" |
+| `503 quota_exhausted` | הקובץ ושאר הקבצים מסומנים "לא נשלח", עם "נסי שוב" |
+| קובץ שנכשל כולו (`FileResult.status = "error"`) | "נסי שוב" בשורה של הקובץ. ב־`INVALID_FILE` רק הודעה, כי ניסיון חוזר ייכשל שוב |
+| עמוד בודד שנכשל | מוצג מעל הטבלה עם הסיבה, בלי ניסיון חוזר |
+| שגיאת רשת או `5xx` בהעלאה | בלי "נסי שוב", כי ייתכן שחלק מהעמודים כבר נשמרו. ההודעה: "החיבור נקטע. ייתכן שחלק מהעמודים כבר נשמרו. בדקי במסך הרשומות לפני שמעלים שוב", עם קישור ל־`/records` |
 
 **נגישות:** RTL עם CSS logical properties. כל פעולה זמינה מהמקלדת, הפוקוס נראה, וכל סטטוס מוצג גם בטקסט וגם באייקון.
 
