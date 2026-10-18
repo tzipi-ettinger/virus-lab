@@ -213,3 +213,21 @@ def test_records_without_saving_gives_one_record_per_commitment(make_client):
     assert len({r["record_id"] for r in records}) == 2
     assert len({r["page_id"] for r in records}) == 1
     assert all(len(r["central_numbers"]) == 3 for r in records)
+
+
+def test_a_hebrew_file_name_comes_back_as_sent(make_client):
+    name = "התחייבויות - חלק 1.pdf"
+
+    response = make_client().post("/api/v1/extract", files=upload((name, make_pdf(1))))
+
+    assert response.json()["files"][0]["filename"] == name
+    assert response.json()["records"][0]["source_file"] == name
+
+
+def test_an_empty_file_input_counts_as_no_files(make_client):
+    # What a browser sends when the form is submitted with no file chosen.
+    files = [("files", ("", b"", "application/octet-stream"))]
+
+    response = make_client().post("/api/v1/extract", files=files)
+
+    assert_problem(response, 400, "no_files")
