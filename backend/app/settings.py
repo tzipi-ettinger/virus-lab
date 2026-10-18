@@ -18,6 +18,14 @@ class Settings(BaseSettings):
     gemini_model: str = ""
     frontend_origin: str = "http://localhost:5173"
 
+    # Upload limits (SPEC 9.5)
+    max_file_mb: int = 20
+    max_pages_per_request: int = 60
+
+    @property
+    def max_file_bytes(self) -> int:
+        return self.max_file_mb * 1_000_000
+
 
 @lru_cache
 def get_settings() -> Settings:
