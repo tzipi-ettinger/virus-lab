@@ -53,7 +53,8 @@ def _no_check(value: str | None) -> list[Issue]:
 def _rule_field(
     field: FormField, normalize: Normalizer, validate: Validator, *, required: bool
 ) -> FormField:
-    value, issues = normalize(field.raw)
+    # SPEC 7.4: a corrected field is normalized from what the user typed; raw stays as read.
+    value, issues = normalize(field.value if field.corrected else field.raw)
     return review_field(field, value, issues + validate(value), required=required)
 
 
