@@ -1,0 +1,58 @@
+{
+  "page_rotation_degrees": 0,
+  "form_type": "hmo_form",
+  "first_name": {
+    "value": null,
+    "status": "unclear",
+    "evidence": "שם קק\"ל / נבדק: בכתב יד לא ברור ליד נבדק"
+  },
+  "last_name": {
+    "value": null,
+    "status": "unclear",
+    "evidence": "שם נבדק בכתב יד לא ברור"
+  },
+  "national_id": {
+    "value": "11223344",
+    "status": "found",
+    "evidence": "ת.ז.: 11223344"
+  },
+  "received_date": {
+    "value": "01-06-2026",
+    "status": "found",
+    "evidence": "חותמת התקבל: 01-06-2026"
+  },
+  "sender": {
+    "value": "מכבי",
+    "status": "found",
+    "evidence": "קופ\"ח מכבי-מעבדה שולחת"
+  },
+  "central_numbers": [
+    {
+      "value": "937309",
+      "status": "found",
+      "evidence": "מדבקת ברקוד מרכזי: 937309"
+    },
+    {
+      "value": "937310",
+      "status": "found",
+      "evidence": "מדבקת ברקוד מרכזי: 937310"
+    },
+    {
+      "value": "937311",
+      "status": "found",
+      "evidence": "מדבקת ברקוד מרכזי: 937311"
+    }
+  ],
+  "commitment_numbers": [
+    {
+      "value": "606/50364186",
+      "status": "found",
+      "evidence": "דרישה: 606/50364186"
+    },
+    {
+      "value": "50364186",
+      "status": "found",
+      "evidence": "דרישה: 50364186"
+    }
+  ]
+}

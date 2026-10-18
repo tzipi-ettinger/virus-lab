@@ -1,0 +1,43 @@
+{
+  "page_rotation_degrees": 0,
+  "form_type": "hmo_form",
+  "first_name": {
+    "value": null,
+    "status": "unclear",
+    "evidence": "שם: [בכתב יד לא קריא תחת הדגשה צהובה]"
+  },
+  "last_name": {
+    "value": null,
+    "status": "unclear",
+    "evidence": "שם: [בכתב יד לא קריא תחת הדגשה צהובה]"
+  },
+  "national_id": {
+    "value": "0011223344",
+    "status": "found",
+    "evidence": "ת\"ז 0011223344"
+  },
+  "received_date": {
+    "value": "18 -06- 2026",
+    "status": "found",
+    "evidence": "בחותמת התקבל: 18 -06- 2026"
+  },
+  "sender": {
+    "value": "מאוחדת",
+    "status": "found",
+    "evidence": "לוגו מאוחדת בראש הדף"
+  },
+  "central_numbers": [
+    {
+      "value": "939376",
+      "status": "found",
+      "evidence": "מדבקת ברקוד עם הכיתוב מרכזי ומספר 939376"
+    }
+  ],
+  "commitment_numbers": [
+    {
+      "value": "730578626",
+      "status": "found",
+      "evidence": "התחייבות מספר 730578626"
+    }
+  ]
+}

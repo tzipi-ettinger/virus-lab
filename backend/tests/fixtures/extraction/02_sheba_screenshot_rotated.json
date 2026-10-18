@@ -1,0 +1,53 @@
+{
+  "page_rotation_degrees": 90,
+  "form_type": "hospital_system_screenshot",
+  "first_name": {
+    "value": null,
+    "status": "not_found",
+    "evidence": null
+  },
+  "last_name": {
+    "value": null,
+    "status": "not_found",
+    "evidence": null
+  },
+  "national_id": {
+    "value": "11223344",
+    "status": "found",
+    "evidence": "handwritten at the top and bottom next to patient info '11223344'"
+  },
+  "received_date": {
+    "value": "30.8.26",
+    "status": "found",
+    "evidence": "handwritten next to central number: '30.8.26'"
+  },
+  "sender": {
+    "value": "לאומית",
+    "status": "found",
+    "evidence": "גורם מפנה: לאומית"
+  },
+  "central_numbers": [
+    {
+      "value": "948062",
+      "status": "found",
+      "evidence": "handwritten next to date: '948062 - 30.8.26'"
+    }
+  ],
+  "commitment_numbers": [
+    {
+      "value": "260005102632",
+      "status": "found",
+      "evidence": "table column 'מספר התחייבות': '260005102632'"
+    },
+    {
+      "value": "260005102611",
+      "status": "found",
+      "evidence": "table column 'מספר התחייבות': '260005102611'"
+    },
+    {
+      "value": "260005102644",
+      "status": "found",
+      "evidence": "table column 'מספר התחייבות': '260005102644'"
+    }
+  ]
+}

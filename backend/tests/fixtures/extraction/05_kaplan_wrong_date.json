@@ -1,0 +1,37 @@
+{
+  "page_rotation_degrees": 0,
+  "form_type": "hospital_form",
+  "first_name": {
+    "value": null,
+    "status": "not_found",
+    "evidence": null
+  },
+  "last_name": {
+    "value": null,
+    "status": "not_found",
+    "evidence": null
+  },
+  "national_id": {
+    "value": null,
+    "status": "not_found",
+    "evidence": null
+  },
+  "received_date": {
+    "value": "11/8/20",
+    "status": "found",
+    "evidence": "handwritten date next to label תאריך: at top left"
+  },
+  "sender": {
+    "value": "קפלן",
+    "status": "found",
+    "evidence": "logo and text 'המרכז הרפואי קפלן' at top left, and 'בהוצאות הקשורות בביצוע הבדיקה נא לחייב את חשבון בית החולים'"
+  },
+  "central_numbers": [
+    {
+      "value": "946834",
+      "status": "found",
+      "evidence": "barcode sticker with vertical text 'מרכזי'"
+    }
+  ],
+  "commitment_numbers": []
+}

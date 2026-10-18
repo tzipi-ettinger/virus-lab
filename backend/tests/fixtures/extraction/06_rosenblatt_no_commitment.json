@@ -1,0 +1,37 @@
+{
+  "page_rotation_degrees": 0,
+  "form_type": "private_lab",
+  "first_name": {
+    "value": null,
+    "status": "unclear",
+    "evidence": "שם בכתב יד עברי מעל שורת שם / ת. זהות"
+  },
+  "last_name": {
+    "value": null,
+    "status": "unclear",
+    "evidence": "שם בכתב יד עברי מעל שורת שם / ת. זהות"
+  },
+  "national_id": {
+    "value": "11223344",
+    "status": "found",
+    "evidence": "ID / PASS: 11223344"
+  },
+  "received_date": {
+    "value": "12-08-2020",
+    "status": "found",
+    "evidence": "חותמת תאריך קבלה: 12-08-2020"
+  },
+  "sender": {
+    "value": "רוזנבלט",
+    "status": "found",
+    "evidence": "רוזנבלט מעבדה רפואית בע\"מ"
+  },
+  "central_numbers": [
+    {
+      "value": "945926",
+      "status": "found",
+      "evidence": "מדבקת ברקוד מרכזי: 945926"
+    }
+  ],
+  "commitment_numbers": []
+}
