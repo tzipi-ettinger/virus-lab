@@ -212,3 +212,18 @@ def test_a_huge_image_inside_a_pdf_is_rejected(monkeypatch):
         split_pages("f1", "scan.pdf", data, **LIMITS)
 
     assert "גדולה מדי" in error.value.message
+
+
+def test_the_page_count_is_checked_before_the_images(monkeypatch):
+    # A PDF over the page limit is rejected without reading every page's images.
+    with pymupdf.open() as doc:
+        for _ in range(3):
+            page = doc.new_page(width=595, height=842)
+            page.insert_image(page.rect, stream=make_image("png", 400, 300))
+        data = doc.tobytes()
+    monkeypatch.setattr(ingest, "MAX_IMAGE_PIXELS", 1)
+
+    with pytest.raises(InvalidFile) as error:
+        split_pages("f1", "scan.pdf", data, max_bytes=20_000_000, max_pages=2)
+
+    assert "3 עמודים" in error.value.message

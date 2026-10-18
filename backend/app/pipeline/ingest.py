@@ -150,19 +150,19 @@ def split_pages(
         with pymupdf.open(stream=data, filetype=kind) as doc:
             if doc.needs_pass:
                 raise InvalidFile(filename, "הקובץ מוגן בסיסמה. יש לשמור אותו בלי סיסמה")
+            page_count = doc.page_count
+            # The page count first: the image check below reads every page.
+            if page_count == 0:
+                raise InvalidFile(filename, "אין בקובץ עמודים")
+            if page_count > max_pages:
+                raise InvalidFile(filename, f"בקובץ {page_count} עמודים. המקסימום הוא {max_pages}")
             if kind == "pdf":
                 for page in doc:  # reads the image headers only, decodes nothing
                     for image in page.get_images(full=True):
                         _check_pixels(filename, image[2], image[3])
             pdf = data if kind == "pdf" else doc.convert_to_pdf()
-            page_count = doc.page_count
     except RuntimeError as exc:  # includes pymupdf.FileDataError
         raise InvalidFile(filename, "לא ניתן לקרוא את הקובץ. ייתכן שהוא פגום") from exc
-
-    if page_count == 0:
-        raise InvalidFile(filename, "אין בקובץ עמודים")
-    if page_count > max_pages:
-        raise InvalidFile(filename, f"בקובץ {page_count} עמודים. המקסימום הוא {max_pages}")
 
     return [
         SourcePage(file_id=file_id, filename=filename, page_number=number, _pdf=pdf)
