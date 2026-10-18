@@ -67,7 +67,7 @@
 | `FakeProvider` + `CachedProvider` | פיתוח ובדיקות בלי מכסה ובלי רשת |
 | מסד נתונים: **PostgreSQL של Render** (Frankfurt, באותה פלטפורמה כמו השרת); מקומית ב־`docker compose`. כל ה־SQL ב־`storage/repo.py`, בלי ORM (18.10) | הנחיות v2 מחייבות רשומות שנשמרות במערכת. הדומיין החי רץ על שרת חינמי בלי דיסק קבוע, ולכן קובץ SQLite היה נמחק בכל הפעלה מחדש. SQLite נבחר קודם והוחלף. פירוט: [PLAN-DEV-B §2.4](docs/PLAN-DEV-B.md) |
 | בלי תור עבודות, Agents, מיקרו־שירותים, Redux | לא נדרש לבעיה |
-| קבצים עוברים בזיכרון בלבד; תצוגה מקדימה חוזרת כ־base64 | "לא שומרים יותר ממה שחייבים" |
+| הקובץ המקורי לא נשמר. ב־Postgres נשמרים רק השדות ותמונה דחוסה של כל עמוד, שמוגשת מ־`GET /api/v1/pages/{page_id}/image` (לא base64 בתשובה) | "לא שומרים יותר ממה שחייבים", ועדיין אפשר לחזור לרשומה ולבדוק אותה מול המקור ([GUIDELINES D4](docs/GUIDELINES-V2-CHANGES.md)) |
 | שורה לכל התחייבות; כל המרכזיים יחד בעמודה אחת | דרישת האתגר; מונע שורות שגויות |
 | עובדות רק עם קובצי הדוגמה של האתגר | ב־free tier הקלט עשוי לשמש את Google |
 | "היום" של הכללים לפי שעון ישראל (`clock.israel_today()`), בכל קריאה ל־`apply_rules` (19.10) | שרת על UTC מפגר ביום בין חצות ל־03:00, וטופס שהתקבל היום היה מסומן "תאריך לא סביר" |
@@ -105,6 +105,8 @@ ResultsTable + DocumentPreview ◄──── JSON לפי schemas/api.py
 ```
 
 - `GET /api/health` · `POST /api/v1/extract` · `POST /api/v1/validate` · `POST /api/v1/export`
+
+> ⚠️ התרשים לפי הגרסה הקודמת של ההנחיות. לפי v2: `extract` שומר כל עמוד ב־Postgres מיד אחרי שנקרא, ותיקון, אישור, חיפוש, סינון וייצוא CSV/JSON עוברים דרך `/api/v1/records`. `validate` ו־`export` לאקסל יוצאים. פירוט: [PLAN-DEV-B §2](docs/PLAN-DEV-B.md)
 - מבנה תיקיות מלא ובעלות על כל קובץ: במסמך המבנה (קישור למעלה)
 
 ---
@@ -190,7 +192,6 @@ ResultsTable + DocumentPreview ◄──── JSON לפי schemas/api.py
 - ניסיון חוזר לעמוד בודד מהמסך
 - המרת HEIC מאייפון
 - השוואת `medium` / מודל אחר על עמודים קשים
-- עיצוב ב־Google Stitch, CI ב־GitHub Actions, פריסה בענן
 
 ---
 
