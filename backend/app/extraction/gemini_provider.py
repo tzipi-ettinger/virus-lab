@@ -4,9 +4,10 @@ Every call counts against the free tier's 20 requests a day, failed ones too, so
 retries are few and deliberate:
 - the daily quota is used up -> QuotaExhausted at once, never retried (the batch stops);
 - too many requests this minute (429) -> one retry after the delay Gemini asks for,
-  if it is short; 500 / 502 / 503 / 504 -> one retry after a pause;
-- anything else (a bad request, a timeout, an answer that doesn't fit the schema)
-  -> ProviderError, no retry.
+  if it is short; 500 / 502 / 503 / 504, or no connection at all -> one retry after
+  a pause;
+- anything else (a bad request, a timeout, an answer that doesn't fit the schema,
+  any other error from the client) -> ProviderError, no retry.
 The client's own retries are off (google-genai's default), so a call is never
 repeated behind our back.
 
@@ -25,6 +26,7 @@ import re
 from collections.abc import Awaitable, Callable
 from pathlib import Path
 
+import httpx  # comes with google-genai, which raises its transport errors as is
 from google import genai
 from google.genai import errors, types
 from pydantic import ValidationError
@@ -91,8 +93,19 @@ class GeminiProvider:
                     wait = self._retry_wait(exc, attempt)
                     if wait is None:
                         raise _provider_error(exc) from None
-                    logger.warning("gemini %s %s, retrying in %.0fs", exc.code, exc.status, wait)
-                    await self._sleep(wait)
+                    reason = f"{exc.code} {exc.status}"
+                except httpx.TransportError as exc:  # no answer at all: refused, reset, DNS
+                    if attempt == MAX_ATTEMPTS:
+                        logger.warning("gemini unreachable: %s", type(exc).__name__)
+                        raise ProviderError(UNAVAILABLE_MESSAGE) from None
+                    wait, reason = SERVER_ERROR_WAIT_S, type(exc).__name__
+                except ProviderError:  # from _call: already a message for the user
+                    raise
+                except Exception as exc:  # keep the contract: a provider raises only these two
+                    logger.error("gemini call failed unexpectedly: %s", type(exc).__name__)
+                    raise ProviderError(FAILED_MESSAGE) from None
+                logger.warning("gemini %s, retrying in %.0fs", reason, wait)
+                await self._sleep(wait)
         raise AssertionError("unreachable: the last attempt returns or raises")
 
     async def _call(self, contents: list) -> RawExtraction:

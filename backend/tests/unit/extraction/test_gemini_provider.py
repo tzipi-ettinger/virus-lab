@@ -1,6 +1,7 @@
 import asyncio
 import logging
 
+import httpx
 import pytest
 from google.genai import errors, types
 
@@ -170,6 +171,37 @@ def test_two_server_errors_fail_the_page():
 
     assert error.value.message == gemini_provider.UNAVAILABLE_MESSAGE
     assert len(client.calls) == gemini_provider.MAX_ATTEMPTS
+
+
+def test_no_connection_is_retried_once():
+    client, sleeps = FakeClient(httpx.ConnectError("refused"), ANSWER), Sleeps()
+
+    result = run(provider(client, sleeps).extract(PAGE))
+
+    assert isinstance(result, RawExtraction)
+    assert sleeps.waits == [gemini_provider.SERVER_ERROR_WAIT_S]
+
+
+def test_no_connection_twice_fails_the_page_as_a_provider_error():
+    # Seen with a real client: without the catch, httpx.ConnectError escaped the
+    # provider and the page showed "unexpected error".
+    client = FakeClient(httpx.ConnectError("refused"), httpx.ReadError("reset"))
+
+    with pytest.raises(ProviderError) as error:
+        run(provider(client).extract(PAGE))
+
+    assert error.value.message == gemini_provider.UNAVAILABLE_MESSAGE
+    assert len(client.calls) == 2
+
+
+def test_any_other_client_error_is_a_provider_error_without_retry():
+    client = FakeClient(KeyError("candidates"))
+
+    with pytest.raises(ProviderError) as error:
+        run(provider(client).extract(PAGE))
+
+    assert error.value.message == gemini_provider.FAILED_MESSAGE
+    assert len(client.calls) == 1
 
 
 @pytest.mark.parametrize("code, status", [(400, "INVALID_ARGUMENT"), (403, "PERMISSION_DENIED")])
