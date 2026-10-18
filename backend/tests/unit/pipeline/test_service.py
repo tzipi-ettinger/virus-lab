@@ -7,6 +7,7 @@ import pytest
 
 from app.extraction.fake_provider import FIXTURES_DIR, FakeProvider
 from app.extraction.provider import PageImage, ProviderError, QuotaExhausted
+from app.pipeline import service
 from app.pipeline.ingest import SourcePage
 from app.pipeline.service import (
     SAVE_FAILED,
@@ -113,6 +114,25 @@ def test_an_invalid_file_is_reported_and_the_others_go_on():
     bad, good = result.files
     assert (bad.status, bad.page_count, bad.error.code) == ("error", 0, "INVALID_FILE")
     assert "לא נתמך" in bad.error.message
+    assert good.status == "ok"
+    assert [p.form.source_file for p in result.pages] == ["ok.pdf"]
+
+
+def test_an_unexpected_error_on_one_file_fails_only_that_file(monkeypatch):
+    split = service.split_pages_async
+
+    async def split_or_crash(file_id, filename, data, **limits):
+        if filename == "crash.pdf":
+            raise KeyError("ישראל ישראלי")
+        return await split(file_id, filename, data, **limits)
+
+    monkeypatch.setattr(service, "split_pages_async", split_or_crash)
+
+    result = run([upload(1, "crash.pdf"), upload(1, "ok.pdf")], PageScript())
+
+    crashed, good = result.files
+    assert (crashed.status, crashed.error.code) == ("error", "EXTRACTION_FAILED")
+    assert crashed.error.message == UNEXPECTED_ERROR
     assert good.status == "ok"
     assert [p.form.source_file for p in result.pages] == ["ok.pdf"]
 

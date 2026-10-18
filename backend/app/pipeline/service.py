@@ -167,6 +167,11 @@ async def _split_all(
             error = ErrorInfo(code="INVALID_FILE", message=exc.message)
             results.append(_file_result(file_id, upload.filename, 0, error))
             continue
+        except Exception as exc:  # a bug on one file must not fail the others
+            logger.error("file failed unexpectedly: %s (%s)", file_id, type(exc).__name__)
+            error = ErrorInfo(code="EXTRACTION_FAILED", message=UNEXPECTED_ERROR)
+            results.append(_file_result(file_id, upload.filename, 0, error))
+            continue
         results.append(_file_result(file_id, upload.filename, len(source), None))
         pages.extend(source)
     return results, pages
