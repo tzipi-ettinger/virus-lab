@@ -5,8 +5,9 @@ Owner: A
 
 from functools import lru_cache
 from pathlib import Path
+from typing import Literal
 
-from pydantic import SecretStr
+from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 # backend/.env, wherever the server is started from: a relative path is read from
@@ -24,13 +25,26 @@ class Settings(BaseSettings):
     gemini_model: str = ""
     frontend_origin: str = "http://localhost:5173"
 
-    # Upload limits (SPEC 9.5)
-    max_file_mb: int = 20
-    max_pages_per_request: int = 60
+    # "fake" serves tests/fixtures: no key, no quota, no real data. "gemini" comes
+    # with the Gemini provider.
+    extraction_provider: Literal["fake"] = "fake"
+
+    # Upload limits (SPEC 9.7)
+    max_file_mb: int = Field(20, ge=1)
+    max_pages_per_request: int = Field(60, ge=1)
+    # The whole request, all files together: it is held in memory, never on disk.
+    max_request_mb: int = Field(60, ge=1)
+    max_files_per_request: int = Field(20, ge=1)
+    # Pages read at once, so at most this many model calls at a time.
+    max_concurrency: int = Field(4, ge=1)
 
     @property
     def max_file_bytes(self) -> int:
         return self.max_file_mb * 1_000_000
+
+    @property
+    def max_request_bytes(self) -> int:
+        return self.max_request_mb * 1_000_000
 
 
 @lru_cache
