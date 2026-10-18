@@ -82,6 +82,56 @@ def test_render_rotates_clockwise():
     assert image.rotation == 90
 
 
+def make_pdf_with_stored_rotation(rotation: int) -> bytes:
+    with pymupdf.open() as doc:
+        page = doc.new_page(width=595, height=842)
+        page.set_rotation(rotation)
+        return doc.tobytes()
+
+
+def test_render_keeps_the_rotation_stored_in_the_pdf():
+    # Scanners often store a page sideways with /Rotate; rotation 0 = as a viewer shows it.
+    page = split_pages("f1", "scan.pdf", make_pdf_with_stored_rotation(90), **LIMITS)[0]
+
+    width, height = image_size(page.render().jpeg)
+
+    assert width > height
+
+
+def test_render_adds_to_the_stored_rotation():
+    page = split_pages("f1", "scan.pdf", make_pdf_with_stored_rotation(90), **LIMITS)[0]
+
+    width, height = image_size(page.render(rotation=90).jpeg)
+
+    assert height > width  # 90 stored + 90 asked = upside down portrait
+
+
+@pytest.mark.parametrize("rotation", [45, -90, 360])
+def test_render_rejects_an_odd_rotation(rotation):
+    page = split_pages("f1", "forms.pdf", make_pdf(1), **LIMITS)[0]
+
+    with pytest.raises(ValueError):
+        page.render(rotation=rotation)
+
+
+def test_repr_never_carries_the_document():
+    page = split_pages("f1", "forms.pdf", make_pdf(1), **LIMITS)[0]
+
+    assert len(repr(page)) < 200
+    assert len(repr(page.render())) < 200
+
+
+def test_password_protected_pdf_is_rejected():
+    with pymupdf.open() as doc:
+        doc.new_page()
+        data = doc.tobytes(encryption=pymupdf.PDF_ENCRYPT_AES_256, user_pw="x", owner_pw="y")
+
+    with pytest.raises(InvalidFile) as error:
+        split_pages("f1", "locked.pdf", data, **LIMITS)
+
+    assert "סיסמה" in error.value.message
+
+
 def test_a_large_photo_is_scaled_down():
     page = split_pages("f1", "photo.png", make_image("png", 4000, 3000), **LIMITS)[0]
 

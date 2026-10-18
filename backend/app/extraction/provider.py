@@ -7,7 +7,7 @@ is a settings change.
 Owner: A
 """
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Protocol
 
 from app.schemas.extraction import RawExtraction
@@ -21,7 +21,8 @@ class PageImage:
     filename: str
     page_number: int  # 1-based
     rotation: int  # clockwise degrees applied before rendering
-    jpeg: bytes
+    # repr=False: a log line or traceback must never carry the form's image.
+    jpeg: bytes = field(repr=False)
 
 
 class ExtractionProvider(Protocol):

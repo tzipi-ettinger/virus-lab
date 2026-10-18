@@ -7,7 +7,7 @@ path (and one rotation mechanism).
 Owner: A
 """
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 import pymupdf
 
@@ -17,6 +17,7 @@ from app.extraction.provider import PageImage
 # which read well in the spike; a 12MP phone photo is scaled down to the same size.
 MAX_SIDE_PX = 2200
 JPEG_QUALITY = 85
+ROTATIONS = (0, 90, 180, 270)
 
 _SIGNATURES = {
     b"%PDF": "pdf",
@@ -36,17 +37,28 @@ class InvalidFile(Exception):
 
 @dataclass(frozen=True)
 class SourcePage:
-    """One page of an uploaded file. Renders on demand, at any rotation."""
+    """One page of an uploaded file. Renders on demand, at any rotation.
+
+    PyMuPDF is not thread-safe: render pages one at a time (it is fast) and keep
+    the concurrency for the model calls.
+    """
 
     file_id: str
     filename: str
     page_number: int  # 1-based
-    _pdf: bytes  # the whole file as a PDF, shared by all its pages
+    # The whole file as a PDF, shared by all its pages. repr=False: a log line or
+    # traceback must never carry the document.
+    _pdf: bytes = field(repr=False)
 
     def render(self, rotation: int = 0) -> PageImage:
+        """Draw the page as a viewer shows it, then turned `rotation` degrees clockwise."""
+        if rotation not in ROTATIONS:
+            raise ValueError(f"rotation must be one of {ROTATIONS}, got {rotation}")
         with pymupdf.open(stream=self._pdf, filetype="pdf") as doc:
             page = doc[self.page_number - 1]
-            page.set_rotation(rotation)  # clockwise, the convention the prompt uses
+            # Add to the page's own /Rotate (scanners often store pages sideways and
+            # rely on it), so rotation 0 means "as the viewer shows it".
+            page.set_rotation((page.rotation + rotation) % 360)
             zoom = MAX_SIDE_PX / max(page.rect.width, page.rect.height)
             pixmap = page.get_pixmap(matrix=pymupdf.Matrix(zoom, zoom))
             jpeg = pixmap.tobytes("jpeg", jpg_quality=JPEG_QUALITY)
@@ -69,7 +81,10 @@ def detect_type(data: bytes) -> str | None:
 def split_pages(
     file_id: str, filename: str, data: bytes, *, max_bytes: int, max_pages: int
 ) -> list[SourcePage]:
-    """Check one uploaded file and return its pages. Raises InvalidFile."""
+    """Check one uploaded file and return its pages. Raises InvalidFile.
+
+    `max_pages` is per file; the service checks the total across a request.
+    """
     if not data:
         raise InvalidFile(filename, "הקובץ ריק")
     if len(data) > max_bytes:
@@ -82,9 +97,11 @@ def split_pages(
 
     try:
         with pymupdf.open(stream=data, filetype=kind) as doc:
+            if doc.needs_pass:
+                raise InvalidFile(filename, "הקובץ מוגן בסיסמה. יש לשמור אותו בלי סיסמה")
             pdf = data if kind == "pdf" else doc.convert_to_pdf()
             page_count = doc.page_count
-    except (pymupdf.FileDataError, RuntimeError) as exc:
+    except RuntimeError as exc:  # includes pymupdf.FileDataError
         raise InvalidFile(filename, "לא ניתן לקרוא את הקובץ. ייתכן שהוא פגום") from exc
 
     if page_count == 0:
