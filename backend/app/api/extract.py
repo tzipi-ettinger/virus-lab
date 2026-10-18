@@ -117,6 +117,7 @@ async def records_without_saving(page: ExtractedPage) -> list[Record]:
             page_id=page_id,
             source_file=form.source_file,
             page_number=form.page_number,
+            continuation_pages=form.continuation_pages,
             commitment_index=draft.commitment_index,
             status="pending",
             version=1,

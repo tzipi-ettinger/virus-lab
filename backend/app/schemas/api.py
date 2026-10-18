@@ -32,7 +32,7 @@ FormType = Literal[
     "unknown",
 ]
 
-# SPEC v0.2 section 8, plus DUPLICATE_RECORD (open question A4).
+# SPEC v0.2 section 8, plus DUPLICATE_RECORD (A4) and PAGE_GROUPING_UNCERTAIN (A1 in #15).
 IssueCode = Literal[
     "FIELD_UNCLEAR",
     "REQUIRED_MISSING",
@@ -48,6 +48,7 @@ IssueCode = Literal[
     "ROTATION_UNRESOLVED",
     "DUPLICATE_REMOVED",
     "DUPLICATE_RECORD",
+    "PAGE_GROUPING_UNCERTAIN",
     "EXTRACTION_FAILED",
     "INVALID_FILE",
 ]
@@ -93,7 +94,9 @@ class Form(BaseModel):
     form_id: str
     file_id: str
     source_file: str
-    page_number: int
+    page_number: int  # the form's first page
+    # Later pages of the same file with no central number of their own (A1 in #15).
+    continuation_pages: list[int] = Field(default_factory=list)
     processing_status: Literal["ok", "error"]
     error: ErrorInfo | None
     applied_rotation: int
@@ -119,6 +122,11 @@ class Record(BaseModel):
     page_id: str
     source_file: str
     page_number: int
+    continuation_pages: list[int] = Field(
+        default_factory=list,
+        description="Later pages of the same file that belong to this form. "
+        "page_id / page_number are its first page.",
+    )
     commitment_index: int
     status: RecordStatus
     version: int = Field(description="Send back on PATCH / approve; a stale one returns 409.")
@@ -230,7 +238,7 @@ class RecordPatch(BaseModel):
 class RecordPatchResponse(BaseModel):
     record: Record
     siblings: list[Record] = Field(
-        description="Other records of the same page whose shared fields changed too (A3)."
+        description="Other records of the same form whose shared fields changed too (A3)."
     )
 
 

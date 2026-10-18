@@ -242,7 +242,7 @@ export interface components {
              * Code
              * @enum {string}
              */
-            code: "FIELD_UNCLEAR" | "REQUIRED_MISSING" | "ID_CHECKSUM_INVALID" | "ID_LENGTH_INVALID" | "ID_NORMALIZED" | "ID_PADDED" | "DATE_INVALID" | "DATE_OUT_OF_RANGE" | "SENDER_UNKNOWN" | "CENTRAL_FORMAT" | "COMMITMENT_PREFIX" | "ROTATION_UNRESOLVED" | "DUPLICATE_REMOVED" | "DUPLICATE_RECORD" | "EXTRACTION_FAILED" | "INVALID_FILE";
+            code: "FIELD_UNCLEAR" | "REQUIRED_MISSING" | "ID_CHECKSUM_INVALID" | "ID_LENGTH_INVALID" | "ID_NORMALIZED" | "ID_PADDED" | "DATE_INVALID" | "DATE_OUT_OF_RANGE" | "SENDER_UNKNOWN" | "CENTRAL_FORMAT" | "COMMITMENT_PREFIX" | "ROTATION_UNRESOLVED" | "DUPLICATE_REMOVED" | "DUPLICATE_RECORD" | "PAGE_GROUPING_UNCERTAIN" | "EXTRACTION_FAILED" | "INVALID_FILE";
             /**
              * Severity
              * @enum {string}
@@ -289,6 +289,11 @@ export interface components {
             source_file: string;
             /** Page Number */
             page_number: number;
+            /**
+             * Continuation Pages
+             * @description Later pages of the same file that belong to this form. page_id / page_number are its first page.
+             */
+            continuation_pages?: number[];
             /** Commitment Index */
             commitment_index: number;
             /**
@@ -374,7 +379,7 @@ export interface components {
             record: components["schemas"]["Record"];
             /**
              * Siblings
-             * @description Other records of the same page whose shared fields changed too (A3).
+             * @description Other records of the same form whose shared fields changed too (A3).
              */
             siblings: components["schemas"]["Record"][];
         };

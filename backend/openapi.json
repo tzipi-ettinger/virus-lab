@@ -777,6 +777,7 @@
               "ROTATION_UNRESOLVED",
               "DUPLICATE_REMOVED",
               "DUPLICATE_RECORD",
+              "PAGE_GROUPING_UNCERTAIN",
               "EXTRACTION_FAILED",
               "INVALID_FILE"
             ],
@@ -910,6 +911,14 @@
           "page_number": {
             "type": "integer",
             "title": "Page Number"
+          },
+          "continuation_pages": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "title": "Continuation Pages",
+            "description": "Later pages of the same file that belong to this form. page_id / page_number are its first page."
           },
           "commitment_index": {
             "type": "integer",
@@ -1184,7 +1193,7 @@
             },
             "type": "array",
             "title": "Siblings",
-            "description": "Other records of the same page whose shared fields changed too (A3)."
+            "description": "Other records of the same form whose shared fields changed too (A3)."
           }
         },
         "type": "object",

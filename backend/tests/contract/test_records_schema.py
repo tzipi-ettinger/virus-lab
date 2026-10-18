@@ -1,4 +1,4 @@
-"""form_type (D17) in the contract, from issue #15.
+"""form_type (D17) and continuation_pages (A1) in the contract, from issue #15.
 
 Owner: shared
 """
@@ -99,3 +99,17 @@ def test_record_summary_requires_form_type():
     del data["form_type"]
     with pytest.raises(ValidationError, match="form_type"):
         api.RecordSummary.model_validate(data)
+
+
+def test_form_is_a_single_page_by_default():
+    assert api.Form.model_validate(form_data()).continuation_pages == []
+
+
+def test_form_keeps_its_continuation_pages():
+    form = api.Form.model_validate({**form_data(), "continuation_pages": [4, 5]})
+    assert (form.page_number, form.continuation_pages) == (1, [4, 5])
+
+
+def test_record_continuation_pages_default_to_empty():
+    assert api.Record.model_validate(record_data()).continuation_pages == []
+    assert api.Record.model_validate(record_data(continuation_pages=[2])).continuation_pages == [2]
