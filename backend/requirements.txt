@@ -1,6 +1,7 @@
 fastapi==0.143.3
 uvicorn[standard]==0.54.0
 pydantic-settings==2.16.0
+PyYAML==6.0.3
 
 # tests
 pytest==9.1.1
