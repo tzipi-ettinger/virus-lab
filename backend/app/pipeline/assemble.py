@@ -21,10 +21,7 @@ def form_id(file_id: str, page_number: int) -> str:
 
 
 def assemble(page: OrientedPage) -> Form:
-    """One extracted page as a Form, ready for apply_rules.
-
-    TODO(contract): pass extraction.form_type once Form has it (D17 in #15).
-    """
+    """One extracted page as a Form, ready for apply_rules."""
     extraction, image = page.extraction, page.image
     return Form(
         form_id=form_id(image.file_id, image.page_number),
@@ -34,6 +31,7 @@ def assemble(page: OrientedPage) -> Form:
         processing_status="ok",
         error=None,
         applied_rotation=page.applied_rotation,
+        form_type=extraction.form_type,
         fields=FormFields(
             first_name=_field(extraction.first_name),
             last_name=_field(extraction.last_name),
