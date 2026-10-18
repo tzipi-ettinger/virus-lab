@@ -19,12 +19,14 @@ from uuid import uuid4
 
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import JSONResponse
+from google import genai
 from python_multipart.multipart import parse_options_header
 from starlette.datastructures import UploadFile
 from starlette.formparsers import MultiPartException, MultiPartParser
 
 from app.clock import israel_today
 from app.extraction.fake_provider import FakeProvider
+from app.extraction.gemini_provider import GeminiProvider
 from app.extraction.provider import ExtractionProvider
 from app.pipeline.service import (
     ExtractedPage,
@@ -124,10 +126,30 @@ def _fake_provider() -> FakeProvider:
     return FakeProvider()
 
 
+@lru_cache
+def _gemini_provider(
+    api_key: str, model: str, max_concurrency: int, timeout_s: int
+) -> GeminiProvider:
+    # One provider per configuration, so its semaphore limits the whole server.
+    return GeminiProvider(
+        genai.Client(api_key=api_key),
+        model,
+        max_concurrency=max_concurrency,
+        timeout_s=timeout_s,
+    )
+
+
 def get_provider(settings: SettingsDep) -> ExtractionProvider:
     match settings.extraction_provider:
         case "fake":
             return _fake_provider()
+        case "gemini":
+            return _gemini_provider(
+                settings.gemini_api_key.get_secret_value(),
+                settings.gemini_model,
+                settings.max_concurrency,
+                settings.provider_timeout_s,
+            )
         case unknown:  # a new provider added to Settings but not here
             assert_never(unknown)
 
