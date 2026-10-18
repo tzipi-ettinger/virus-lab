@@ -1,7 +1,11 @@
 # Extraction fixtures (`FakeProvider`)
 
 Real `gemini-3.8-flash` output for sample pages, in the `RawExtraction` shape
-(`app/schemas/extraction.py`). Page N of any upload gets fixture N, cycling.
+(`app/schemas/extraction.py`). Each page gets one fixture, picked from the file name
+and the page number: the same page of the same file always gets the same fixture, the
+pages of one file cycle through all of them, and different files usually start at
+different fixtures (so a multi-file upload doesn't look like duplicates). The two sample
+PDFs start at fixtures 3 and 6.
 
 The details are the challenge's modified sample details (ID `11223344`, placeholder
 names), not real patients. Model mistakes are kept on purpose, so the rules and the UI
