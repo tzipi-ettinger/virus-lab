@@ -1,3 +1,116 @@
-# Closed list of senders + aliases.
+# Closed list of senders (SPEC 5.5) + aliases as they appear on forms.
+# Sources: the 4 health funds named in the challenge PDF; general hospitals from
+# the Hebrew Wikipedia list "בתי חולים בישראל" (checked 2026-10-18); other senders
+# seen in the sample forms (SPEC 6).
+#
+# Matching (rules/senders.py) ignores niqqud, quote marks, punctuation and case.
+# An alias must be specific enough to point to one sender: no bare city names
+# ("נהריה", "השרון"), since a health fund's district can carry the same word.
 # Owner: B
-senders: []
+
+senders:
+  # --- Health funds
+  - name: כללית
+    aliases: [שירותי בריאות כללית, קופת חולים כללית, קופ״ח כללית, Clalit]
+  - name: מכבי
+    aliases: [מכבי שירותי בריאות, קופת חולים מכבי, קופ״ח מכבי, Maccabi]
+  - name: מאוחדת
+    aliases: [קופת חולים מאוחדת, קופ״ח מאוחדת, Meuhedet]
+  - name: לאומית
+    aliases: [לאומית שירותי בריאות, קופת חולים לאומית, קופ״ח לאומית, Leumit]
+
+  # --- Government general hospitals
+  - name: שיבא
+    aliases: [המרכז הרפואי ע״ש חיים שיבא, תל השומר, Sheba]
+  - name: איכילוב
+    aliases: [המרכז הרפואי תל אביב, סוראסקי, Ichilov]
+  - name: וולפסון
+    aliases: [המרכז הרפואי ע״ש אדית וולפסון, אדית וולפסון, Wolfson]
+  - name: הלל יפה
+    aliases: [המרכז הרפואי הלל יפה, Hillel Yaffe]
+  - name: רמב״ם
+    aliases: [הקריה הרפואית רמב״ם, הקריה הרפואית לבריאות האדם, Rambam]
+  - name: בני ציון
+    aliases: [מרכז רפואי בני ציון, Bnai Zion]
+  - name: המרכז הרפואי לגליל
+    aliases: [לגליל, Galilee Medical Center]
+  - name: זיו
+    aliases: [המרכז הרפואי זיו, Ziv]
+  - name: פוריה
+    aliases: [המרכז הרפואי צפון פוריה, Poriya, Padeh]
+  - name: ברזילי
+    aliases: [מרכז רפואי ברזילי, Barzilai]
+  - name: שמיר (אסף הרופא)
+    aliases: [שמיר, המרכז הרפואי שמיר, אסף הרופא, Shamir, Assaf Harofeh]
+
+  # --- Clalit general hospitals
+  - name: סורוקה
+    aliases: [המרכז הרפואי האוניברסיטאי סורוקה, Soroka]
+  - name: רבין (בילינסון / השרון)
+    aliases: [מרכז רפואי רבין, בילינסון, גולדה השרון, Rabin, Beilinson]
+  - name: כרמל
+    aliases: [המרכז הרפואי כרמל, Carmel]
+  - name: העמק
+    aliases: [מרכז רפואי העמק, Emek]
+  - name: מאיר
+    aliases: [מרכז רפואי מאיר, Meir]
+  - name: קפלן
+    aliases: [מרכז רפואי קפלן, Kaplan]
+  - name: יוספטל
+    aliases: [המרכז הרפואי יוספטל, Yoseftal]
+  - name: שניידר
+    aliases: [מרכז שניידר לרפואת ילדים, Schneider]
+
+  # --- Other general hospitals
+  - name: הדסה
+    aliases: [מרכז רפואי הדסה, הדסה עין כרם, הדסה הר הצופים, Hadassah]
+  - name: שערי צדק
+    aliases: [המרכז הרפואי שערי צדק, Shaare Zedek]
+  - name: לניאדו
+    aliases: [מרכז רפואי צאנז, Laniado]
+  - name: אסותא אשדוד
+    aliases: [בית החולים האוניברסיטאי אסותא אשדוד, Assuta Ashdod]
+  - name: מעיני הישועה
+    aliases: [מרכז רפואי מעיני הישועה, Mayanei Hayeshua]
+  - name: אוגוסטה ויקטוריה
+    aliases: [Augusta Victoria]
+  - name: סנט ג׳וזף
+    aliases: [St Joseph]
+  - name: אל-מקאסד
+    aliases: [מקאסד, Makassed]
+  - name: האיטלקי (חיפה)
+    aliases: [בית החולים האיטלקי חיפה]
+  - name: האנגלי (נצרת)
+    aliases: [בית חולים נצרת, EMMS]
+  - name: המשפחה הקדושה (נצרת)
+    aliases: [המשפחה הקדושה, Holy Family]
+  - name: הצרפתי (נצרת)
+    aliases: [סן ונסן דה פול, Saint Vincent de Paul]
+
+  # --- Private hospitals
+  - name: אסותא רמת החייל
+    aliases: [Assuta Ramat HaHayal]
+  - name: אסותא חיפה
+    aliases: [Assuta Haifa]
+  - name: אסותא ראשון לציון
+    aliases: [Assuta Rishon]
+  - name: אסותא באר שבע
+    aliases: [Assuta Beer Sheva]
+  - name: הרצליה מדיקל סנטר
+    aliases: [Herzliya Medical Center]
+  - name: אלישע
+    aliases: [בית החולים אלישע, Elisha]
+  - name: רפאל
+    aliases: [בית החולים רפאל, Raphael]
+  - name: משגב לדך
+    aliases: [Misgav Ladach]
+
+  # --- Other senders seen in the samples (SPEC 6)
+  - name: צה״ל
+    aliases: [צבא ההגנה לישראל, IDF]
+  - name: משרד הביטחון
+    aliases: [משרד הבטחון, משהב״ט]
+  - name: המרכז הלאומי לרפואה משפטית
+    aliases: [רפואה משפטית, אבו כביר]
+  - name: רוזנבלט
+    aliases: [מעבדת רוזנבלט, מעבדות רוזנבלט]
