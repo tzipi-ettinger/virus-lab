@@ -26,7 +26,11 @@ class PageImage:
 
 
 class ExtractionProvider(Protocol):
-    async def extract(self, page: PageImage) -> RawExtraction: ...
+    async def extract(self, page: PageImage) -> RawExtraction:
+        """Raises ProviderError or QuotaExhausted, and nothing else: a timeout or a
+        malformed answer is a ProviderError, so the pipeline can keep a page's
+        earlier reading instead of losing it to an unexpected exception."""
+        ...
 
 
 class ProviderError(Exception):
@@ -37,5 +41,13 @@ class ProviderError(Exception):
         self.message = message
 
 
-class QuotaExhausted(ProviderError):
-    """The daily quota is used up: every further call would fail, so stop the batch."""
+class QuotaExhausted(Exception):
+    """The daily quota is used up: every further call would fail, so stop the batch.
+
+    Not a ProviderError on purpose: a handler for one failed page must never catch
+    it and let the batch go on spending calls. `message` is shown to the user, in Hebrew.
+    """
+
+    def __init__(self, message: str) -> None:
+        super().__init__(message)
+        self.message = message

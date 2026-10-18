@@ -1,7 +1,18 @@
+import asyncio
+import struct
+import threading
+
 import pymupdf
 import pytest
 
-from app.pipeline.ingest import MAX_SIDE_PX, InvalidFile, detect_type, split_pages
+from app.pipeline import ingest
+from app.pipeline.ingest import (
+    MAX_SIDE_PX,
+    InvalidFile,
+    detect_type,
+    split_pages,
+    split_pages_async,
+)
 
 LIMITS = {"max_bytes": 20_000_000, "max_pages": 60}
 
@@ -162,3 +173,81 @@ def test_too_many_pages():
         split_pages("f1", "big.pdf", make_pdf(3), max_bytes=20_000_000, max_pages=2)
 
     assert "3 עמודים" in error.value.message
+
+
+# --- Images too large to decode safely. These headers claim a size the bytes don't
+# hold, so no test decodes a real 400MP image.
+
+
+def png_header(width: int, height: int) -> bytes:
+    ihdr = struct.pack(">I4sII", 13, b"IHDR", width, height)
+    return b"\x89PNG\r\n\x1a\n" + ihdr + b"\x00" * 8
+
+
+def jpeg_header(width: int, height: int) -> bytes:
+    app0 = b"\xff\xe0" + struct.pack(">H", 16) + b"JFIF\x00" + b"\x00" * 9
+    sof0 = b"\xff\xc0" + struct.pack(">HBHH", 17, 8, height, width) + b"\x00" * 10
+    return b"\xff\xd8" + app0 + sof0
+
+
+@pytest.mark.parametrize("kind", ["png", "jpeg"])
+def test_image_size_is_read_from_the_header(kind):
+    assert ingest.image_size(make_image(kind, 400, 300), kind) == (400, 300)
+
+
+@pytest.mark.parametrize(
+    ("data", "kind"),
+    [(png_header(20_000, 20_000), "png"), (jpeg_header(20_000, 20_000), "jpeg")],
+    ids=["png", "jpeg"],
+)
+def test_a_huge_image_is_rejected_before_decoding(data, kind):
+    assert ingest.image_size(data, kind) == (20_000, 20_000)
+
+    with pytest.raises(InvalidFile) as error:
+        split_pages("f1", f"photo.{kind}", data, **LIMITS)
+
+    assert "גדולה מדי" in error.value.message
+
+
+def test_a_huge_image_inside_a_pdf_is_rejected(monkeypatch):
+    with pymupdf.open() as doc:
+        page = doc.new_page(width=595, height=842)
+        page.insert_image(page.rect, stream=make_image("png", 400, 300))
+        data = doc.tobytes()
+    monkeypatch.setattr(ingest, "MAX_IMAGE_PIXELS", 400 * 300 - 1)
+
+    with pytest.raises(InvalidFile) as error:
+        split_pages("f1", "scan.pdf", data, **LIMITS)
+
+    assert "גדולה מדי" in error.value.message
+
+
+def test_the_page_count_is_checked_before_the_images(monkeypatch):
+    # A PDF over the page limit is rejected without reading every page's images.
+    with pymupdf.open() as doc:
+        for _ in range(3):
+            page = doc.new_page(width=595, height=842)
+            page.insert_image(page.rect, stream=make_image("png", 400, 300))
+        data = doc.tobytes()
+    monkeypatch.setattr(ingest, "MAX_IMAGE_PIXELS", 1)
+
+    with pytest.raises(InvalidFile) as error:
+        split_pages("f1", "scan.pdf", data, max_bytes=20_000_000, max_pages=2)
+
+    assert "3 עמודים" in error.value.message
+
+
+def test_split_pages_async_runs_on_the_render_thread(monkeypatch):
+    seen = []
+    split = ingest.split_pages
+
+    def spy(*args, **kwargs):
+        seen.append(threading.current_thread().name)
+        return split(*args, **kwargs)
+
+    monkeypatch.setattr(ingest, "split_pages", spy)
+
+    pages = asyncio.run(split_pages_async("f1", "forms.pdf", make_pdf(2), **LIMITS))
+
+    assert [page.page_number for page in pages] == [1, 2]
+    assert seen and seen[0].startswith("render")
