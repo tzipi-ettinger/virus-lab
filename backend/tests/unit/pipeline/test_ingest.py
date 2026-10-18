@@ -1,10 +1,18 @@
+import asyncio
 import struct
+import threading
 
 import pymupdf
 import pytest
 
 from app.pipeline import ingest
-from app.pipeline.ingest import MAX_SIDE_PX, InvalidFile, detect_type, split_pages
+from app.pipeline.ingest import (
+    MAX_SIDE_PX,
+    InvalidFile,
+    detect_type,
+    split_pages,
+    split_pages_async,
+)
 
 LIMITS = {"max_bytes": 20_000_000, "max_pages": 60}
 
@@ -227,3 +235,19 @@ def test_the_page_count_is_checked_before_the_images(monkeypatch):
         split_pages("f1", "scan.pdf", data, max_bytes=20_000_000, max_pages=2)
 
     assert "3 עמודים" in error.value.message
+
+
+def test_split_pages_async_runs_on_the_render_thread(monkeypatch):
+    seen = []
+    split = ingest.split_pages
+
+    def spy(*args, **kwargs):
+        seen.append(threading.current_thread().name)
+        return split(*args, **kwargs)
+
+    monkeypatch.setattr(ingest, "split_pages", spy)
+
+    pages = asyncio.run(split_pages_async("f1", "forms.pdf", make_pdf(2), **LIMITS))
+
+    assert [page.page_number for page in pages] == [1, 2]
+    assert seen and seen[0].startswith("render")

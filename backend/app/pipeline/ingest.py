@@ -11,6 +11,7 @@ import asyncio
 import struct
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
+from functools import partial
 
 import pymupdf
 
@@ -25,12 +26,12 @@ ROTATIONS = (0, 90, 180, 270)
 # leaves room for a 48MP phone photo and a 600 DPI A4 scan (35MP).
 MAX_IMAGE_PIXELS = 100_000_000
 
-# PyMuPDF is not thread-safe, so every render runs on this one thread: pages render
-# one at a time while the model calls run concurrently, and the event loop is never
-# blocked. A sample scan takes about 0.3s to render (48 sample pages: mean 0.3s, up
-# to 1.3s under load), half decoding the embedded scan and half encoding the JPEG,
-# far under a model call (4-9s). If renders ever queue up behind each other, render
-# in a process pool instead.
+# PyMuPDF is not thread-safe, so every call into it from async code (split and
+# render) runs on this one thread: pages render one at a time while the model calls
+# run concurrently, and the event loop is never blocked. A sample scan takes about
+# 0.3s to render (48 sample pages: mean 0.3s, up to 1.3s under load), half decoding
+# the embedded scan and half encoding the JPEG, far under a model call (4-9s). If
+# renders ever queue up behind each other, render in a process pool instead.
 _RENDER_THREAD = ThreadPoolExecutor(max_workers=1, thread_name_prefix="render")
 
 _SIGNATURES = {
@@ -132,6 +133,7 @@ def split_pages(
     """Check one uploaded file and return its pages. Raises InvalidFile.
 
     `max_pages` is per file; the service checks the total across a request.
+    From async code use split_pages_async (PyMuPDF is not thread-safe).
     """
     if not data:
         raise InvalidFile(filename, "הקובץ ריק")
@@ -168,3 +170,12 @@ def split_pages(
         SourcePage(file_id=file_id, filename=filename, page_number=number, _pdf=pdf)
         for number in range(1, page_count + 1)
     ]
+
+
+async def split_pages_async(
+    file_id: str, filename: str, data: bytes, *, max_bytes: int, max_pages: int
+) -> list[SourcePage]:
+    """split_pages on the render thread: two uploads at once never run PyMuPDF in
+    parallel, and a photo's conversion to PDF doesn't block the event loop."""
+    split = partial(split_pages, file_id, filename, data, max_bytes=max_bytes, max_pages=max_pages)
+    return await asyncio.get_running_loop().run_in_executor(_RENDER_THREAD, split)
