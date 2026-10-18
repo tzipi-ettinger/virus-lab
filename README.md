@@ -126,6 +126,21 @@ npm run dev
 
 פותחים `http://localhost:5173`.
 
+### בדיקות לפני PR (אותן בדיקות שה־CI מריץ)
+
+```powershell
+# backend/
+.\.venv\Scripts\python.exe -m ruff check .
+.\.venv\Scripts\python.exe -m ruff format --check .
+.\.venv\Scripts\python.exe -m pytest
+.\.venv\Scripts\python.exe -m scripts.export_openapi --check   # אחרי שינוי בחוזה: בלי --check, ואז npm run gen:api
+
+# frontend/
+npm run lint
+npm run build
+npm test
+```
+
 ### עבודה בלי מפתח ובלי מכסה
 
 ```powershell
@@ -156,7 +171,7 @@ EXTRACTION_PROVIDER=fake
 
 | משתנה | ברירת מחדל | תיאור |
 |---|---|---|
-| `VITE_API_BASE_URL` | `http://localhost:8000` | כתובת ה־backend. **לא לשים כאן מפתחות** — כל `VITE_*` מגיע לדפדפן |
+| `VITE_API_BASE_URL` | ריק | ריק בפיתוח: הבקשות הולכות ל־`/api`, וה־proxy של Vite מעביר אותן ל־`http://localhost:8000`. ממלאים רק כשה־frontend וה־backend בכתובות שונות. **לא לשים כאן מפתחות** — כל `VITE_*` מגיע לדפדפן |
 
 ---
 

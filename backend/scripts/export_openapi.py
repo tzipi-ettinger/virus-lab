@@ -8,6 +8,7 @@ After rewriting, regenerate the frontend types: `npm run gen:api` in frontend/.
 
 Owner: shared
 """
+
 import json
 import sys
 from pathlib import Path

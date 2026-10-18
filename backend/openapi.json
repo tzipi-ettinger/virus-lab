@@ -26,6 +26,1147 @@
           }
         }
       }
+    },
+    "/api/v1/records": {
+      "get": {
+        "summary": "List Records",
+        "description": "Newest first, then page number, then commitment order.\n\n`status=approved` is also the hand-off point for the lab's system (D6).",
+        "operationId": "list_records_api_v1_records_get",
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Free text: name, national ID, central or commitment number",
+              "title": "Q"
+            },
+            "description": "Free text: name, national ID, central or commitment number"
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "pending",
+                    "approved"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            }
+          },
+          {
+            "name": "sender",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Sender"
+            }
+          },
+          {
+            "name": "date_from",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "received_date, inclusive",
+              "title": "Date From"
+            },
+            "description": "received_date, inclusive"
+          },
+          {
+            "name": "date_to",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "received_date, inclusive",
+              "title": "Date To"
+            },
+            "description": "received_date, inclusive"
+          },
+          {
+            "name": "needs_review",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Needs Review"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Offset"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecordList"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/records/{record_id}": {
+      "get": {
+        "summary": "Get Record",
+        "operationId": "get_record_api_v1_records__record_id__get",
+        "parameters": [
+          {
+            "name": "record_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Record Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Record"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such record",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "summary": "Patch Record",
+        "description": "Correct or confirm fields, rerun apply_rules (SPEC 7.4) and save.\n\nApproved records are read-only (A6).",
+        "operationId": "patch_record_api_v1_records__record_id__patch",
+        "parameters": [
+          {
+            "name": "record_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Record Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RecordPatch"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecordPatchResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such record",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Stale version (type \"version_conflict\")",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/records/{record_id}/approve": {
+      "post": {
+        "summary": "Approve Record",
+        "description": "Rerun the rules; approve only if no field still needs review (D3).",
+        "operationId": "approve_record_api_v1_records__record_id__approve_post",
+        "parameters": [
+          {
+            "name": "record_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Record Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApproveRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Record"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such record",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Stale version (\"version_conflict\"), or fields still flagged (\"review_required\", listed in blocking_fields)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/pages/{page_id}/image": {
+      "get": {
+        "summary": "Page Image",
+        "description": "The rotated, compressed page the fields came from (D4). Sent with Cache-Control: no-store.",
+        "operationId": "page_image_api_v1_pages__page_id__image_get",
+        "parameters": [
+          {
+            "name": "page_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Page Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "image/jpeg": {}
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "ApproveRequest": {
+        "properties": {
+          "version": {
+            "type": "integer",
+            "title": "Version"
+          }
+        },
+        "type": "object",
+        "required": [
+          "version"
+        ],
+        "title": "ApproveRequest"
+      },
+      "FieldEdit": {
+        "properties": {
+          "value": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value"
+          },
+          "confirmed": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Confirmed"
+          }
+        },
+        "type": "object",
+        "title": "FieldEdit",
+        "description": "Leave a key out to keep it. value: null clears the field.\n\nSending a value unsets confirmed (SPEC 7.4)."
+      },
+      "FormField": {
+        "properties": {
+          "raw": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Raw"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value"
+          },
+          "model_status": {
+            "type": "string",
+            "enum": [
+              "found",
+              "unclear",
+              "not_found"
+            ],
+            "title": "Model Status"
+          },
+          "evidence": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Evidence"
+          },
+          "issues": {
+            "items": {
+              "$ref": "#/components/schemas/Issue"
+            },
+            "type": "array",
+            "title": "Issues"
+          },
+          "needs_review": {
+            "type": "boolean",
+            "title": "Needs Review"
+          },
+          "corrected": {
+            "type": "boolean",
+            "title": "Corrected"
+          },
+          "confirmed": {
+            "type": "boolean",
+            "title": "Confirmed"
+          }
+        },
+        "type": "object",
+        "required": [
+          "raw",
+          "value",
+          "model_status",
+          "evidence",
+          "issues",
+          "needs_review",
+          "corrected",
+          "confirmed"
+        ],
+        "title": "FormField",
+        "description": "One field, or one item of a list (central numbers, commitment numbers)."
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "Issue": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "enum": [
+              "FIELD_UNCLEAR",
+              "REQUIRED_MISSING",
+              "ID_CHECKSUM_INVALID",
+              "ID_LENGTH_INVALID",
+              "ID_NORMALIZED",
+              "ID_PADDED",
+              "DATE_INVALID",
+              "DATE_OUT_OF_RANGE",
+              "SENDER_UNKNOWN",
+              "CENTRAL_FORMAT",
+              "COMMITMENT_PREFIX",
+              "ROTATION_UNRESOLVED",
+              "DUPLICATE_REMOVED",
+              "DUPLICATE_RECORD",
+              "EXTRACTION_FAILED",
+              "INVALID_FILE"
+            ],
+            "title": "Code"
+          },
+          "severity": {
+            "type": "string",
+            "enum": [
+              "info",
+              "warning",
+              "error"
+            ],
+            "title": "Severity"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          }
+        },
+        "type": "object",
+        "required": [
+          "code",
+          "severity",
+          "message"
+        ],
+        "title": "Issue"
+      },
+      "ListItemEdit": {
+        "properties": {
+          "idx": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Idx",
+            "description": "Position of an existing item (keeps its raw). null adds a new item."
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value"
+          },
+          "confirmed": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Confirmed"
+          }
+        },
+        "type": "object",
+        "title": "ListItemEdit"
+      },
+      "Problem": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "title": "Type"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "status": {
+            "type": "integer",
+            "title": "Status"
+          },
+          "detail": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Detail"
+          },
+          "blocking_fields": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Blocking Fields",
+            "description": "type \"review_required\" only: fields still flagged, e.g. \"national_id\", \"central_numbers[1]\"."
+          }
+        },
+        "type": "object",
+        "required": [
+          "type",
+          "title",
+          "status"
+        ],
+        "title": "Problem"
+      },
+      "Record": {
+        "properties": {
+          "record_id": {
+            "type": "string",
+            "title": "Record Id"
+          },
+          "page_id": {
+            "type": "string",
+            "title": "Page Id"
+          },
+          "source_file": {
+            "type": "string",
+            "title": "Source File"
+          },
+          "page_number": {
+            "type": "integer",
+            "title": "Page Number"
+          },
+          "commitment_index": {
+            "type": "integer",
+            "title": "Commitment Index"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "approved"
+            ],
+            "title": "Status"
+          },
+          "version": {
+            "type": "integer",
+            "title": "Version",
+            "description": "Send back on PATCH / approve; a stale one returns 409."
+          },
+          "fields": {
+            "$ref": "#/components/schemas/RecordFields"
+          },
+          "central_numbers": {
+            "items": {
+              "$ref": "#/components/schemas/FormField"
+            },
+            "type": "array",
+            "title": "Central Numbers"
+          },
+          "issues": {
+            "items": {
+              "$ref": "#/components/schemas/Issue"
+            },
+            "type": "array",
+            "title": "Issues"
+          },
+          "needs_review": {
+            "type": "boolean",
+            "title": "Needs Review"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          },
+          "approved_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Approved At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "record_id",
+          "page_id",
+          "source_file",
+          "page_number",
+          "commitment_index",
+          "status",
+          "version",
+          "fields",
+          "central_numbers",
+          "issues",
+          "needs_review",
+          "created_at",
+          "updated_at",
+          "approved_at"
+        ],
+        "title": "Record"
+      },
+      "RecordFields": {
+        "properties": {
+          "first_name": {
+            "$ref": "#/components/schemas/FormField"
+          },
+          "last_name": {
+            "$ref": "#/components/schemas/FormField"
+          },
+          "national_id": {
+            "$ref": "#/components/schemas/FormField"
+          },
+          "received_date": {
+            "$ref": "#/components/schemas/FormField"
+          },
+          "sender": {
+            "$ref": "#/components/schemas/FormField"
+          },
+          "commitment_number": {
+            "$ref": "#/components/schemas/FormField"
+          }
+        },
+        "type": "object",
+        "required": [
+          "first_name",
+          "last_name",
+          "national_id",
+          "received_date",
+          "sender",
+          "commitment_number"
+        ],
+        "title": "RecordFields"
+      },
+      "RecordFieldsEdit": {
+        "properties": {
+          "first_name": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/FieldEdit"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "last_name": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/FieldEdit"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "national_id": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/FieldEdit"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "received_date": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/FieldEdit"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "sender": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/FieldEdit"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "commitment_number": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/FieldEdit"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "title": "RecordFieldsEdit"
+      },
+      "RecordList": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/RecordSummary"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total",
+            "description": "Matches before limit / offset, for paging."
+          },
+          "limit": {
+            "type": "integer",
+            "title": "Limit"
+          },
+          "offset": {
+            "type": "integer",
+            "title": "Offset"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "total",
+          "limit",
+          "offset"
+        ],
+        "title": "RecordList"
+      },
+      "RecordPatch": {
+        "properties": {
+          "version": {
+            "type": "integer",
+            "title": "Version"
+          },
+          "fields": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RecordFieldsEdit"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "central_numbers": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/ListItemEdit"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Central Numbers",
+            "description": "The full new list. Existing items left out are removed."
+          }
+        },
+        "type": "object",
+        "required": [
+          "version"
+        ],
+        "title": "RecordPatch"
+      },
+      "RecordPatchResponse": {
+        "properties": {
+          "record": {
+            "$ref": "#/components/schemas/Record"
+          },
+          "siblings": {
+            "items": {
+              "$ref": "#/components/schemas/Record"
+            },
+            "type": "array",
+            "title": "Siblings",
+            "description": "Other records of the same page whose shared fields changed too (A3)."
+          }
+        },
+        "type": "object",
+        "required": [
+          "record",
+          "siblings"
+        ],
+        "title": "RecordPatchResponse"
+      },
+      "RecordSummary": {
+        "properties": {
+          "record_id": {
+            "type": "string",
+            "title": "Record Id"
+          },
+          "page_id": {
+            "type": "string",
+            "title": "Page Id"
+          },
+          "source_file": {
+            "type": "string",
+            "title": "Source File"
+          },
+          "page_number": {
+            "type": "integer",
+            "title": "Page Number"
+          },
+          "commitment_index": {
+            "type": "integer",
+            "title": "Commitment Index"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "approved"
+            ],
+            "title": "Status"
+          },
+          "needs_review": {
+            "type": "boolean",
+            "title": "Needs Review"
+          },
+          "first_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "First Name"
+          },
+          "last_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Name"
+          },
+          "national_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "National Id"
+          },
+          "commitment_number": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Commitment Number"
+          },
+          "central_numbers": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Central Numbers"
+          },
+          "sender": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sender"
+          },
+          "received_date": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Received Date"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "approved_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Approved At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "record_id",
+          "page_id",
+          "source_file",
+          "page_number",
+          "commitment_index",
+          "status",
+          "needs_review",
+          "first_name",
+          "last_name",
+          "national_id",
+          "commitment_number",
+          "central_numbers",
+          "sender",
+          "received_date",
+          "created_at",
+          "approved_at"
+        ],
+        "title": "RecordSummary",
+        "description": "A row on the records screen: effective values only, straight from the record table."
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "ctx": {
+            "type": "object",
+            "title": "Context"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      }
     }
   }
 }
