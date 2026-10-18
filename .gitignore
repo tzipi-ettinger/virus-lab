@@ -43,3 +43,6 @@ backend/**/*.xlsx
 Thumbs.db
 Desktop.ini
 .DS_Store
+
+# ===== Dev-only model cache (cached_provider) =====
+backend/.cache/
