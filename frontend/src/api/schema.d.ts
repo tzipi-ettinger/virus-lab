@@ -21,10 +21,337 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/records": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Records
+         * @description Newest first, then page number, then commitment order.
+         *
+         *     `status=approved` is also the hand-off point for the lab's system (D6).
+         */
+        get: operations["list_records_api_v1_records_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/records/{record_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Record */
+        get: operations["get_record_api_v1_records__record_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Patch Record
+         * @description Correct or confirm fields, rerun apply_rules (SPEC 7.4) and save.
+         *
+         *     Approved records are read-only (A6).
+         */
+        patch: operations["patch_record_api_v1_records__record_id__patch"];
+        trace?: never;
+    };
+    "/api/v1/records/{record_id}/approve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Approve Record
+         * @description Rerun the rules; approve only if no field still needs review (D3).
+         */
+        post: operations["approve_record_api_v1_records__record_id__approve_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/pages/{page_id}/image": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Page Image
+         * @description The rotated, compressed page the fields came from (D4). Sent with Cache-Control: no-store.
+         */
+        get: operations["page_image_api_v1_pages__page_id__image_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
-    schemas: never;
+    schemas: {
+        /** ApproveRequest */
+        ApproveRequest: {
+            /** Version */
+            version: number;
+        };
+        /**
+         * FieldEdit
+         * @description Leave a key out to keep it. value: null clears the field.
+         *
+         *     Sending a value unsets confirmed (SPEC 7.4).
+         */
+        FieldEdit: {
+            /** Value */
+            value?: string | null;
+            /** Confirmed */
+            confirmed?: boolean | null;
+        };
+        /**
+         * FormField
+         * @description One field, or one item of a list (central numbers, commitment numbers).
+         */
+        FormField: {
+            /** Raw */
+            raw: string | null;
+            /** Value */
+            value: string | null;
+            /**
+             * Model Status
+             * @enum {string}
+             */
+            model_status: "found" | "unclear" | "not_found";
+            /** Evidence */
+            evidence: string | null;
+            /** Issues */
+            issues: components["schemas"]["Issue"][];
+            /** Needs Review */
+            needs_review: boolean;
+            /** Corrected */
+            corrected: boolean;
+            /** Confirmed */
+            confirmed: boolean;
+        };
+        /** HTTPValidationError */
+        HTTPValidationError: {
+            /** Detail */
+            detail?: components["schemas"]["ValidationError"][];
+        };
+        /** Issue */
+        Issue: {
+            /**
+             * Code
+             * @enum {string}
+             */
+            code: "FIELD_UNCLEAR" | "REQUIRED_MISSING" | "ID_CHECKSUM_INVALID" | "ID_LENGTH_INVALID" | "ID_NORMALIZED" | "ID_PADDED" | "DATE_INVALID" | "DATE_OUT_OF_RANGE" | "SENDER_UNKNOWN" | "CENTRAL_FORMAT" | "COMMITMENT_PREFIX" | "ROTATION_UNRESOLVED" | "DUPLICATE_REMOVED" | "DUPLICATE_RECORD" | "EXTRACTION_FAILED" | "INVALID_FILE";
+            /**
+             * Severity
+             * @enum {string}
+             */
+            severity: "info" | "warning" | "error";
+            /** Message */
+            message: string;
+        };
+        /** ListItemEdit */
+        ListItemEdit: {
+            /**
+             * Idx
+             * @description Position of an existing item (keeps its raw). null adds a new item.
+             */
+            idx?: number | null;
+            /** Value */
+            value?: string | null;
+            /** Confirmed */
+            confirmed?: boolean | null;
+        };
+        /** Problem */
+        Problem: {
+            /** Type */
+            type: string;
+            /** Title */
+            title: string;
+            /** Status */
+            status: number;
+            /** Detail */
+            detail?: string | null;
+            /**
+             * Blocking Fields
+             * @description type "review_required" only: fields still flagged, e.g. "national_id", "central_numbers[1]".
+             */
+            blocking_fields?: string[] | null;
+        };
+        /** Record */
+        Record: {
+            /** Record Id */
+            record_id: string;
+            /** Page Id */
+            page_id: string;
+            /** Source File */
+            source_file: string;
+            /** Page Number */
+            page_number: number;
+            /** Commitment Index */
+            commitment_index: number;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "pending" | "approved";
+            /**
+             * Version
+             * @description Send back on PATCH / approve; a stale one returns 409.
+             */
+            version: number;
+            fields: components["schemas"]["RecordFields"];
+            /** Central Numbers */
+            central_numbers: components["schemas"]["FormField"][];
+            /** Issues */
+            issues: components["schemas"]["Issue"][];
+            /** Needs Review */
+            needs_review: boolean;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+            /** Approved At */
+            approved_at: string | null;
+        };
+        /** RecordFields */
+        RecordFields: {
+            first_name: components["schemas"]["FormField"];
+            last_name: components["schemas"]["FormField"];
+            national_id: components["schemas"]["FormField"];
+            received_date: components["schemas"]["FormField"];
+            sender: components["schemas"]["FormField"];
+            commitment_number: components["schemas"]["FormField"];
+        };
+        /** RecordFieldsEdit */
+        RecordFieldsEdit: {
+            first_name?: components["schemas"]["FieldEdit"] | null;
+            last_name?: components["schemas"]["FieldEdit"] | null;
+            national_id?: components["schemas"]["FieldEdit"] | null;
+            received_date?: components["schemas"]["FieldEdit"] | null;
+            sender?: components["schemas"]["FieldEdit"] | null;
+            commitment_number?: components["schemas"]["FieldEdit"] | null;
+        };
+        /** RecordList */
+        RecordList: {
+            /** Items */
+            items: components["schemas"]["RecordSummary"][];
+            /**
+             * Total
+             * @description Matches before limit / offset, for paging.
+             */
+            total: number;
+            /** Limit */
+            limit: number;
+            /** Offset */
+            offset: number;
+        };
+        /** RecordPatch */
+        RecordPatch: {
+            /** Version */
+            version: number;
+            fields?: components["schemas"]["RecordFieldsEdit"] | null;
+            /**
+             * Central Numbers
+             * @description The full new list. Existing items left out are removed.
+             */
+            central_numbers?: components["schemas"]["ListItemEdit"][] | null;
+        };
+        /** RecordPatchResponse */
+        RecordPatchResponse: {
+            record: components["schemas"]["Record"];
+            /**
+             * Siblings
+             * @description Other records of the same page whose shared fields changed too (A3).
+             */
+            siblings: components["schemas"]["Record"][];
+        };
+        /**
+         * RecordSummary
+         * @description A row on the records screen: effective values only, straight from the record table.
+         */
+        RecordSummary: {
+            /** Record Id */
+            record_id: string;
+            /** Page Id */
+            page_id: string;
+            /** Source File */
+            source_file: string;
+            /** Page Number */
+            page_number: number;
+            /** Commitment Index */
+            commitment_index: number;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "pending" | "approved";
+            /** Needs Review */
+            needs_review: boolean;
+            /** First Name */
+            first_name: string | null;
+            /** Last Name */
+            last_name: string | null;
+            /** National Id */
+            national_id: string | null;
+            /** Commitment Number */
+            commitment_number: string | null;
+            /** Central Numbers */
+            central_numbers: string[];
+            /** Sender */
+            sender: string | null;
+            /** Received Date */
+            received_date: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Approved At */
+            approved_at: string | null;
+        };
+        /** ValidationError */
+        ValidationError: {
+            /** Location */
+            loc: (string | number)[];
+            /** Message */
+            msg: string;
+            /** Error Type */
+            type: string;
+            /** Input */
+            input?: unknown;
+            /** Context */
+            ctx?: Record<string, never>;
+        };
+    };
     responses: never;
     parameters: never;
     requestBodies: never;
@@ -51,6 +378,233 @@ export interface operations {
                     "application/json": {
                         [key: string]: string;
                     };
+                };
+            };
+        };
+    };
+    list_records_api_v1_records_get: {
+        parameters: {
+            query?: {
+                /** @description Free text: name, national ID, central or commitment number */
+                q?: string | null;
+                status?: ("pending" | "approved") | null;
+                sender?: string | null;
+                /** @description received_date, inclusive */
+                date_from?: string | null;
+                /** @description received_date, inclusive */
+                date_to?: string | null;
+                needs_review?: boolean | null;
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RecordList"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_record_api_v1_records__record_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                record_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Record"];
+                };
+            };
+            /** @description No such record */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    patch_record_api_v1_records__record_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                record_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RecordPatch"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RecordPatchResponse"];
+                };
+            };
+            /** @description No such record */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Stale version (type "version_conflict") */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    approve_record_api_v1_records__record_id__approve_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                record_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ApproveRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Record"];
+                };
+            };
+            /** @description No such record */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Stale version ("version_conflict"), or fields still flagged ("review_required", listed in blocking_fields) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    page_image_api_v1_pages__page_id__image_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                page_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "image/jpeg": unknown;
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };
