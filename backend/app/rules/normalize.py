@@ -24,6 +24,11 @@ def digits_only(text: str) -> str:
     return re.sub(r"\D", "", text)
 
 
+def normalize_name(raw: str | None) -> tuple[str | None, list[Issue]]:
+    """Extra spaces only: no translation or transliteration (SPEC 5.1)."""
+    return (" ".join((raw or "").split()) or None), []
+
+
 def normalize_national_id(raw: str | None) -> tuple[str | None, list[Issue]]:
     """Digits only, then by length (SPEC 5.2).
 
