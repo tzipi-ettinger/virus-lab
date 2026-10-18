@@ -5,9 +5,10 @@ the others (FR-12): it becomes a FailedPage. A used-up quota is the exception:
 every further call would fail too, so the pages not started yet are failed
 without a call, and the pages already in flight are allowed to finish.
 
-Each page is saved as soon as it is read (`save_page`), not at the end, so the
-pages already read survive if the user closes the tab in the middle of a long
-upload, and the quota spent on them is not lost.
+Each page is saved as soon as it is read (`save_page`), not at the end, so a
+crash or restart in the middle of a long upload keeps the pages already read
+(and the quota spent on them), and they show on the records screen at once.
+Closing the tab does not stop an upload: the server finishes it either way.
 
 Logs carry only form_id, timings and error types, never names, IDs, file names
 or the model's text (SPEC 11.1).
@@ -94,8 +95,9 @@ async def extract_files(
         raise TooManyPages(f"בהעלאה {len(pages)} עמודים. המקסימום הוא {max_pages}")
 
     semaphore = asyncio.Semaphore(max_concurrency)
-    # One save at a time: two pages with the same commitment number saved at once
-    # could each miss the other in the duplicate check.
+    # One save at a time within this upload: two pages with the same commitment
+    # number saved at once could each miss the other in the duplicate check. Two
+    # uploads at once can still race; only the database can prevent that.
     save_lock = asyncio.Lock()
     quota_message: str | None = None
 
