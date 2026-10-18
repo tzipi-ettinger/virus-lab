@@ -8,7 +8,7 @@ from fastapi.testclient import TestClient
 
 from app.api import extract
 from app.extraction.fake_provider import FIXTURES_DIR
-from app.extraction.provider import PageImage, ProviderError
+from app.extraction.provider import PageImage, ProviderError, QuotaExhausted
 from app.main import create_app
 from app.schemas.extraction import RawExtraction
 from app.settings import Settings, get_settings
@@ -31,13 +31,19 @@ def make_pdf(pages: int = 1, noise_px: int = 0) -> bytes:
         return doc.tobytes()
 
 
-class Answers:
-    """Every page reads as Maccabi, except the pages listed as errors."""
+QUOTA = "המכסה היומית של Gemini נגמרה. אפשר לנסות שוב מחר"
 
-    def __init__(self, errors=()) -> None:
+
+class Answers:
+    """Every page reads as Maccabi, except the listed pages: an error, or the quota."""
+
+    def __init__(self, errors=(), quota_from=None) -> None:
         self.errors = set(errors)
+        self.quota_from = quota_from
 
     async def extract(self, page: PageImage) -> RawExtraction:
+        if self.quota_from is not None and page.page_number >= self.quota_from:
+            raise QuotaExhausted(QUOTA)
         if page.page_number in self.errors:
             raise ProviderError("המודל לא ענה")
         return MACCABI.model_copy(deep=True)
@@ -81,6 +87,7 @@ def test_every_page_comes_back_as_records(make_client):
     assert record["fields"]["commitment_number"]["value"] == "50364186"
     assert [c["value"] for c in record["central_numbers"]] == ["937309", "937310", "937311"]
     assert body["failed_pages"] == []
+    assert body["quota_exhausted"] is False
 
 
 def test_a_failed_page_is_listed_and_the_others_saved(make_client):
@@ -231,3 +238,39 @@ def test_an_empty_file_input_counts_as_no_files(make_client):
     response = make_client().post("/api/v1/extract", files=files)
 
     assert_problem(response, 400, "no_files")
+
+
+# --- The daily quota runs out: is sending the file again safe?
+
+
+def test_quota_after_a_page_was_saved_is_200_with_the_saved_records(make_client):
+    response = make_client(provider=Answers(quota_from=2), max_concurrency=1).post(
+        "/api/v1/extract", files=upload(("a.pdf", make_pdf(3)))
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["quota_exhausted"] is True
+    assert [r["page_number"] for r in body["records"]] == [1]
+    assert [(p["page_number"], p["error"]["code"]) for p in body["failed_pages"]] == [
+        (2, "QUOTA_EXHAUSTED"),
+        (3, "QUOTA_EXHAUSTED"),
+    ]
+
+
+def test_quota_before_anything_was_saved_is_503(make_client):
+    response = make_client(provider=Answers(quota_from=1)).post(
+        "/api/v1/extract", files=upload(("a.pdf", make_pdf(2)))
+    )
+
+    body = assert_problem(response, 503, "quota_exhausted")
+    assert body["title"] == QUOTA  # the provider's Hebrew message
+
+
+def test_quota_after_a_page_failed_for_another_reason_is_still_503(make_client):
+    # Page 1 failed and page 2 hit the quota: nothing was saved, so sending again is safe.
+    response = make_client(provider=Answers(errors={1}, quota_from=2), max_concurrency=1).post(
+        "/api/v1/extract", files=upload(("a.pdf", make_pdf(3)))
+    )
+
+    assert_problem(response, 503, "quota_exhausted")

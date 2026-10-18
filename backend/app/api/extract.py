@@ -68,6 +68,8 @@ _PROBLEMS = {
         413: 'Request over MAX_REQUEST_MB ("request_too_large") or over '
         'MAX_PAGES_PER_REQUEST ("too_many_pages")',
         415: 'Not multipart/form-data ("unsupported_media_type")',
+        503: 'The daily Gemini quota ran out before any page was saved ("quota_exhausted"): '
+        "nothing was saved, so the file can be sent again",
     }.items()
 }
 
@@ -152,7 +154,12 @@ async def extract(
     """Read every page of every file and save it as pending records.
 
     A file or page that fails is reported in `files` / `failed_pages`, and the
-    others go on: the response is 200 unless the request itself is unusable.
+    others go on. When the daily quota runs out, the answer says whether sending
+    the file again is safe:
+    - nothing was saved: 503 quota_exhausted, and the file can be sent again;
+    - some pages were saved: 200 with quota_exhausted=true and those records.
+      Sending the file again would save them twice.
+    Otherwise 200, unless the request itself is unusable (4xx).
     """
     try:
         uploads = await _read_uploads(request, settings)
@@ -169,10 +176,13 @@ async def extract(
         return _problem(Problem(type="too_many_pages", title=exc.message, status=413))
     except _BadRequest as exc:
         return _problem(exc.problem)
+    if result.quota_message is not None and not result.pages:
+        return _problem(Problem(type="quota_exhausted", title=result.quota_message, status=503))
     return ExtractResponse(
         files=result.files,
         records=[record for page in result.pages for record in page.records],
         failed_pages=result.failed_pages,
+        quota_exhausted=result.quota_exhausted,
     )
 
 
