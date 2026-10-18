@@ -23,8 +23,13 @@ def insert_page(conn, page_id="p1"):
 
 def insert_record(conn, record_id="r1", page_id="p1", **values):
     row = {
-        "id": record_id, "page_id": page_id, "commitment_idx": 0, "needs_review": 0,
-        "created_at": NOW, "updated_at": NOW, **values,
+        "id": record_id,
+        "page_id": page_id,
+        "commitment_idx": 0,
+        "needs_review": 0,
+        "created_at": NOW,
+        "updated_at": NOW,
+        **values,
     }
     cols = ", ".join(row)
     marks = ", ".join("?" for _ in row)
@@ -79,7 +84,8 @@ def test_deleting_page_deletes_its_records_and_image(db_path):
         insert_page(conn)
         insert_record(conn)
         conn.execute(
-            "INSERT INTO page_image (page_id, mime, sha256, bytes) VALUES ('p1', 'image/jpeg', 'x', x'00')"
+            "INSERT INTO page_image (page_id, mime, sha256, bytes)"
+            " VALUES ('p1', 'image/jpeg', 'x', x'00')"
         )
         conn.execute(
             "INSERT INTO record_field (record_id, field, model_status, needs_review)"

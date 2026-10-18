@@ -6,6 +6,7 @@ Developer A's approval (docs/GUIDELINES-V2-CHANGES.md, A8).
 
 Owner: B
 """
+
 import sqlite3
 from pathlib import Path
 
