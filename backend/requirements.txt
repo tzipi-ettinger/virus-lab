@@ -1,5 +1,7 @@
 fastapi==0.143.3
 uvicorn[standard]==0.54.0
+# file uploads (POST /api/v1/extract)
+python-multipart==0.0.32
 pydantic-settings==2.16.0
 PyYAML==6.0.3
 PyMuPDF==1.28.2
