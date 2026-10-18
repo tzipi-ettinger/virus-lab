@@ -7,6 +7,8 @@ path (and one rotation mechanism).
 Owner: A
 """
 
+import asyncio
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 
 import pymupdf
@@ -18,6 +20,13 @@ from app.extraction.provider import PageImage
 MAX_SIDE_PX = 2200
 JPEG_QUALITY = 85
 ROTATIONS = (0, 90, 180, 270)
+
+# PyMuPDF is not thread-safe, so every render runs on this one thread: pages render
+# one at a time while the model calls run concurrently, and the event loop is never
+# blocked. A sample scan takes about 0.9s to render (decoding the embedded image;
+# keeping the document open doesn't help), well under a model call (5-15s). If the
+# model concurrency grows past that, render in a process pool instead.
+_RENDER_THREAD = ThreadPoolExecutor(max_workers=1, thread_name_prefix="render")
 
 _SIGNATURES = {
     b"%PDF": "pdf",
@@ -39,8 +48,8 @@ class InvalidFile(Exception):
 class SourcePage:
     """One page of an uploaded file. Renders on demand, at any rotation.
 
-    PyMuPDF is not thread-safe: render pages one at a time (it is fast) and keep
-    the concurrency for the model calls.
+    PyMuPDF is not thread-safe: from async code use render_async, which runs on
+    the single render thread. Call render directly only from sync code and tests.
     """
 
     file_id: str
@@ -69,6 +78,10 @@ class SourcePage:
             rotation=rotation,
             jpeg=jpeg,
         )
+
+    async def render_async(self, rotation: int = 0) -> PageImage:
+        loop = asyncio.get_running_loop()
+        return await loop.run_in_executor(_RENDER_THREAD, self.render, rotation)
 
 
 def detect_type(data: bytes) -> str | None:
