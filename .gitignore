@@ -98,3 +98,6 @@ $RECYCLE.BIN/
 
 # ===== Dev-only model cache (cached_provider) =====
 backend/.cache/
+
+# ===== Spike outputs (contain sample personal details) =====
+backend/spike/out/
