@@ -497,7 +497,7 @@ export interface operations {
                     "application/json": components["schemas"]["ExtractResponse"];
                 };
             };
-            /** @description No files ("no_files") or an unreadable upload ("invalid_upload") */
+            /** @description No files ("no_files"), more than MAX_FILES_PER_REQUEST ("too_many_files"), or an upload that is cut off or broken ("invalid_upload") */
             400: {
                 headers: {
                     [name: string]: unknown;
