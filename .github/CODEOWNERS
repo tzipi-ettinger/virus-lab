@@ -1,0 +1,29 @@
+# Ownership per the agreed structure (v2).
+# TODO: replace @dev-a / @dev-b with real GitHub usernames, then uncomment.
+# Shared files list both owners, so a change there needs both approvals.
+
+# --- shared ---
+# /backend/app/schemas/api.py        @dev-a @dev-b
+# /backend/app/api/errors.py         @dev-a @dev-b
+# /backend/openapi.json              @dev-a @dev-b
+# /backend/tests/contract/           @dev-a @dev-b
+# /backend/eval/ground_truth.csv     @dev-a @dev-b
+# /frontend/src/api/schema.d.ts      @dev-a @dev-b
+# /frontend/src/shared/ui/tokens.css @dev-a @dev-b
+# /frontend/src/App.tsx              @dev-a @dev-b
+
+# --- A: ingest + AI extraction ---
+# /backend/app/pipeline/             @dev-a
+# /backend/app/extraction/           @dev-a
+# /backend/tests/fixtures/           @dev-a
+# /frontend/src/features/upload/     @dev-a
+# /frontend/src/features/preview/    @dev-a
+
+# --- B: rules, table, export ---
+# /backend/app/rules/                @dev-b
+# /backend/app/export/               @dev-b
+# /backend/app/api/validate.py       @dev-b
+# /backend/app/api/export.py         @dev-b
+# /backend/tests/fixtures/rules/     @dev-b
+# /frontend/src/features/review/     @dev-b
+# /frontend/src/features/export/     @dev-b
