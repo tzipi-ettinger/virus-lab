@@ -1,6 +1,9 @@
+import struct
+
 import pymupdf
 import pytest
 
+from app.pipeline import ingest
 from app.pipeline.ingest import MAX_SIDE_PX, InvalidFile, detect_type, split_pages
 
 LIMITS = {"max_bytes": 20_000_000, "max_pages": 60}
@@ -162,3 +165,50 @@ def test_too_many_pages():
         split_pages("f1", "big.pdf", make_pdf(3), max_bytes=20_000_000, max_pages=2)
 
     assert "3 עמודים" in error.value.message
+
+
+# --- Images too large to decode safely. These headers claim a size the bytes don't
+# hold, so no test decodes a real 400MP image.
+
+
+def png_header(width: int, height: int) -> bytes:
+    ihdr = struct.pack(">I4sII", 13, b"IHDR", width, height)
+    return b"\x89PNG\r\n\x1a\n" + ihdr + b"\x00" * 8
+
+
+def jpeg_header(width: int, height: int) -> bytes:
+    app0 = b"\xff\xe0" + struct.pack(">H", 16) + b"JFIF\x00" + b"\x00" * 9
+    sof0 = b"\xff\xc0" + struct.pack(">HBHH", 17, 8, height, width) + b"\x00" * 10
+    return b"\xff\xd8" + app0 + sof0
+
+
+@pytest.mark.parametrize("kind", ["png", "jpeg"])
+def test_image_size_is_read_from_the_header(kind):
+    assert ingest.image_size(make_image(kind, 400, 300), kind) == (400, 300)
+
+
+@pytest.mark.parametrize(
+    ("data", "kind"),
+    [(png_header(20_000, 20_000), "png"), (jpeg_header(20_000, 20_000), "jpeg")],
+    ids=["png", "jpeg"],
+)
+def test_a_huge_image_is_rejected_before_decoding(data, kind):
+    assert ingest.image_size(data, kind) == (20_000, 20_000)
+
+    with pytest.raises(InvalidFile) as error:
+        split_pages("f1", f"photo.{kind}", data, **LIMITS)
+
+    assert "גדולה מדי" in error.value.message
+
+
+def test_a_huge_image_inside_a_pdf_is_rejected(monkeypatch):
+    with pymupdf.open() as doc:
+        page = doc.new_page(width=595, height=842)
+        page.insert_image(page.rect, stream=make_image("png", 400, 300))
+        data = doc.tobytes()
+    monkeypatch.setattr(ingest, "MAX_IMAGE_PIXELS", 400 * 300 - 1)
+
+    with pytest.raises(InvalidFile) as error:
+        split_pages("f1", "scan.pdf", data, **LIMITS)
+
+    assert "גדולה מדי" in error.value.message

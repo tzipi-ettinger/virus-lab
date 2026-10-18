@@ -8,6 +8,7 @@ Owner: A
 """
 
 import asyncio
+import struct
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 
@@ -20,6 +21,9 @@ from app.extraction.provider import PageImage
 MAX_SIDE_PX = 2200
 JPEG_QUALITY = 85
 ROTATIONS = (0, 90, 180, 270)
+# A PNG of 126KB can hold a 108MP image, and rendering decodes all of it first. 100MP
+# leaves room for a 48MP phone photo and a 600 DPI A4 scan (35MP).
+MAX_IMAGE_PIXELS = 100_000_000
 
 # PyMuPDF is not thread-safe, so every render runs on this one thread: pages render
 # one at a time while the model calls run concurrently, and the event loop is never
@@ -92,6 +96,36 @@ def detect_type(data: bytes) -> str | None:
     return None
 
 
+def image_size(data: bytes, kind: str) -> tuple[int, int] | None:
+    """(width, height) from a PNG or JPEG header, without decoding. None if not found."""
+    if kind == "png":
+        return struct.unpack(">II", data[16:24]) if len(data) >= 24 else None
+    position = 2  # past the JPEG start marker
+    while position + 9 <= len(data):
+        if data[position] != 0xFF:
+            return None
+        marker = data[position + 1]
+        if marker == 0xFF:  # fill byte
+            position += 1
+        elif 0xD0 <= marker <= 0xD7 or marker == 0x01:  # markers with no length
+            position += 2
+        elif 0xC0 <= marker <= 0xCF and marker not in (0xC4, 0xC8, 0xCC):  # frame header
+            height, width = struct.unpack(">HH", data[position + 5 : position + 9])
+            return width, height
+        else:
+            position += 2 + struct.unpack(">H", data[position + 2 : position + 4])[0]
+    return None
+
+
+def _check_pixels(filename: str, width: int, height: int) -> None:
+    if width * height > MAX_IMAGE_PIXELS:
+        raise InvalidFile(
+            filename,
+            f"התמונה גדולה מדי ({width * height // 1_000_000} מגה־פיקסל). "
+            f"המקסימום הוא {MAX_IMAGE_PIXELS // 1_000_000}",
+        )
+
+
 def split_pages(
     file_id: str, filename: str, data: bytes, *, max_bytes: int, max_pages: int
 ) -> list[SourcePage]:
@@ -108,11 +142,18 @@ def split_pages(
         raise InvalidFile(
             filename, "סוג קובץ לא נתמך. נתמכים PDF, JPG ו־PNG (צילום מאייפון: לשמור כ־JPG)"
         )
+    # Before opening: converting an image to PDF already decodes it.
+    if kind != "pdf" and (size := image_size(data, kind)):
+        _check_pixels(filename, *size)
 
     try:
         with pymupdf.open(stream=data, filetype=kind) as doc:
             if doc.needs_pass:
                 raise InvalidFile(filename, "הקובץ מוגן בסיסמה. יש לשמור אותו בלי סיסמה")
+            if kind == "pdf":
+                for page in doc:  # reads the image headers only, decodes nothing
+                    for image in page.get_images(full=True):
+                        _check_pixels(filename, image[2], image[3])
             pdf = data if kind == "pdf" else doc.convert_to_pdf()
             page_count = doc.page_count
     except RuntimeError as exc:  # includes pymupdf.FileDataError
