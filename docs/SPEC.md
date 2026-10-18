@@ -386,15 +386,26 @@ rows(form) =
 פורמט אחיד (`application/problem+json`):
 
 ```json
-{ "type": "invalid_file", "title": "סוג קובץ לא נתמך", "status": 422, "detail": "notes.docx: נתמכים PDF, JPG, PNG" }
+{ "type": "too_many_files", "title": "אפשר להעלות עד 20 קבצים בבקשה אחת", "status": 400 }
 ```
 
-| מצב | קוד |
-|---|---|
-| אין קבצים / סוג לא נתמך / גדול מדי | `422` |
-| גוף בקשה לא תקין ב־`validate` / `export` | `422` |
-| כל העמודים נכשלו בגלל ספק ה־AI | `502` |
-| כשל בעמוד בודד | `200`, עם `processing_status: "error"` לאותו טופס |
+**`POST /api/v1/extract`** (עודכן 19.10, לפי הקוד). הכלל: **קוד שגיאה רק כשלא נשמר כלום**, ולכן אפשר לשלוח שוב. כל כישלון של קובץ או עמוד מדווח בתוך תשובת `200`.
+
+| מצב | קוד | `type` |
+|---|---|---|
+| לא נבחרו קבצים | `400` | `no_files` |
+| יותר מ־`MAX_FILES_PER_REQUEST` קבצים | `400` | `too_many_files` |
+| העלאה שנקטעה באמצע או פגומה | `400` | `invalid_upload` |
+| בקשה מעל `MAX_REQUEST_MB`, או מעל `MAX_PAGES_PER_REQUEST` עמודים | `413` | `request_too_large` / `too_many_pages` |
+| לא נשלח כ־`multipart/form-data` | `415` | `unsupported_media_type` |
+| מכסת Gemini נגמרה **לפני** שנשמר עמוד | `503` | `quota_exhausted` |
+| מכסת Gemini נגמרה **אחרי** שנשמר עמוד | `200`, `quota_exhausted: true`, והעמודים שלא נקראו ב־`failed_pages` עם `QUOTA_EXHAUSTED` | — |
+| קובץ לא תקין (סוג לא נתמך, גדול מ־`MAX_FILE_MB`, מוצפן, פגום) | `200`, `FileResult.status: "error"`, `INVALID_FILE` | — |
+| עמוד שנכשל, גם אם נכשלו כל העמודים | `200`, העמוד ב־`failed_pages` עם `EXTRACTION_FAILED` | — |
+
+> הגרסה הקודמת של הסעיף קבעה `422` לקובץ לא תקין ו־`502` כשכל העמודים נכשלו. הוחלף: קובץ לא תקין לא מבטל את שאר הקבצים בבקשה, ועמודים שנכשלו מוצגים מעל טבלת הבדיקה, כל אחד עם הסיבה שלו.
+
+השגיאות של `/api/v1/records` מפורטות ב־[PLAN-DEV-B §2.2](PLAN-DEV-B.md).
 
 ### 9.6 ממשק פנימי בין החילוץ לכללים
 
