@@ -120,6 +120,7 @@ async def records_without_saving(page: ExtractedPage) -> list[Record]:
             commitment_index=draft.commitment_index,
             status="pending",
             version=1,
+            form_type=form.form_type,
             fields=draft.fields,
             central_numbers=draft.central_numbers,
             issues=draft.issues,

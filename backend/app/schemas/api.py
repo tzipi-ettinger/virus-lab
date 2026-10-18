@@ -20,6 +20,18 @@ ModelStatus = Literal["found", "unclear", "not_found"]
 Severity = Literal["info", "warning", "error"]
 RecordStatus = Literal["pending", "approved"]
 
+# D17 in #15: the form family only. The organization itself is in `sender`, and the
+# Hebrew labels live in the UI. Same values as FormType in schemas/extraction.py.
+FormType = Literal[
+    "hmo_form",
+    "hospital_form",
+    "hospital_system_screenshot",
+    "lab_report",
+    "private_lab",
+    "government",
+    "unknown",
+]
+
 # SPEC v0.2 section 8, plus DUPLICATE_RECORD (open question A4).
 IssueCode = Literal[
     "FIELD_UNCLEAR",
@@ -85,6 +97,7 @@ class Form(BaseModel):
     processing_status: Literal["ok", "error"]
     error: ErrorInfo | None
     applied_rotation: int
+    form_type: FormType = "unknown"
     fields: FormFields
     central_numbers: list[FormField]
     commitment_numbers: list[FormField]
@@ -109,6 +122,7 @@ class Record(BaseModel):
     commitment_index: int
     status: RecordStatus
     version: int = Field(description="Send back on PATCH / approve; a stale one returns 409.")
+    form_type: FormType
     fields: RecordFields
     central_numbers: list[FormField]
     issues: list[Issue]
@@ -134,6 +148,7 @@ class RecordSummary(BaseModel):
     commitment_number: str | None
     central_numbers: list[str]
     sender: str | None
+    form_type: FormType
     received_date: str | None
     created_at: datetime
     approved_at: datetime | None

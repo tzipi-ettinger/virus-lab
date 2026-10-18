@@ -928,6 +928,19 @@
             "title": "Version",
             "description": "Send back on PATCH / approve; a stale one returns 409."
           },
+          "form_type": {
+            "type": "string",
+            "enum": [
+              "hmo_form",
+              "hospital_form",
+              "hospital_system_screenshot",
+              "lab_report",
+              "private_lab",
+              "government",
+              "unknown"
+            ],
+            "title": "Form Type"
+          },
           "fields": {
             "$ref": "#/components/schemas/RecordFields"
           },
@@ -981,6 +994,7 @@
           "commitment_index",
           "status",
           "version",
+          "form_type",
           "fields",
           "central_numbers",
           "issues",
@@ -1276,6 +1290,19 @@
             ],
             "title": "Sender"
           },
+          "form_type": {
+            "type": "string",
+            "enum": [
+              "hmo_form",
+              "hospital_form",
+              "hospital_system_screenshot",
+              "lab_report",
+              "private_lab",
+              "government",
+              "unknown"
+            ],
+            "title": "Form Type"
+          },
           "received_date": {
             "anyOf": [
               {
@@ -1320,6 +1347,7 @@
           "commitment_number",
           "central_numbers",
           "sender",
+          "form_type",
           "received_date",
           "created_at",
           "approved_at"

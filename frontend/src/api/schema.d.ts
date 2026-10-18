@@ -301,6 +301,11 @@ export interface components {
              * @description Send back on PATCH / approve; a stale one returns 409.
              */
             version: number;
+            /**
+             * Form Type
+             * @enum {string}
+             */
+            form_type: "hmo_form" | "hospital_form" | "hospital_system_screenshot" | "lab_report" | "private_lab" | "government" | "unknown";
             fields: components["schemas"]["RecordFields"];
             /** Central Numbers */
             central_numbers: components["schemas"]["FormField"][];
@@ -407,6 +412,11 @@ export interface components {
             central_numbers: string[];
             /** Sender */
             sender: string | null;
+            /**
+             * Form Type
+             * @enum {string}
+             */
+            form_type: "hmo_form" | "hospital_form" | "hospital_system_screenshot" | "lab_report" | "private_lab" | "government" | "unknown";
             /** Received Date */
             received_date: string | null;
             /**
