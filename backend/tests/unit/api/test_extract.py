@@ -1,14 +1,14 @@
-import asyncio
 import os
 import tempfile
 
 import pymupdf
 import pytest
 from fastapi.testclient import TestClient
+from starlette import formparsers
 
 from app.api import extract
 from app.extraction.fake_provider import FIXTURES_DIR
-from app.extraction.provider import PageImage, ProviderError
+from app.extraction.provider import PageImage, ProviderError, QuotaExhausted
 from app.main import create_app
 from app.schemas.extraction import RawExtraction
 from app.settings import Settings, get_settings
@@ -31,13 +31,19 @@ def make_pdf(pages: int = 1, noise_px: int = 0) -> bytes:
         return doc.tobytes()
 
 
-class Answers:
-    """Every page reads as Maccabi, except the pages listed as errors."""
+QUOTA = "המכסה היומית של Gemini נגמרה. אפשר לנסות שוב מחר"
 
-    def __init__(self, errors=()) -> None:
+
+class Answers:
+    """Every page reads as Maccabi, except the listed pages: an error, or the quota."""
+
+    def __init__(self, errors=(), quota_from=None) -> None:
         self.errors = set(errors)
+        self.quota_from = quota_from
 
     async def extract(self, page: PageImage) -> RawExtraction:
+        if self.quota_from is not None and page.page_number >= self.quota_from:
+            raise QuotaExhausted(QUOTA)
         if page.page_number in self.errors:
             raise ProviderError("המודל לא ענה")
         return MACCABI.model_copy(deep=True)
@@ -81,6 +87,7 @@ def test_every_page_comes_back_as_records(make_client):
     assert record["fields"]["commitment_number"]["value"] == "50364186"
     assert [c["value"] for c in record["central_numbers"]] == ["937309", "937310", "937311"]
     assert body["failed_pages"] == []
+    assert body["quota_exhausted"] is False
 
 
 def test_a_failed_page_is_listed_and_the_others_saved(make_client):
@@ -176,20 +183,79 @@ def test_too_many_files(make_client):
 
     response = make_client(max_files_per_request=2).post("/api/v1/extract", files=files)
 
-    assert "2 קבצים" in assert_problem(response, 400, "invalid_upload")["detail"]
+    assert "2 קבצים" in assert_problem(response, 400, "too_many_files")["title"]
 
 
-def test_the_stream_is_capped_even_without_content_length():
-    async def chunks():
-        for _ in range(5):
-            yield b"x" * 10
+def test_thousands_of_empty_files_are_stopped_at_the_limit(make_client, monkeypatch):
+    # 60MB can hold a million empty "files"; the parser must stop at the limit rather
+    # than build an object for each (100k of them took 38s and 134MB).
+    created = []
+    original = formparsers.UploadFile.__init__
 
-    async def read_all(limit):
-        return [chunk async for chunk in extract._capped(chunks(), limit)]
+    def counting(self, *args, **kwargs):
+        created.append(1)
+        original(self, *args, **kwargs)
 
-    assert len(asyncio.run(read_all(50))) == 5
-    with pytest.raises(extract._RequestTooLarge):
-        asyncio.run(read_all(49))
+    monkeypatch.setattr(formparsers.UploadFile, "__init__", counting)
+    body = multipart(*[("a.pdf", b"")] * 5_000)
+
+    response = make_client().post("/api/v1/extract", content=body, headers=MULTIPART)
+
+    assert_problem(response, 400, "too_many_files")
+    assert len(created) <= 21  # MAX_FILES_PER_REQUEST is 20
+
+
+def multipart(*parts: tuple[str, bytes], boundary: str = "XYZ", closed: bool = True) -> bytes:
+    """A multipart body by hand, to send it chunked or cut it off."""
+    body = b"".join(
+        f'--{boundary}\r\nContent-Disposition: form-data; name="files"; filename="{name}"\r\n'
+        f"Content-Type: application/pdf\r\n\r\n".encode()
+        + data
+        + b"\r\n"
+        for name, data in parts
+    )
+    return body + (f"--{boundary}--\r\n".encode() if closed else b"")
+
+
+MULTIPART = {"content-type": "multipart/form-data; boundary=XYZ"}
+
+
+def test_a_chunked_request_with_no_content_length_is_still_capped(make_client):
+    # The test client sends Content-Length for a normal upload; a generator body is
+    # sent chunked, without one, so only the cap while reading can stop it.
+    body = multipart(("big.pdf", make_pdf(noise_px=1000)))
+
+    def chunks():
+        for start in range(0, len(body), 64_000):
+            yield body[start : start + 64_000]
+
+    response = make_client(max_request_mb=1).post(
+        "/api/v1/extract", content=chunks(), headers=MULTIPART
+    )
+
+    assert "content-length" not in response.request.headers
+    assert_problem(response, 413, "request_too_large")
+
+
+def test_a_chunked_request_under_the_limit_goes_through(make_client):
+    body = multipart(("a.pdf", make_pdf(1)))
+
+    response = make_client().post("/api/v1/extract", content=iter([body]), headers=MULTIPART)
+
+    assert response.status_code == 200
+    assert [f["status"] for f in response.json()["files"]] == ["ok"]
+
+
+def test_an_upload_cut_off_in_the_middle_is_invalid_not_empty(make_client):
+    # Starlette parses it without an error and drops the unfinished file, which
+    # looked like "no files chosen".
+    whole = multipart(("a.pdf", make_pdf(1)), ("b.pdf", make_pdf(1)))
+    cut = whole[: len(whole) - 300]
+
+    response = make_client().post("/api/v1/extract", content=cut, headers=MULTIPART)
+
+    body = assert_problem(response, 400, "invalid_upload")
+    assert "נקטעה" in body["title"]
 
 
 def test_records_without_saving_gives_one_record_per_commitment(make_client):
@@ -231,3 +297,39 @@ def test_an_empty_file_input_counts_as_no_files(make_client):
     response = make_client().post("/api/v1/extract", files=files)
 
     assert_problem(response, 400, "no_files")
+
+
+# --- The daily quota runs out: is sending the file again safe?
+
+
+def test_quota_after_a_page_was_saved_is_200_with_the_saved_records(make_client):
+    response = make_client(provider=Answers(quota_from=2), max_concurrency=1).post(
+        "/api/v1/extract", files=upload(("a.pdf", make_pdf(3)))
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["quota_exhausted"] is True
+    assert [r["page_number"] for r in body["records"]] == [1]
+    assert [(p["page_number"], p["error"]["code"]) for p in body["failed_pages"]] == [
+        (2, "QUOTA_EXHAUSTED"),
+        (3, "QUOTA_EXHAUSTED"),
+    ]
+
+
+def test_quota_before_anything_was_saved_is_503(make_client):
+    response = make_client(provider=Answers(quota_from=1)).post(
+        "/api/v1/extract", files=upload(("a.pdf", make_pdf(2)))
+    )
+
+    body = assert_problem(response, 503, "quota_exhausted")
+    assert body["title"] == QUOTA  # the provider's Hebrew message
+
+
+def test_quota_after_a_page_failed_for_another_reason_is_still_503(make_client):
+    # Page 1 failed and page 2 hit the quota: nothing was saved, so sending again is safe.
+    response = make_client(provider=Answers(errors={1}, quota_from=2), max_concurrency=1).post(
+        "/api/v1/extract", files=upload(("a.pdf", make_pdf(3)))
+    )
+
+    assert_problem(response, 503, "quota_exhausted")

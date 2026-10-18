@@ -30,7 +30,7 @@
     "/api/v1/extract": {
       "post": {
         "summary": "Extract",
-        "description": "Read every page of every file and save it as pending records.\n\nA file or page that fails is reported in `files` / `failed_pages`, and the\nothers go on: the response is 200 unless the request itself is unusable.",
+        "description": "Read every page of every file and save it as pending records.\n\nA file or page that fails is reported in `files` / `failed_pages`, and the\nothers go on. When the daily quota runs out, the answer says whether sending\nthe file again is safe:\n- nothing was saved: 503 quota_exhausted, and the file can be sent again;\n- some pages were saved: 200 with quota_exhausted=true and those records.\n  Sending the file again would save them twice.\nOtherwise 200, unless the request itself is unusable (4xx).",
         "operationId": "extract_api_v1_extract_post",
         "requestBody": {
           "content": {
@@ -67,7 +67,7 @@
             }
           },
           "400": {
-            "description": "No files (\"no_files\") or an unreadable upload (\"invalid_upload\")",
+            "description": "No files (\"no_files\"), more than MAX_FILES_PER_REQUEST (\"too_many_files\"), or an upload that is cut off or broken (\"invalid_upload\")",
             "content": {
               "application/json": {
                 "schema": {
@@ -88,6 +88,16 @@
           },
           "415": {
             "description": "Not multipart/form-data (\"unsupported_media_type\")",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "The daily Gemini quota ran out before any page was saved (\"quota_exhausted\"): nothing was saved, so the file can be sent again",
             "content": {
               "application/json": {
                 "schema": {
@@ -516,7 +526,8 @@
             "type": "string",
             "enum": [
               "EXTRACTION_FAILED",
-              "INVALID_FILE"
+              "INVALID_FILE",
+              "QUOTA_EXHAUSTED"
             ],
             "title": "Code"
           },
@@ -555,6 +566,12 @@
             },
             "type": "array",
             "title": "Failed Pages"
+          },
+          "quota_exhausted": {
+            "type": "boolean",
+            "title": "Quota Exhausted",
+            "description": "The daily quota ran out after some pages were saved: stop sending files. The unread pages are in failed_pages with QUOTA_EXHAUSTED. When nothing was saved, extract answers 503 quota_exhausted instead.",
+            "default": false
           }
         },
         "type": "object",

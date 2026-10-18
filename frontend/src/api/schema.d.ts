@@ -35,7 +35,12 @@ export interface paths {
          * @description Read every page of every file and save it as pending records.
          *
          *     A file or page that fails is reported in `files` / `failed_pages`, and the
-         *     others go on: the response is 200 unless the request itself is unusable.
+         *     others go on. When the daily quota runs out, the answer says whether sending
+         *     the file again is safe:
+         *     - nothing was saved: 503 quota_exhausted, and the file can be sent again;
+         *     - some pages were saved: 200 with quota_exhausted=true and those records.
+         *       Sending the file again would save them twice.
+         *     Otherwise 200, unless the request itself is unusable (4xx).
          */
         post: operations["extract_api_v1_extract_post"];
         delete?: never;
@@ -144,7 +149,7 @@ export interface components {
              * Code
              * @enum {string}
              */
-            code: "EXTRACTION_FAILED" | "INVALID_FILE";
+            code: "EXTRACTION_FAILED" | "INVALID_FILE" | "QUOTA_EXHAUSTED";
             /** Message */
             message: string;
         };
@@ -159,6 +164,12 @@ export interface components {
             records: components["schemas"]["Record"][];
             /** Failed Pages */
             failed_pages: components["schemas"]["FailedPage"][];
+            /**
+             * Quota Exhausted
+             * @description The daily quota ran out after some pages were saved: stop sending files. The unread pages are in failed_pages with QUOTA_EXHAUSTED. When nothing was saved, extract answers 503 quota_exhausted instead.
+             * @default false
+             */
+            quota_exhausted: boolean;
         };
         /**
          * FailedPage
@@ -486,7 +497,7 @@ export interface operations {
                     "application/json": components["schemas"]["ExtractResponse"];
                 };
             };
-            /** @description No files ("no_files") or an unreadable upload ("invalid_upload") */
+            /** @description No files ("no_files"), more than MAX_FILES_PER_REQUEST ("too_many_files"), or an upload that is cut off or broken ("invalid_upload") */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -506,6 +517,15 @@ export interface operations {
             };
             /** @description Not multipart/form-data ("unsupported_media_type") */
             415: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description The daily Gemini quota ran out before any page was saved ("quota_exhausted"): nothing was saved, so the file can be sent again */
+            503: {
                 headers: {
                     [name: string]: unknown;
                 };

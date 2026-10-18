@@ -184,7 +184,28 @@ def test_a_used_up_quota_fails_the_pages_not_started_without_calling():
     assert [p.form.page_number for p in result.pages] == [1]
     assert [p.page_number for p in result.failed_pages] == [2, 3, 4]
     assert {p.error.message for p in result.failed_pages} == {"המכסה היומית נגמרה"}
+    # Read or not even sent, they all failed on the quota, not on the model.
+    assert {p.error.code for p in result.failed_pages} == {"QUOTA_EXHAUSTED"}
     assert result.quota_exhausted
+    assert result.quota_message == "המכסה היומית נגמרה"
+
+
+@pytest.mark.usefixtures("instant_render")
+def test_an_ordinary_failure_stays_extraction_failed_next_to_a_used_up_quota():
+    provider = PageScript(
+        errors={
+            ("forms.pdf", 1): ProviderError("המודל לא ענה"),
+            ("forms.pdf", 2): QuotaExhausted("המכסה היומית נגמרה"),
+        }
+    )
+
+    result = run([upload(3)], provider, max_concurrency=1)
+
+    assert [(p.page_number, p.error.code) for p in result.failed_pages] == [
+        (1, "EXTRACTION_FAILED"),
+        (2, "QUOTA_EXHAUSTED"),
+        (3, "QUOTA_EXHAUSTED"),
+    ]
 
 
 @pytest.mark.usefixtures("instant_render")
