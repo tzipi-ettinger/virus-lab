@@ -227,14 +227,21 @@ async def _read_uploads(request: Request, settings: Settings) -> list[UploadedFi
         raise too_large  # before reading a byte
 
     body = _Body(request.stream(), limit)
-    # No file limit in the parser: the size cap bounds memory, and counting below
-    # gives the user a precise message instead of the parser's generic one.
-    parser = _InMemoryParser(request.headers, body.chunks(), max_files=sys.maxsize, max_fields=10)
+    too_many_files = _BadRequest(
+        400, "too_many_files", f"אפשר להעלות עד {settings.max_files_per_request} קבצים בבקשה אחת"
+    )
+    # The parser must stop at the file limit itself: the size cap alone doesn't bound
+    # the work, since 60MB can hold a million empty "files", each one an object.
+    parser = _InMemoryParser(
+        request.headers, body.chunks(), max_files=settings.max_files_per_request, max_fields=10
+    )
     try:
         form = await parser.parse()
     except _RequestTooLarge:
         raise too_large from None
     except MultiPartException as exc:
+        if str(exc).startswith("Too many files"):  # Starlette's message, pinned by a test
+            raise too_many_files from exc
         raise _BadRequest(
             400, "invalid_upload", "לא ניתן לקרוא את ההעלאה", "ייתכן שהיא פגומה. אפשר לשלוח שוב"
         ) from exc
@@ -244,16 +251,10 @@ async def _read_uploads(request: Request, settings: Settings) -> list[UploadedFi
             raise _BadRequest(
                 400, "invalid_upload", "ההעלאה נקטעה באמצע", "שום דבר לא נשמר. אפשר לשלוח שוב"
             )
-        files = [item for item in form.getlist("files") if isinstance(item, UploadFile)]
-        if len(files) > settings.max_files_per_request:
-            raise _BadRequest(
-                400,
-                "too_many_files",
-                f"אפשר להעלות עד {settings.max_files_per_request} קבצים בבקשה אחת",
-            )
         uploads = [
             UploadedFile(filename=item.filename or "upload", data=await item.read())
-            for item in files
+            for item in form.getlist("files")
+            if isinstance(item, UploadFile)
         ]
     finally:
         await form.close()

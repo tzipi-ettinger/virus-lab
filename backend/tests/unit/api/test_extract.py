@@ -4,6 +4,7 @@ import tempfile
 import pymupdf
 import pytest
 from fastapi.testclient import TestClient
+from starlette import formparsers
 
 from app.api import extract
 from app.extraction.fake_provider import FIXTURES_DIR
@@ -183,6 +184,25 @@ def test_too_many_files(make_client):
     response = make_client(max_files_per_request=2).post("/api/v1/extract", files=files)
 
     assert "2 קבצים" in assert_problem(response, 400, "too_many_files")["title"]
+
+
+def test_thousands_of_empty_files_are_stopped_at_the_limit(make_client, monkeypatch):
+    # 60MB can hold a million empty "files"; the parser must stop at the limit rather
+    # than build an object for each (100k of them took 38s and 134MB).
+    created = []
+    original = formparsers.UploadFile.__init__
+
+    def counting(self, *args, **kwargs):
+        created.append(1)
+        original(self, *args, **kwargs)
+
+    monkeypatch.setattr(formparsers.UploadFile, "__init__", counting)
+    body = multipart(*[("a.pdf", b"")] * 5_000)
+
+    response = make_client().post("/api/v1/extract", content=body, headers=MULTIPART)
+
+    assert_problem(response, 400, "too_many_files")
+    assert len(created) <= 21  # MAX_FILES_PER_REQUEST is 20
 
 
 def multipart(*parts: tuple[str, bytes], boundary: str = "XYZ", closed: bool = True) -> bytes:
