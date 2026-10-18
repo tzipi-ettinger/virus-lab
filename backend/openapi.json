@@ -27,6 +27,78 @@
         }
       }
     },
+    "/api/v1/extract": {
+      "post": {
+        "summary": "Extract",
+        "description": "Read every page of every file and save it as pending records.\n\nA file or page that fails is reported in `files` / `failed_pages`, and the\nothers go on: the response is 200 unless the request itself is unusable.",
+        "operationId": "extract_api_v1_extract_post",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "properties": {
+                  "files": {
+                    "items": {
+                      "type": "string",
+                      "format": "binary"
+                    },
+                    "type": "array",
+                    "description": "PDF, JPG or PNG files."
+                  }
+                },
+                "type": "object",
+                "required": [
+                  "files"
+                ]
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExtractResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "No files (\"no_files\") or an unreadable upload (\"invalid_upload\")",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Request over MAX_REQUEST_MB (\"request_too_large\") or over MAX_PAGES_PER_REQUEST (\"too_many_pages\")",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Not multipart/form-data (\"unsupported_media_type\")",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/records": {
       "get": {
         "summary": "List Records",
@@ -438,6 +510,89 @@
         ],
         "title": "ApproveRequest"
       },
+      "ErrorInfo": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "enum": [
+              "EXTRACTION_FAILED",
+              "INVALID_FILE"
+            ],
+            "title": "Code"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          }
+        },
+        "type": "object",
+        "required": [
+          "code",
+          "message"
+        ],
+        "title": "ErrorInfo"
+      },
+      "ExtractResponse": {
+        "properties": {
+          "files": {
+            "items": {
+              "$ref": "#/components/schemas/FileResult"
+            },
+            "type": "array",
+            "title": "Files"
+          },
+          "records": {
+            "items": {
+              "$ref": "#/components/schemas/Record"
+            },
+            "type": "array",
+            "title": "Records",
+            "description": "Saved as pending."
+          },
+          "failed_pages": {
+            "items": {
+              "$ref": "#/components/schemas/FailedPage"
+            },
+            "type": "array",
+            "title": "Failed Pages"
+          }
+        },
+        "type": "object",
+        "required": [
+          "files",
+          "records",
+          "failed_pages"
+        ],
+        "title": "ExtractResponse"
+      },
+      "FailedPage": {
+        "properties": {
+          "file_id": {
+            "type": "string",
+            "title": "File Id"
+          },
+          "source_file": {
+            "type": "string",
+            "title": "Source File"
+          },
+          "page_number": {
+            "type": "integer",
+            "title": "Page Number"
+          },
+          "error": {
+            "$ref": "#/components/schemas/ErrorInfo"
+          }
+        },
+        "type": "object",
+        "required": [
+          "file_id",
+          "source_file",
+          "page_number",
+          "error"
+        ],
+        "title": "FailedPage",
+        "description": "A page whose extraction failed. It is not saved (A7) and is shown as failed (FR-12)."
+      },
       "FieldEdit": {
         "properties": {
           "value": {
@@ -466,6 +621,51 @@
         "type": "object",
         "title": "FieldEdit",
         "description": "Leave a key out to keep it. value: null clears the field.\n\nSending a value unsets confirmed (SPEC 7.4)."
+      },
+      "FileResult": {
+        "properties": {
+          "file_id": {
+            "type": "string",
+            "title": "File Id",
+            "description": "Generated by the server."
+          },
+          "filename": {
+            "type": "string",
+            "title": "Filename",
+            "description": "The original name."
+          },
+          "page_count": {
+            "type": "integer",
+            "title": "Page Count"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "ok",
+              "error"
+            ],
+            "title": "Status"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ErrorInfo"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "file_id",
+          "filename",
+          "page_count",
+          "status",
+          "error"
+        ],
+        "title": "FileResult"
       },
       "FormField": {
         "properties": {
