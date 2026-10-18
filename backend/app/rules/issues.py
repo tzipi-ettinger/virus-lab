@@ -23,6 +23,7 @@ CATALOG: dict[IssueCode, tuple[Severity, str]] = {
     "ROTATION_UNRESOLVED": ("warning", "העמוד סרוק בכיוון חריג — יש לבדוק את כל השדות"),
     "DUPLICATE_REMOVED": ("info", "הוסרה כפילות"),
     "DUPLICATE_RECORD": ("warning", "מספר ההתחייבות כבר קיים ברשומה אחרת — יש לבדוק"),
+    "PAGE_GROUPING_UNCERTAIN": ("warning", "עמוד בלי מספר מרכזי שלא תואם לטופס הקודם — יש לבדוק"),
     "EXTRACTION_FAILED": ("error", "הקריאה נכשלה — נסי שוב"),
     "INVALID_FILE": ("error", "לא ניתן לקרוא את הקובץ"),
 }
