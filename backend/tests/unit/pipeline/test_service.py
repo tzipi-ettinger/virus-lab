@@ -9,6 +9,7 @@ from app.extraction.fake_provider import FIXTURES_DIR, FakeProvider
 from app.extraction.provider import PageImage, ProviderError, QuotaExhausted
 from app.pipeline.ingest import SourcePage
 from app.pipeline.service import (
+    SAVE_FAILED,
     UNEXPECTED_ERROR,
     ExtractedPage,
     TooManyPages,
@@ -216,3 +217,83 @@ def test_with_fake_provider_rotated_pages_are_straightened():
     assert {p.form.applied_rotation for p in rotated} == {90, 270}
     assert all(p.calls == 2 for p in rotated)
     assert all(isinstance(p, ExtractedPage) for p in result.pages)
+
+
+# --- Saving each page as it finishes
+
+
+class Saver:
+    """Records the order of events and how many saves ran at once.
+
+    Returns a string per page in place of real Records: the service only passes them on.
+    """
+
+    def __init__(self, fail_on=(), delay=0.0) -> None:
+        self.fail_on = set(fail_on)
+        self.delay = delay
+        self.saved: list[int] = []
+        self.in_flight = 0
+        self.max_in_flight = 0
+
+    async def __call__(self, page: ExtractedPage):
+        self.in_flight += 1
+        self.max_in_flight = max(self.max_in_flight, self.in_flight)
+        try:
+            await asyncio.sleep(self.delay)
+            if page.form.page_number in self.fail_on:
+                raise RuntimeError("ישראל ישראלי: connection lost")
+            self.saved.append(page.form.page_number)
+            return [f"record of p{page.form.page_number}"]
+        finally:
+            self.in_flight -= 1
+
+
+@pytest.mark.usefixtures("instant_render")
+def test_each_page_is_saved_once_with_its_records():
+    provider = PageScript(errors={("forms.pdf", 2): ProviderError("המודל לא ענה")})
+    saver = Saver()
+
+    result = run([upload(3)], provider, save_page=saver)
+
+    assert sorted(saver.saved) == [1, 3]  # a failed page is not saved (A7)
+    assert [p.records for p in result.pages] == [["record of p1"], ["record of p3"]]
+
+
+@pytest.mark.usefixtures("instant_render")
+def test_a_page_is_saved_before_the_slow_ones_finish():
+    provider = PageScript(delays={("forms.pdf", 2): 0.1})
+    saver = Saver()
+    events = []
+
+    async def save(page):
+        events.append((page.form.page_number, provider.in_flight))
+        return await saver(page)
+
+    run([upload(2)], provider, save_page=save)
+
+    # Page 1 was saved while page 2 was still with the model, not at the end.
+    assert events == [(1, 1), (2, 0)]
+
+
+@pytest.mark.usefixtures("instant_render")
+def test_saves_never_run_at_the_same_time():
+    saver = Saver(delay=0.02)
+
+    result = run([upload(6)], PageScript(), max_concurrency=4, save_page=saver)
+
+    assert len(result.pages) == 6
+    assert saver.max_in_flight == 1
+
+
+@pytest.mark.usefixtures("instant_render")
+def test_a_failed_save_fails_its_page_and_logs_no_content(caplog):
+    saver = Saver(fail_on={2})
+
+    with caplog.at_level(logging.INFO, logger="app.pipeline.service"):
+        result = run([upload(3)], PageScript(), save_page=saver)
+
+    assert [p.form.page_number for p in result.pages] == [1, 3]
+    [failed] = result.failed_pages
+    assert (failed.page_number, failed.error.message) == (2, SAVE_FAILED)
+    assert "RuntimeError" in caplog.text
+    assert "ישראל" not in caplog.text

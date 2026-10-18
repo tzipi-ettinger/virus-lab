@@ -5,6 +5,10 @@ the others (FR-12): it becomes a FailedPage. A used-up quota is the exception:
 every further call would fail too, so the pages not started yet are failed
 without a call, and the pages already in flight are allowed to finish.
 
+Each page is saved as soon as it is read (`save_page`), not at the end, so the
+pages already read survive if the user closes the tab in the middle of a long
+upload, and the quota spent on them is not lost.
+
 Logs carry only form_id, timings and error types, never names, IDs, file names
 or the model's text (SPEC 11.1).
 
@@ -15,8 +19,8 @@ import asyncio
 import logging
 import secrets
 import time
-from collections.abc import Sequence
-from dataclasses import dataclass, field
+from collections.abc import Awaitable, Callable, Sequence
+from dataclasses import dataclass, field, replace
 from datetime import date
 
 from app.extraction.provider import ExtractionProvider, PageImage, ProviderError, QuotaExhausted
@@ -24,11 +28,12 @@ from app.pipeline.assemble import assemble, form_id
 from app.pipeline.ingest import InvalidFile, SourcePage, split_pages_async
 from app.pipeline.orient import extract_upright
 from app.rules.engine import apply_rules
-from app.schemas.api import ErrorInfo, FailedPage, FileResult, Form
+from app.schemas.api import ErrorInfo, FailedPage, FileResult, Form, Record
 
 logger = logging.getLogger(__name__)
 
 UNEXPECTED_ERROR = "שגיאה לא צפויה בעיבוד העמוד. אפשר לנסות שוב"
+SAVE_FAILED = "העמוד נקרא, אבל השמירה נכשלה. אפשר לנסות שוב"
 
 
 @dataclass(frozen=True)
@@ -43,6 +48,11 @@ class ExtractedPage:
     image: PageImage  # the image the fields were read from, saved for the preview (D4)
     calls: int
     seconds: float
+    records: list[Record] = field(default_factory=list)  # what save_page stored
+
+
+# Saves one page and returns its records. Called once per page, never two at a time.
+SavePage = Callable[[ExtractedPage], Awaitable[list[Record]]]
 
 
 @dataclass(frozen=True)
@@ -69,11 +79,13 @@ async def extract_files(
     max_bytes: int,
     max_pages: int,
     max_concurrency: int,
+    save_page: SavePage | None = None,
 ) -> ExtractionResult:
     """Extract every page of every file. Raises TooManyPages before any model call.
 
     An invalid file is reported in `files` and the others go on. `today` is passed
-    to the rules, so the caller decides the date (and its time zone).
+    to the rules (the caller uses clock.israel_today). A page that `save_page`
+    fails on is reported failed, so the response never shows unsaved records.
     """
     if max_concurrency < 1:  # Semaphore(0) would hang the request without an error
         raise ValueError(f"max_concurrency must be at least 1, got {max_concurrency}")
@@ -82,6 +94,9 @@ async def extract_files(
         raise TooManyPages(f"בהעלאה {len(pages)} עמודים. המקסימום הוא {max_pages}")
 
     semaphore = asyncio.Semaphore(max_concurrency)
+    # One save at a time: two pages with the same commitment number saved at once
+    # could each miss the other in the duplicate check.
+    save_lock = asyncio.Lock()
     quota_message: str | None = None
 
     async def run(page: SourcePage) -> ExtractedPage | FailedPage:
@@ -114,7 +129,18 @@ async def extract_files(
             oriented.applied_rotation,
             ", unresolved" if oriented.unresolved else "",
         )
-        return ExtractedPage(form=form, image=oriented.image, calls=oriented.calls, seconds=seconds)
+        page_result = ExtractedPage(
+            form=form, image=oriented.image, calls=oriented.calls, seconds=seconds
+        )
+        if save_page is None:
+            return page_result
+        try:
+            async with save_lock:
+                records = await save_page(page_result)
+        except Exception as exc:
+            logger.error("page not saved: %s (%s)", page_id, type(exc).__name__)
+            return _failed(page, SAVE_FAILED)
+        return replace(page_result, records=records)
 
     outcomes = await asyncio.gather(*(run(page) for page in pages))
     return ExtractionResult(
