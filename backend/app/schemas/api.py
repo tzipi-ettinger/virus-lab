@@ -39,7 +39,8 @@ IssueCode = Literal[
     "EXTRACTION_FAILED",
     "INVALID_FILE",
 ]
-ErrorCode = Literal["EXTRACTION_FAILED", "INVALID_FILE"]
+# QUOTA_EXHAUSTED: the page was not read because the daily Gemini quota ran out.
+ErrorCode = Literal["EXTRACTION_FAILED", "INVALID_FILE", "QUOTA_EXHAUSTED"]
 
 
 class Issue(BaseModel):
@@ -170,6 +171,12 @@ class ExtractResponse(BaseModel):
     files: list[FileResult]
     records: list[Record] = Field(description="Saved as pending.")
     failed_pages: list[FailedPage]
+    quota_exhausted: bool = Field(
+        default=False,
+        description="The daily quota ran out after some pages were saved: stop sending "
+        "files. The unread pages are in failed_pages with QUOTA_EXHAUSTED. When nothing "
+        "was saved, extract answers 503 quota_exhausted instead.",
+    )
 
 
 # --- PATCH /api/v1/records/{record_id}

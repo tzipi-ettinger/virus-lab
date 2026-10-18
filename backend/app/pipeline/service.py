@@ -29,7 +29,7 @@ from app.pipeline.assemble import assemble, form_id
 from app.pipeline.ingest import InvalidFile, SourcePage, split_pages_async
 from app.pipeline.orient import extract_upright
 from app.rules.engine import apply_rules
-from app.schemas.api import ErrorInfo, FailedPage, FileResult, Form, Record
+from app.schemas.api import ErrorCode, ErrorInfo, FailedPage, FileResult, Form, Record
 
 logger = logging.getLogger(__name__)
 
@@ -61,7 +61,11 @@ class ExtractionResult:
     files: list[FileResult]
     pages: list[ExtractedPage]  # in upload order: file, then page number
     failed_pages: list[FailedPage]
-    quota_exhausted: bool
+    quota_message: str | None = None  # the provider's Hebrew message, once the quota ran out
+
+    @property
+    def quota_exhausted(self) -> bool:
+        return self.quota_message is not None
 
 
 class TooManyPages(Exception):
@@ -107,7 +111,7 @@ async def extract_files(
         try:
             async with semaphore:
                 if quota_message is not None:
-                    return _failed(page, quota_message)
+                    return _failed(page, quota_message, code="QUOTA_EXHAUSTED")
                 started = time.perf_counter()
                 oriented = await extract_upright(provider, page)
             seconds = time.perf_counter() - started
@@ -115,7 +119,7 @@ async def extract_files(
         except QuotaExhausted as exc:
             logger.warning("quota exhausted at %s", page_id)
             quota_message = exc.message
-            return _failed(page, exc.message)
+            return _failed(page, exc.message, code="QUOTA_EXHAUSTED")
         except ProviderError as exc:
             logger.warning("page failed: %s (%s)", page_id, type(exc).__name__)
             return _failed(page, exc.message)
@@ -149,7 +153,7 @@ async def extract_files(
         files=file_results,
         pages=[item for item in outcomes if isinstance(item, ExtractedPage)],
         failed_pages=[item for item in outcomes if isinstance(item, FailedPage)],
-        quota_exhausted=quota_message is not None,
+        quota_message=quota_message,
     )
 
 
@@ -189,10 +193,10 @@ def _file_result(
     )
 
 
-def _failed(page: SourcePage, message: str) -> FailedPage:
+def _failed(page: SourcePage, message: str, *, code: ErrorCode = "EXTRACTION_FAILED") -> FailedPage:
     return FailedPage(
         file_id=page.file_id,
         source_file=page.filename,
         page_number=page.page_number,
-        error=ErrorInfo(code="EXTRACTION_FAILED", message=message),
+        error=ErrorInfo(code=code, message=message),
     )
