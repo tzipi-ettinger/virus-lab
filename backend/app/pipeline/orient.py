@@ -11,7 +11,7 @@ Owner: A
 
 from dataclasses import dataclass, field
 
-from app.extraction.provider import ExtractionProvider, PageImage, ProviderError, QuotaExhausted
+from app.extraction.provider import ExtractionProvider, PageImage, ProviderError
 from app.pipeline.ingest import ROTATIONS, SourcePage
 from app.schemas.extraction import RawExtraction
 
@@ -50,9 +50,7 @@ async def extract_upright(
         turned = await page.render_async((applied + needed) % 360)
         try:
             corrected = await provider.extract(turned)
-        except QuotaExhausted:
-            raise
-        except ProviderError:
+        except ProviderError:  # QuotaExhausted is not one: it propagates
             break
         applied, image, extraction = turned.rotation, turned, corrected
         calls += 1

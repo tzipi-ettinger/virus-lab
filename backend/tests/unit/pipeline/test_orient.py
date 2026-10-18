@@ -128,6 +128,11 @@ def test_quota_exhausted_during_a_correction_stops_everything(source_page):
         run(provider, source_page)
 
 
+def test_quota_exhausted_is_not_a_page_error():
+    # Otherwise any `except ProviderError` for one page would let the batch keep going.
+    assert not issubclass(QuotaExhausted, ProviderError)
+
+
 def test_with_fake_provider_a_270_page_takes_two_calls():
     provider = FakeProvider()
     fixtures = sorted(FIXTURES_DIR.glob("*.json"))
