@@ -6,8 +6,13 @@ returns the issues it finds; a missing value is review_policy's job, not ours.
 Owner: B
 """
 
+from datetime import date
+
 from app.rules.issues import make_issue
 from app.schemas.api import Issue
+
+# A received date before this is more likely a misread than a real sample (SPEC 5.4).
+EARLIEST_RECEIVED_DATE = date(2020, 1, 1)
 
 
 def israeli_id_checksum_ok(national_id: str) -> bool:
@@ -26,4 +31,13 @@ def validate_national_id(value: str | None) -> list[Issue]:
         return [make_issue("ID_LENGTH_INVALID")]
     if not israeli_id_checksum_ok(value):
         return [make_issue("ID_CHECKSUM_INVALID")]
+    return []
+
+
+def validate_received_date(value: str | None, today: date) -> list[Issue]:
+    """value is ISO (from normalize_date). today is passed in so the rules stay pure."""
+    if value is None:
+        return []
+    if not EARLIEST_RECEIVED_DATE <= date.fromisoformat(value) <= today:
+        return [make_issue("DATE_OUT_OF_RANGE")]
     return []
