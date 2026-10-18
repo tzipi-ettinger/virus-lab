@@ -31,9 +31,9 @@ pnpm-debug.log*
 *.log
 backend/output/
 backend/tmp/
-# Generated Excel exports (ground-truth file under eval/ is kept)
-backend/**/*.xlsx
-!backend/eval/**/*.xlsx
+
+# ===== Local records DB (patient data - never commit) =====
+backend/data/
 
 # ===== Editors / OS =====
 .vscode/*
