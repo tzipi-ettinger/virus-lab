@@ -85,6 +85,16 @@ def test_a_page_that_never_turns_upright_is_flagged(source_page):
     assert result.unresolved
 
 
+def test_a_rotation_already_tried_is_not_sent_again(source_page):
+    # 90, then 270 from there, points back at the original image: no call for it.
+    provider = ScriptedProvider(90, 270, 0)
+
+    result = run(provider, source_page)
+
+    assert provider.seen_rotations == [0, 90]
+    assert (result.calls, result.applied_rotation, result.unresolved) == (2, 90, True)
+
+
 @pytest.mark.parametrize("odd", [45, 135])
 def test_an_odd_rotation_is_not_rendered_but_flagged(source_page, odd):
     provider = ScriptedProvider(odd)

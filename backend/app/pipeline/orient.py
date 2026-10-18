@@ -42,12 +42,17 @@ async def extract_upright(
     image = await page.render_async(0)
     extraction = await provider.extract(image)
     applied, calls, history = 0, 1, [extraction.page_rotation_degrees]
+    tried = {0}
 
     for _ in range(max_corrections):
         needed = extraction.page_rotation_degrees % 360
         if needed == 0 or needed not in ROTATIONS:
             break
-        turned = await page.render_async((applied + needed) % 360)
+        target = (applied + needed) % 360
+        if target in tried:  # the model is going in circles: a call would teach nothing new
+            break
+        tried.add(target)
+        turned = await page.render_async(target)
         try:
             corrected = await provider.extract(turned)
         except ProviderError:  # QuotaExhausted is not one: it propagates
