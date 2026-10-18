@@ -108,6 +108,7 @@ def test_a_page_comes_back_as_raw_extraction():
     assert config.response_schema is RawExtraction
     assert config.response_mime_type == "application/json"
     assert config.thinking_config.thinking_level == types.ThinkingLevel.LOW
+    assert config.automatic_function_calling.disable
 
 
 def test_the_prompt_lists_every_sender_and_drops_its_comment():

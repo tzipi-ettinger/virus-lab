@@ -77,6 +77,8 @@ class GeminiProvider:
             response_schema=RawExtraction,
             # "low": "medium" was 4x slower with no gain in the spike (PLAN.md).
             thinking_config=types.ThinkingConfig(thinking_level="low"),
+            # No tools here: off, so the client neither tries it nor warns on every call.
+            automatic_function_calling=types.AutomaticFunctionCallingConfig(disable=True),
         )
 
     async def extract(self, page: PageImage) -> RawExtraction:
