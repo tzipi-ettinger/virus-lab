@@ -3,15 +3,21 @@
 Owner: A
 """
 
+import logging
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api import extract, health, records
 from app.settings import get_settings
 
+logger = logging.getLogger(__name__)
+
 
 def create_app() -> FastAPI:
     settings = get_settings()
+    if settings.extraction_provider == "fake":
+        logger.warning("EXTRACTION_PROVIDER=fake: every answer is a test fixture, not a reading")
     app = FastAPI(title="virus-lab")
     app.add_middleware(
         CORSMiddleware,

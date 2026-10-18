@@ -8,6 +8,7 @@ from starlette import formparsers
 
 from app.api import extract
 from app.extraction.fake_provider import FIXTURES_DIR
+from app.extraction.gemini_provider import GeminiProvider
 from app.extraction.provider import PageImage, ProviderError, QuotaExhausted
 from app.main import create_app
 from app.schemas.extraction import RawExtraction
@@ -333,3 +334,15 @@ def test_quota_after_a_page_failed_for_another_reason_is_still_503(make_client):
     )
 
     assert_problem(response, 503, "quota_exhausted")
+
+
+def test_gemini_is_one_provider_for_every_request():
+    # Its semaphore limits the whole server only if every request gets the same one.
+    settings = Settings(
+        _env_file=None, extraction_provider="gemini", gemini_api_key="k", gemini_model="m"
+    )
+
+    first, second = extract.get_provider(settings), extract.get_provider(settings)
+
+    assert isinstance(first, GeminiProvider)
+    assert first is second
