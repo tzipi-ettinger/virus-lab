@@ -11,6 +11,9 @@
 # /frontend/src/api/schema.d.ts      @dev-a @dev-b
 # /frontend/src/shared/ui/tokens.css @dev-a @dev-b
 # /frontend/src/App.tsx              @dev-a @dev-b
+# /.github/                          @dev-a @dev-b
+# /backend/scripts/                  @dev-a @dev-b
+# /docs/                             @dev-a @dev-b
 
 # --- A: ingest + AI extraction ---
 # /backend/app/pipeline/             @dev-a
@@ -21,6 +24,8 @@
 
 # --- B: rules, table, export ---
 # /backend/app/rules/                @dev-b
+# /backend/app/storage/              @dev-b
+# /backend/tests/unit/storage/       @dev-b
 # /backend/app/export/               @dev-b
 # /backend/app/api/validate.py       @dev-b
 # /backend/app/api/export.py         @dev-b
