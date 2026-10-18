@@ -4,13 +4,19 @@ Owner: A
 """
 
 from functools import lru_cache
+from pathlib import Path
 
 from pydantic import SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+# backend/.env, wherever the server is started from: a relative path is read from
+# the working directory, so starting uvicorn from the repo root would silently
+# run without the key.
+ENV_FILE = Path(__file__).resolve().parents[1] / ".env"
+
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+    model_config = SettingsConfigDict(env_file=ENV_FILE, extra="ignore")
 
     # SecretStr keeps the key out of repr, logs and tracebacks. Call
     # .get_secret_value() only where the Gemini client is built.
