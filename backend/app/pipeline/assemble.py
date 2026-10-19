@@ -48,10 +48,16 @@ def assemble(page: OrientedPage) -> Form:
 
 
 def _field(raw: RawField) -> FormField:
+    status = raw.status
+    if status == "not_found" and raw.value:
+        # The model contradicts itself: a value it says isn't there. Seen in the first
+        # measurement (a case number as a commitment, 20.10), and the rules accepted it
+        # unflagged. Unclear sends it to a person, with what it read kept in raw.
+        status = "unclear"
     return FormField(
         raw=raw.value,
         value=None,
-        model_status=raw.status,
+        model_status=status,
         evidence=raw.evidence,
         issues=[],
         needs_review=False,

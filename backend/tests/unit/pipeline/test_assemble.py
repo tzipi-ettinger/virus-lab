@@ -9,7 +9,7 @@ from app.pipeline.assemble import assemble, form_id
 from app.pipeline.orient import OrientedPage
 from app.rules.engine import apply_rules
 from app.schemas.api import FormFields
-from app.schemas.extraction import RawExtraction
+from app.schemas.extraction import RawExtraction, RawField
 
 READINGS = [
     path
@@ -77,6 +77,19 @@ def test_every_field_is_copied():
 def test_the_form_type_comes_from_the_reading(name, form_type):
     # Not the contract's default "unknown": that now means the model itself said so.
     assert assemble(oriented(name)).form_type == form_type
+
+
+def test_a_value_the_model_says_is_not_found_goes_to_review():
+    # Seen on a sample: a case number returned as a commitment, with status not_found.
+    reading = oriented("01_meuhedet_clean")
+    contradiction = RawField(value="10982910", status="not_found", evidence="מקרה")
+    reading.extraction.commitment_numbers = [contradiction]
+
+    form = apply_rules(assemble(reading), today=date(2026, 10, 18))
+
+    [item] = form.commitment_numbers
+    assert (item.raw, item.model_status, item.value) == ("10982910", "unclear", None)
+    assert item.needs_review and form.needs_review
 
 
 def test_unresolved_rotation_flags_the_page():
