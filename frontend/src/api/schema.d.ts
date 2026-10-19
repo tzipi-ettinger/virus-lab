@@ -1002,7 +1002,7 @@ export interface operations {
                     "application/json": components["schemas"]["Problem"];
                 };
             };
-            /** @description Not Found */
+            /** @description No such page ("page_not_found") */
             404: {
                 headers: {
                     [name: string]: unknown;
