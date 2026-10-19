@@ -25,6 +25,7 @@ Owner: A
 """
 
 import asyncio
+import json
 import logging
 import re
 from collections.abc import Awaitable, Callable, Sequence
@@ -102,6 +103,14 @@ class GeminiProvider:
             # No tools here: off, so the client neither tries it nor warns on every call.
             automatic_function_calling=types.AutomaticFunctionCallingConfig(disable=True),
         )
+
+    @property
+    def fingerprint(self) -> str:
+        """What decides the answer besides the image: CachedProvider's key, so a new
+        model, prompt, thinking level or schema reads the pages again."""
+        schema = json.dumps(RawExtraction.model_json_schema(), sort_keys=True)
+        thinking = self._config.thinking_config.thinking_level
+        return "\n".join((self._model, str(thinking), self._prompt, schema))
 
     async def extract(self, page: PageImage) -> RawExtraction:
         contents = [types.Part.from_bytes(data=page.jpeg, mime_type="image/jpeg"), self._prompt]

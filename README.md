@@ -99,6 +99,7 @@ virus-lab/
 
 - Python 3.13
 - Node.js 22
+- Docker Desktop (בשביל Postgres מקומי)
 - מפתח Gemini API מ־[Google AI Studio](https://aistudio.google.com/)
 
 > הפקודות למטה ל־Windows PowerShell. ב־macOS/Linux: `python3` במקום `py -3.13`, ו־`.venv/bin/python` במקום `.\.venv\Scripts\python.exe`.
@@ -106,6 +107,7 @@ virus-lab/
 ### Backend 🚧
 
 ```powershell
+docker compose up -d db         # מהשורש: Postgres 17 מקומי, ועוד מסד לבדיקות (virus_lab_test)
 cd backend
 py -3.13 -m venv .venv
 .\.venv\Scripts\python.exe -m pip install -r requirements.txt
@@ -114,6 +116,8 @@ copy .env.example .env          # ואז להדביק את המפתחות ב־GE
 ```
 
 בדיקה: `http://localhost:8000/api/health` מחזיר `{"status": "ok", ...}`. תיעוד ה־API: `http://localhost:8000/docs`.
+
+ב־Windows צריך להשאיר את `--reload`: בלעדיו uvicorn רץ על event loop ש־psycopg לא תומך בו במצב async. `docker compose down -v` מוחק את כל הנתונים המקומיים.
 
 ### Frontend 🚧
 
@@ -129,7 +133,7 @@ npm run dev
 ### בדיקות לפני PR (אותן בדיקות שה־CI מריץ)
 
 ```powershell
-# backend/
+# backend/ (pytest צריך את ה־Postgres מ־docker compose)
 .\.venv\Scripts\python.exe -m ruff check .
 .\.venv\Scripts\python.exe -m ruff format --check .
 .\.venv\Scripts\python.exe -m pytest
@@ -163,7 +167,7 @@ EXTRACTION_PROVIDER=fake
 | `GEMINI_MODEL` | `gemini-3.8-flash` | החלפת מודל בלי שינוי קוד |
 | `GEMINI_THINKING` | `low` | `low` / `medium` / `high` |
 | `EXTRACTION_PROVIDER` | `gemini` | `gemini` / `fake` 🚧 |
-| `EXTRACTION_CACHE` | `false` | מטמון לפיתוח בלבד, על קובצי דוגמה בלבד 🚧 |
+| `EXTRACTION_CACHE` | `false` | מטמון לפיתוח בלבד, על קובצי דוגמה בלבד: עמוד ש־Gemini כבר קרא (אותו מודל ואותו prompt) נלקח מ־`backend/.cache/` בלי פנייה חדשה. לא בשרת החי |
 | `FRONTEND_ORIGIN` | `http://localhost:5173` | CORS |
 | `MAX_FILE_MB` | `20` | גודל קובץ מקסימלי 🚧 |
 | `MAX_CONCURRENCY` | `4` | עמודים שמעובדים במקביל 🚧 |
@@ -237,9 +241,9 @@ cd backend
 ## פרטיות ואבטחה
 
 - עובדות **רק עם קובצי הדוגמה של האתגר**, שבהם הפרטים האישיים שונו
-- קבצים עוברים **בזיכרון בלבד** ולא נשמרים בשרת; אין מסד נתונים
+- הקובץ שהועלה עובר **בזיכרון בלבד** ולא נשמר. נשמרות רק הרשומות ותמונה דחוסה של כל עמוד, ב־PostgreSQL מנוהל של Render (Frankfurt, האיחוד האירופי). פירוט ב־[SPEC 11.1](docs/SPEC.md#111-פרטיות-ואבטחה)
 - הלוגים לא מכילים שמות, ת״ז או תוכן טפסים
-- מפתח ה־API רק ב־`backend/.env`; הקבצים `.env` ותוצאות הניסויים מוחרגים מ־Git
+- מפתח ה־API רק ב־`backend/.env` ובמשתני הסביבה של Render; הקבצים `.env` ותוצאות הניסויים מוחרגים מ־Git
 
 ---
 

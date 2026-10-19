@@ -7,6 +7,7 @@ from fastapi.testclient import TestClient
 from starlette import formparsers
 
 from app.api import extract
+from app.extraction.cached_provider import CachedProvider
 from app.extraction.fake_provider import FIXTURES_DIR
 from app.extraction.gemini_provider import GeminiProvider
 from app.extraction.provider import PageImage, ProviderError, QuotaExhausted
@@ -347,3 +348,26 @@ def test_gemini_is_one_provider_for_every_request():
 
     assert isinstance(first, GeminiProvider)
     assert first is second
+
+
+def test_the_cache_sits_in_front_of_gemini_only_when_turned_on():
+    on = Settings(
+        _env_file=None,
+        extraction_provider="gemini",
+        gemini_api_key="k",
+        gemini_model="m",
+        extraction_cache=True,
+    )
+    off = on.model_copy(update={"extraction_cache": False})
+
+    cached = extract.get_provider(on)
+
+    assert isinstance(cached, CachedProvider)
+    assert extract.get_provider(on) is cached  # one cache, so its counts add up
+    assert isinstance(extract.get_provider(off), GeminiProvider)
+
+
+def test_the_cache_is_off_by_default_and_never_wraps_fake():
+    assert Settings(_env_file=None).extraction_cache is False
+    fake = extract.get_provider(Settings(_env_file=None, extraction_cache=True))
+    assert not isinstance(fake, CachedProvider)

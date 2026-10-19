@@ -1,0 +1,201 @@
+/* UploadPanel. Colors come from shared/ui/tokens.css; the fallbacks hold until the design tokens land.
+   Logical properties only (RTL). Owner: A */
+
+.upload {
+  /* The panel may sit in a narrow column, so the file rows follow its own width, not the window's. */
+  container-type: inline-size;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 20px;
+  background: var(--color-surface, #ffffff);
+  border: 1px solid var(--color-border, #dde3e9);
+  border-radius: var(--radius-lg, 12px);
+  color: var(--color-text, #0f1b2a);
+}
+
+.upload-title {
+  margin: 0;
+  font-size: 1.125rem;
+}
+
+.upload-drop {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding-block: 28px;
+  padding-inline: 16px;
+  border: 2px dashed var(--color-border-strong, #9fb3c8);
+  border-radius: var(--radius-lg, 12px);
+  background: var(--color-surface-muted, #f7f9fb);
+  color: var(--color-text-muted, #52606d);
+  text-align: center;
+}
+
+.upload-drop.is-dragging {
+  border-color: var(--color-accent, #0b6e79);
+  background: var(--color-accent-soft, #e5f1f2);
+  color: var(--color-accent-strong, #08515a);
+}
+
+.upload-drop-text {
+  margin: 0;
+}
+
+.upload-button,
+.upload-retry {
+  min-block-size: 44px;
+  padding-inline: 18px;
+  border-radius: var(--radius-md, 8px);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.upload-button {
+  border: 0;
+  background: var(--color-accent, #0b6e79);
+  color: #ffffff;
+}
+
+.upload-retry {
+  border: 1px solid var(--color-border-strong, #9fb3c8);
+  background: var(--color-surface, #ffffff);
+  color: var(--color-text, #0f1b2a);
+}
+
+.upload-button:focus-visible,
+.upload-retry:focus-visible,
+.upload a:focus-visible {
+  outline: 3px solid var(--color-focus, #1d4ed8);
+  outline-offset: 2px;
+}
+
+.upload-input {
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+
+.upload-alert {
+  margin: 0;
+  padding: 12px 16px;
+  border: 1px solid var(--color-danger, #a12222);
+  border-radius: var(--radius-md, 8px);
+  background: var(--color-danger-soft, #fdecec);
+  color: var(--color-danger, #a12222);
+}
+
+.upload-alert a {
+  color: inherit;
+  font-weight: 600;
+}
+
+.upload-summary {
+  margin: 0;
+  color: var(--color-text-muted, #52606d);
+  font-size: 0.875rem;
+}
+
+.upload-list {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.upload-item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+  padding-block: 10px;
+  border-block-start: 1px solid var(--color-border, #dde3e9);
+}
+
+.upload-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-inline-size: 110px;
+  font-weight: 600;
+  font-size: 0.875rem;
+}
+
+.upload-name {
+  flex: 1 1 200px;
+  min-inline-size: 0;
+  overflow-wrap: anywhere;
+}
+
+.upload-detail {
+  color: var(--color-text-muted, #52606d);
+  font-size: 0.875rem;
+}
+
+.upload-detail:empty {
+  display: none;
+}
+
+.upload-retry {
+  margin-inline-start: auto;
+}
+
+/* Wide panel: one row per file, in fixed columns, like a table. */
+@container (min-width: 640px) {
+  .upload-item {
+    display: grid;
+    grid-template-columns: 120px minmax(0, 1.2fr) minmax(0, 1fr) 96px;
+    gap: 16px;
+  }
+
+  .upload-detail:empty {
+    display: block;
+  }
+
+  .upload-retry {
+    margin-inline-start: 0;
+  }
+}
+
+.is-done .upload-status { color: var(--color-success, #1e6b3a); }
+.is-sending .upload-status,
+.is-queued .upload-status { color: var(--color-text-muted, #52606d); }
+.is-partial .upload-status,
+.is-not_sent .upload-status { color: var(--color-warning, #8a5300); }
+.is-failed .upload-status,
+.is-interrupted .upload-status { color: var(--color-danger, #a12222); }
+
+.upload-spin {
+  animation: upload-spin 1s linear infinite;
+}
+
+@keyframes upload-spin {
+  to { transform: rotate(360deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .upload-spin { animation: none; }
+}
+
+.upload-failed {
+  padding: 12px 16px;
+  border: 1px solid var(--color-warning-border, #d9a514);
+  border-radius: var(--radius-md, 8px);
+  background: var(--color-warning-soft, #fff4db);
+}
+
+.upload-failed-title {
+  margin: 0 0 6px;
+  font-size: 1rem;
+  color: var(--color-warning, #8a5300);
+}
+
+.upload-failed ul {
+  margin: 0;
+  padding-inline-start: 20px;
+}

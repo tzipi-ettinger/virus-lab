@@ -23,6 +23,16 @@ def test_api_key_is_masked(monkeypatch):
     assert settings.gemini_api_key.get_secret_value() == "real-key-123"
 
 
+def test_database_url_is_masked(monkeypatch):
+    url = "postgresql://user:db-pass-123@db.example:5432/app"
+    monkeypatch.setenv("DATABASE_URL", url)
+    settings = Settings(_env_file=None)
+
+    assert "db-pass-123" not in repr(settings)
+    assert "db-pass-123" not in settings.model_dump_json()
+    assert settings.database_url.get_secret_value() == url
+
+
 def test_env_file_is_found_from_any_working_directory():
     backend = Path(__file__).resolve().parents[2]
 

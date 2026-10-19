@@ -8,7 +8,7 @@ import pytest
 from app.extraction.fake_provider import FIXTURES_DIR, FakeProvider
 from app.extraction.provider import PageImage, ProviderError, QuotaExhausted
 from app.pipeline import service
-from app.pipeline.ingest import SourcePage
+from app.pipeline.ingest import SAVE_MAX_SIDE_PX, SourcePage
 from app.pipeline.service import (
     SAVE_FAILED,
     UNEXPECTED_ERROR,
@@ -79,7 +79,7 @@ def instant_render(monkeypatch):
     """For the timing tests: a real render takes ~0.1s one page at a time, which
     would make the order of events depend on the machine."""
 
-    async def render_async(self, rotation=0):
+    async def render_async(self, rotation=0, **size):
         return PageImage(self.file_id, self.filename, self.page_number, rotation, b"jpeg")
 
     monkeypatch.setattr(SourcePage, "render_async", render_async)
@@ -105,8 +105,12 @@ def test_every_page_of_every_file_comes_back_ruled():
     page = result.forms[0]
     national_id = page.form.fields.national_id
     assert (national_id.raw, national_id.value) == ("0011223344", "011223344")  # the rules ran
-    assert page.form.form_id == f"{result.files[0].file_id}#p1"
-    assert page.images[0].jpeg.startswith(b"\xff\xd8")  # the image for the preview
+    assert page.form.form_id == f"{result.files[0].file_id}-p1"
+    saved = page.images[0]
+    assert saved.jpeg.startswith(b"\xff\xd8")  # the image for the preview
+    assert max(pymupdf.Pixmap(saved.jpeg).width, pymupdf.Pixmap(saved.jpeg).height) == (
+        pytest.approx(SAVE_MAX_SIDE_PX, abs=2)  # the saved size, not the model's
+    )
     assert (page.calls, result.failed_pages, result.quota_exhausted) == (1, [], False)
 
 

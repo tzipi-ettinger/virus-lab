@@ -8,6 +8,7 @@ import pytest
 from app.pipeline import ingest
 from app.pipeline.ingest import (
     MAX_SIDE_PX,
+    SAVE_MAX_SIDE_PX,
     InvalidFile,
     detect_type,
     split_pages,
@@ -64,6 +65,19 @@ def test_image_becomes_one_page(kind):
 
     assert len(pages) == 1
     assert pages[0].page_number == 1
+
+
+def test_the_saved_image_is_smaller_and_turned_like_the_models():
+    page = split_pages("f1", "forms.pdf", make_pdf(1), **LIMITS)[0]
+
+    model = page.render(90)
+    saved = page.render(90, max_side=SAVE_MAX_SIDE_PX, quality=ingest.SAVE_JPEG_QUALITY)
+
+    width, height = image_size(saved.jpeg)
+    assert max(width, height) == pytest.approx(SAVE_MAX_SIDE_PX, abs=2)
+    assert width > height  # A4 portrait turned 90: landscape, like the model's image
+    assert saved.rotation == model.rotation == 90
+    assert len(saved.jpeg) < len(model.jpeg)
 
 
 def test_render_returns_a_jpeg_scaled_to_the_longest_side():

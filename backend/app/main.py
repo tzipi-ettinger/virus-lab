@@ -18,6 +18,11 @@ def create_app() -> FastAPI:
     settings = get_settings()
     if settings.extraction_provider == "fake":
         logger.warning("EXTRACTION_PROVIDER=fake: every answer is a test fixture, not a reading")
+    elif settings.extraction_cache:
+        logger.warning(
+            "EXTRACTION_CACHE=true: pages already read come from backend/.cache "
+            "(dev only, sample files only)"
+        )
     app = FastAPI(title="virus-lab")
     app.add_middleware(
         CORSMiddleware,

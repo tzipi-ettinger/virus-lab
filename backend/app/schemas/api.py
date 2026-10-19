@@ -32,7 +32,8 @@ FormType = Literal[
     "unknown",
 ]
 
-# SPEC v0.2 section 8, plus DUPLICATE_RECORD (A4) and PAGE_GROUPING_UNCERTAIN (A1 in #15).
+# SPEC v0.2 section 8, plus DUPLICATE_RECORD (A4), PAGE_GROUPING_UNCERTAIN (A1 in #15)
+# and COMMITMENT_PREFIX_REMOVED (#18).
 IssueCode = Literal[
     "FIELD_UNCLEAR",
     "REQUIRED_MISSING",
@@ -45,6 +46,7 @@ IssueCode = Literal[
     "SENDER_UNKNOWN",
     "CENTRAL_FORMAT",
     "COMMITMENT_PREFIX",
+    "COMMITMENT_PREFIX_REMOVED",
     "ROTATION_UNRESOLVED",
     "DUPLICATE_REMOVED",
     "DUPLICATE_RECORD",

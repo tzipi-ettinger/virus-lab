@@ -253,7 +253,7 @@ export interface components {
              * Code
              * @enum {string}
              */
-            code: "FIELD_UNCLEAR" | "REQUIRED_MISSING" | "ID_CHECKSUM_INVALID" | "ID_LENGTH_INVALID" | "ID_NORMALIZED" | "ID_PADDED" | "DATE_INVALID" | "DATE_OUT_OF_RANGE" | "SENDER_UNKNOWN" | "CENTRAL_FORMAT" | "COMMITMENT_PREFIX" | "ROTATION_UNRESOLVED" | "DUPLICATE_REMOVED" | "DUPLICATE_RECORD" | "PAGE_GROUPING_UNCERTAIN" | "EXTRACTION_FAILED" | "INVALID_FILE";
+            code: "FIELD_UNCLEAR" | "REQUIRED_MISSING" | "ID_CHECKSUM_INVALID" | "ID_LENGTH_INVALID" | "ID_NORMALIZED" | "ID_PADDED" | "DATE_INVALID" | "DATE_OUT_OF_RANGE" | "SENDER_UNKNOWN" | "CENTRAL_FORMAT" | "COMMITMENT_PREFIX" | "COMMITMENT_PREFIX_REMOVED" | "ROTATION_UNRESOLVED" | "DUPLICATE_REMOVED" | "DUPLICATE_RECORD" | "PAGE_GROUPING_UNCERTAIN" | "EXTRACTION_FAILED" | "INVALID_FILE";
             /**
              * Severity
              * @enum {string}
@@ -481,7 +481,7 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        [key: string]: string;
+                        [key: string]: string | boolean;
                     };
                 };
             };

@@ -1,0 +1,32 @@
+# Local Postgres for development and tests (Dev-B plan B0.3). The live server uses
+# Render's managed Postgres instead, so this file never runs there.
+#
+#   docker compose up -d db     # start it (data is kept in the db-data volume)
+#   docker compose down -v      # stop it and delete all local data
+#
+# Owner: B
+
+# Fixed, so a git worktree or a renamed folder uses the same container and data.
+name: virus-lab
+
+services:
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: virus_lab
+      POSTGRES_PASSWORD: virus_lab # local development only
+      POSTGRES_DB: virus_lab
+    ports:
+      - "127.0.0.1:5432:5432" # this machine only, not the network
+    volumes:
+      - db-data:/var/lib/postgresql/data
+      # Runs once, on the first start: creates virus_lab_test for pytest.
+      - ./docker/db-init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U virus_lab -d virus_lab"]
+      interval: 2s
+      timeout: 3s
+      retries: 15
+
+volumes:
+  db-data:

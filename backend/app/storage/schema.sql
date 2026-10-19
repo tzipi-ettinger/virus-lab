@@ -1,75 +1,109 @@
--- Records DB schema. Bump SCHEMA_VERSION in db.py on any change.
+-- Records DB schema (PostgreSQL). Bump SCHEMA_VERSION in db.py on any change.
 -- One record per commitment number (docs/GUIDELINES-V2-CHANGES.md, D2).
--- All IDs are TEXT so leading zeros survive; STRICT makes SQLite enforce it.
+-- Every ID is TEXT, so leading zeros survive.
 -- Owner: B
 
-CREATE TABLE IF NOT EXISTS page (
-    id              TEXT PRIMARY KEY,
-    source_filename TEXT NOT NULL,
-    page_number     INTEGER NOT NULL,
-    rotation        INTEGER NOT NULL DEFAULT 0,
-    created_at      TEXT NOT NULL
-) STRICT;
+CREATE TABLE schema_meta (
+    version INTEGER NOT NULL
+);
 
--- Only the page the fields came from, rotated and compressed (D4).
-CREATE TABLE IF NOT EXISTS page_image (
+-- Created only by scripts/create_user.py: no sign-up, no roles (Dev-B plan 2.6).
+CREATE TABLE users (
+    id              TEXT PRIMARY KEY,
+    username        TEXT NOT NULL UNIQUE,
+    password_hash   TEXT NOT NULL,
+    display_name    TEXT NOT NULL,
+    is_active       BOOLEAN NOT NULL DEFAULT TRUE,
+    failed_attempts INTEGER NOT NULL DEFAULT 0,
+    locked_until    TIMESTAMPTZ,
+    created_at      TIMESTAMPTZ NOT NULL,
+    last_login_at   TIMESTAMPTZ
+);
+
+-- Only a hash of the session token is stored: a leaked table opens no session.
+CREATE TABLE sessions (
+    token_hash   TEXT PRIMARY KEY,
+    user_id      TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    created_at   TIMESTAMPTZ NOT NULL,
+    expires_at   TIMESTAMPTZ NOT NULL,
+    last_seen_at TIMESTAMPTZ NOT NULL
+);
+
+-- A form's pages (A1 in #15): its first page has no first_page_id, and each
+-- continuation page points at the first one. Deleting the first page deletes them.
+CREATE TABLE page (
+    id              TEXT PRIMARY KEY,
+    file_id         TEXT NOT NULL,
+    source_filename TEXT NOT NULL,
+    page_number     INTEGER NOT NULL CHECK (page_number >= 1),
+    rotation        INTEGER NOT NULL DEFAULT 0,  -- for information: the image is already upright
+    first_page_id   TEXT REFERENCES page(id) ON DELETE CASCADE,
+    created_at      TIMESTAMPTZ NOT NULL,
+    created_by      TEXT NOT NULL REFERENCES users(id),
+    UNIQUE (file_id, page_number)
+);
+
+-- The page as saved for the preview (D4): upright and compressed.
+CREATE TABLE page_image (
     page_id TEXT PRIMARY KEY REFERENCES page(id) ON DELETE CASCADE,
     mime    TEXT NOT NULL,
     sha256  TEXT NOT NULL,
-    bytes   BLOB NOT NULL
-) STRICT;
+    bytes   BYTEA NOT NULL
+);
 
-CREATE TABLE IF NOT EXISTS record (
+CREATE TABLE record (
     id                TEXT PRIMARY KEY,
-    page_id           TEXT NOT NULL REFERENCES page(id) ON DELETE CASCADE,
+    page_id           TEXT NOT NULL REFERENCES page(id) ON DELETE CASCADE,  -- the form's first page
     commitment_idx    INTEGER NOT NULL,
     status            TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'approved')),
-    needs_review      INTEGER NOT NULL CHECK (needs_review IN (0, 1)),
+    needs_review      BOOLEAN NOT NULL,
     version           INTEGER NOT NULL DEFAULT 1,
-    -- Effective values (after rules and corrections), kept for search and filter:
+    form_type         TEXT NOT NULL,
+    -- The record as the contract shows it (schemas/api.py, SPEC 7.4): every field
+    -- with raw, value, issues and flags. raw never changes; edits go to value.
+    fields            JSONB NOT NULL,
+    central_numbers   JSONB NOT NULL,
+    issues            JSONB NOT NULL,
+    -- Effective values, copied from the JSONB above, for search, filters and the list:
     national_id       TEXT,
     commitment_number TEXT,
-    central_numbers   TEXT,  -- ' 948062 123456 ' so LIKE '% 948062 %' matches one number
+    central_values    TEXT[] NOT NULL DEFAULT '{}',
     first_name        TEXT,
     last_name         TEXT,
     sender            TEXT,
-    received_date     TEXT,  -- ISO YYYY-MM-DD
+    received_date     DATE,  -- NULL while the date is missing or invalid
     search_text       TEXT NOT NULL DEFAULT '',  -- normalized Hebrew, built in Python
-    created_at        TEXT NOT NULL,
-    updated_at        TEXT NOT NULL,
-    approved_at       TEXT,
+    created_at        TIMESTAMPTZ NOT NULL,
+    created_by        TEXT NOT NULL REFERENCES users(id),
+    updated_at        TIMESTAMPTZ NOT NULL,
+    approved_at       TIMESTAMPTZ,
+    approved_by       TEXT REFERENCES users(id),
     UNIQUE (page_id, commitment_idx)
-) STRICT;
+);
 
--- Field shape follows SPEC v0.2 section 7.4: raw never changes, edits go to value + corrected.
-CREATE TABLE IF NOT EXISTS record_field (
-    record_id    TEXT NOT NULL REFERENCES record(id) ON DELETE CASCADE,
-    field        TEXT NOT NULL,
-    idx          INTEGER NOT NULL DEFAULT 0,  -- position in a list (central numbers)
-    raw          TEXT,
-    value        TEXT,
-    model_status TEXT NOT NULL CHECK (model_status IN ('found', 'unclear', 'not_found')),
-    evidence     TEXT,
-    issues_json  TEXT NOT NULL DEFAULT '[]',
-    needs_review INTEGER NOT NULL CHECK (needs_review IN (0, 1)),
-    corrected    INTEGER NOT NULL DEFAULT 0 CHECK (corrected IN (0, 1)),
-    confirmed    INTEGER NOT NULL DEFAULT 0 CHECK (confirmed IN (0, 1)),
-    updated_at   TEXT,
-    PRIMARY KEY (record_id, field, idx)
-) STRICT;
-
-CREATE TABLE IF NOT EXISTS record_event (
-    id        INTEGER PRIMARY KEY,
+-- Who did what to which field, and when. Never the values themselves (D13).
+CREATE TABLE record_event (
+    id        BIGSERIAL PRIMARY KEY,
     record_id TEXT NOT NULL REFERENCES record(id) ON DELETE CASCADE,
-    at        TEXT NOT NULL,
-    action    TEXT NOT NULL,  -- created / corrected / confirmed / approved
-    field     TEXT,
-    old       TEXT,
-    new       TEXT
-) STRICT;
+    at        TIMESTAMPTZ NOT NULL,
+    user_id   TEXT NOT NULL REFERENCES users(id),
+    action    TEXT NOT NULL CHECK (action IN ('created', 'corrected', 'confirmed', 'approved')),
+    field     TEXT
+);
 
-CREATE INDEX IF NOT EXISTS record_status_date ON record (status, received_date);
-CREATE INDEX IF NOT EXISTS record_national_id ON record (national_id);
-CREATE INDEX IF NOT EXISTS record_commitment ON record (commitment_number);
-CREATE INDEX IF NOT EXISTS record_page ON record (page_id);
-CREATE INDEX IF NOT EXISTS record_event_record ON record_event (record_id);
+-- Who exported, when and how many. No filters and no content (D19).
+CREATE TABLE export_log (
+    id           BIGSERIAL PRIMARY KEY,
+    at           TIMESTAMPTZ NOT NULL,
+    user_id      TEXT NOT NULL REFERENCES users(id),
+    format       TEXT NOT NULL CHECK (format IN ('csv', 'json')),
+    record_count INTEGER NOT NULL
+);
+
+CREATE INDEX record_status_date ON record (status, received_date);
+CREATE INDEX record_national_id ON record (national_id);
+CREATE INDEX record_commitment ON record (commitment_number);
+CREATE INDEX record_page ON record (page_id);
+CREATE INDEX page_first_page ON page (first_page_id);
+CREATE INDEX record_event_record ON record_event (record_id);
+CREATE INDEX sessions_user ON sessions (user_id);

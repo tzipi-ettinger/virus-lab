@@ -28,12 +28,18 @@ class Settings(BaseSettings):
     gemini_api_key: SecretStr = SecretStr("")
     gemini_model: str = ""
     frontend_origin: str = "http://localhost:5173"
+    # Postgres (Dev-B plan B0.3): docker compose locally, Render's internal URL on the
+    # live server. SecretStr, since the URL holds the password.
+    database_url: SecretStr = SecretStr("")
 
     # "fake" serves tests/fixtures: no key, no quota, no real data. "gemini" sends
     # each page to GEMINI_MODEL and needs GEMINI_API_KEYS (checked at startup).
     extraction_provider: Literal["fake", "gemini"] = "fake"
     # One model call, retries not included (SPEC 9.7).
     provider_timeout_s: int = Field(60, ge=1)
+    # Dev only, sample files only: answer a page Gemini already read from
+    # backend/.cache/ (gitignored) instead of a new call. Never on the live server.
+    extraction_cache: bool = False
 
     # Upload limits (SPEC 9.7)
     max_file_mb: int = Field(20, ge=1)

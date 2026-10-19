@@ -1,0 +1,24 @@
+# Hebrew texts the user sees, by key. Code holds only the keys (app/i18n).
+# Another language is another file with the same keys.
+# Owner: B
+
+# One per IssueCode (schemas/api.py); the severity is in rules/issues.py (SPEC 8).
+issues:
+  FIELD_UNCLEAR: הערך לא קריא במקור — יש להשלים ידנית
+  REQUIRED_MISSING: לא נמצא בטופס — יש לבדוק
+  ID_CHECKSUM_INVALID: מספר ת״ז לא תקין
+  ID_LENGTH_INVALID: מספר ת״ז באורך לא תקין
+  ID_NORMALIZED: מספר ת״ז נקרא באורך חריג ותוקן אוטומטית — יש לוודא מול המקור
+  ID_PADDED: הושלם 0 מוביל
+  DATE_INVALID: תאריך לא תקין
+  DATE_OUT_OF_RANGE: תאריך לא סביר
+  SENDER_UNKNOWN: גורם שולח לא מוכר
+  CENTRAL_FORMAT: מספר מרכזי בפורמט חריג
+  COMMITMENT_PREFIX: מספר התחייבות עם קידומת — יש לוודא
+  COMMITMENT_PREFIX_REMOVED: הוסרה קידומת המעבדה השולחת
+  ROTATION_UNRESOLVED: העמוד סרוק בכיוון חריג — יש לבדוק את כל השדות
+  DUPLICATE_REMOVED: הוסרה כפילות
+  DUPLICATE_RECORD: מספר ההתחייבות כבר קיים ברשומה אחרת — יש לבדוק
+  PAGE_GROUPING_UNCERTAIN: עמוד בלי מספר מרכזי שלא תואם לטופס הקודם — יש לבדוק
+  EXTRACTION_FAILED: הקריאה נכשלה — נסי שוב
+  INVALID_FILE: לא ניתן לקרוא את הקובץ

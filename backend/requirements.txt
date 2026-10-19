@@ -7,6 +7,9 @@ PyYAML==6.0.3
 PyMuPDF==1.28.2
 # Gemini (app/extraction/gemini_provider.py). 2.28.0: the newest at least two weeks old
 google-genai==2.28.0
+# Postgres (app/storage/db.py, D1): the driver and its connection pool
+psycopg[binary]==3.3.6
+psycopg-pool==3.3.3
 # Israel's time zone on Windows, which has no time zone database (app/clock.py)
 tzdata==2026.4
 

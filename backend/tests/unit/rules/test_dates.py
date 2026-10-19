@@ -1,4 +1,4 @@
-"""Received date: formats found in the samples (SPEC 5.4) and the 2020-today range."""
+"""Received date: formats found in the samples (SPEC 5.4) and the one-year-to-today range."""
 
 from datetime import date
 
@@ -30,7 +30,32 @@ def test_normalize_date_formats(raw, value):
     assert normalize_date(raw) == (value, [])
 
 
-@pytest.mark.parametrize("raw", ["31/02/2026", "18/13/2026", "18.06", "abc", "2026-02-30"])
+@pytest.mark.parametrize(
+    ("raw", "value"),
+    [
+        ("18/06/2026 10:30", "2026-06-18"),
+        ("18-06-2026  9:05:30", "2026-06-18"),
+        ("10:30 16/6/26", "2026-06-16"),
+        ("2026-06-18 10:30", "2026-06-18"),
+    ],
+)
+def test_time_next_to_the_date_is_ignored(raw, value):
+    assert normalize_date(raw) == (value, [])
+
+
+@pytest.mark.parametrize(
+    "raw",
+    [
+        "31/02/2026",
+        "18/13/2026",
+        "18.06",
+        "abc",
+        "2026-02-30",
+        "31/02/2026 10:30",  # the time is dropped, the impossible date is still flagged
+        "10:30",
+        "18/06 10:30 2026",  # a time inside the date is not dropped
+    ],
+)
 def test_unreadable_or_impossible_date_is_empty_and_flagged(raw):
     value, issues = normalize_date(raw)
     assert (value, codes(issues)) == (None, ["DATE_INVALID"])
@@ -46,11 +71,18 @@ def test_missing_date_is_not_flagged_here(raw):
     ("value", "issue_codes"),
     [
         ("2026-10-18", []),
-        ("2020-01-01", []),
+        ("2025-10-18", []),
         ("2026-10-19", ["DATE_OUT_OF_RANGE"]),
-        ("2019-12-31", ["DATE_OUT_OF_RANGE"]),
+        ("2025-10-17", ["DATE_OUT_OF_RANGE"]),
         (None, []),
     ],
 )
 def test_validate_received_date(value, issue_codes):
     assert codes(validate_received_date(value, TODAY)) == issue_codes
+
+
+@pytest.mark.parametrize("raw", ["12-08-2020", "11/8/20"])
+def test_year_2026_misread_as_2020_is_flagged(raw):
+    # #18: the model read 2026 as 2020 on two sample pages (1:17, 2:18).
+    value, issues = normalize_date(raw)
+    assert codes(issues + validate_received_date(value, TODAY)) == ["DATE_OUT_OF_RANGE"]
