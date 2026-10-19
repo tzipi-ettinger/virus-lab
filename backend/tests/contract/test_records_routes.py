@@ -83,7 +83,8 @@ def test_approve_many_needs_records_with_versions(body):
 @pytest.mark.parametrize("export_format", ["csv", "json"])
 def test_export_takes_a_format_and_the_filters(export_format):
     params = {"format": export_format, "status": "approved", "form_type": "hmo_form"}
-    assert client.get("/api/v1/records/export", params=params).status_code == 501
+    with pytest.raises(Reached):
+        client.get("/api/v1/records/export", params=params)
 
 
 @pytest.mark.parametrize("params", [{}, {"format": "xlsx"}])

@@ -160,6 +160,54 @@ async def list_records(
     )
 
 
+# A file, not a page: enough for every record of the demo, small enough to build in memory.
+MAX_EXPORT = 5000
+
+
+async def export_records(
+    conn: AsyncConnection,
+    user: User,
+    *,
+    export_format: str,
+    now: datetime,
+    q: str | None = None,
+    status: str | None = None,
+    needs_review: bool | None = None,
+    sender: str | None = None,
+    form_type: str | None = None,
+    date_from: date | None = None,
+    date_to: date | None = None,
+) -> list[Record]:
+    """Every record the list shows with these filters, and an export_log row (D19).
+
+    More than MAX_EXPORT is refused rather than cut, so a file never silently
+    misses records.
+    """
+    search = fold_text(q) if q else ""
+    async with conn.transaction():
+        rows = await repo.export_records(
+            conn,
+            search=search or None,
+            status=status,
+            needs_review=needs_review,
+            sender=sender,
+            form_type=form_type,
+            date_from=date_from,
+            date_to=date_to,
+            limit=MAX_EXPORT + 1,
+        )
+        if len(rows) > MAX_EXPORT:
+            raise RecordProblem(
+                422,
+                "export_too_large",
+                f"יותר מ־{MAX_EXPORT:,} רשומות. צמצמי את הסינון ונסי שוב",
+            )
+        await repo.insert_export_log(
+            conn, user_id=user.id, export_format=export_format, record_count=len(rows), now=now
+        )
+    return [to_record(row) for row in rows]
+
+
 # --- Rules
 
 

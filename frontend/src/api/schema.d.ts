@@ -165,7 +165,8 @@ export interface paths {
          * Export Records
          * @description Every record that matches the screen's filters, without paging (D19).
          *
-         *     Sent with Cache-Control: no-store, and logged in export_log without values.
+         *     The same filters as GET /records: with no status, every record. Sent with
+         *     Cache-Control: no-store, and logged in export_log without values.
          */
         get: operations["export_records_api_v1_records_export_get"];
         put?: never;
@@ -1021,7 +1022,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description A file to download (Content-Disposition: attachment): CSV in UTF-8 with BOM, or JSON as a list of Record. */
+            /** @description A file to download (Content-Disposition: attachment): CSV in UTF-8 with BOM (SPEC 10), or JSON as a list of Record. */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -1040,13 +1041,13 @@ export interface operations {
                     "application/json": components["schemas"]["Problem"];
                 };
             };
-            /** @description Validation Error */
+            /** @description More than 5,000 records match ("export_too_large") */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/json": components["schemas"]["Problem"];
                 };
             };
         };

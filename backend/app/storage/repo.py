@@ -263,6 +263,49 @@ async def list_records(
     return rows, total, counts
 
 
+async def export_records(
+    conn: AsyncConnection,
+    *,
+    search: str | None,
+    status: str | None,
+    needs_review: bool | None,
+    sender: str | None,
+    form_type: str | None,
+    date_from: date | None,
+    date_to: date | None,
+    limit: int,
+) -> list[dict]:
+    """Full rows for the file: the list's filters and order, without paging."""
+    where, params = _where(
+        {
+            "search": search,
+            "status": status,
+            "needs_review": needs_review,
+            "sender": sender,
+            "form_type": form_type,
+            "date_from": date_from,
+            "date_to": date_to,
+        }
+    )
+    async with conn.cursor(row_factory=dict_row) as cur:
+        await cur.execute(
+            f"{_RECORD_SELECT}{where}"
+            " ORDER BY r.created_at DESC, p.page_number, r.commitment_idx, r.id LIMIT %s",
+            (*params, limit),
+        )
+        return await cur.fetchall()
+
+
+async def insert_export_log(
+    conn: AsyncConnection, *, user_id: str, export_format: str, record_count: int, now: datetime
+) -> None:
+    """Who exported, when and how many. Not the filters and not the records (D13)."""
+    await conn.execute(
+        "INSERT INTO export_log (at, user_id, format, record_count) VALUES (%s, %s, %s, %s)",
+        (now, user_id, export_format, record_count),
+    )
+
+
 async def commitment_taken(conn: AsyncConnection, number: str, *, except_id: str) -> bool:
     """Whether another record already has this commitment number (A4)."""
     async with conn.cursor(row_factory=dict_row) as cur:

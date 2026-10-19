@@ -2,7 +2,7 @@
 delete, page image and the senders list.
 
 Only parses the request and calls storage/review.py, which holds the logic.
-Export still answers 501 (Dev-B plan PR 16a).
+The export file itself is written by export/records_export.py.
 
 Owner: B
 """
@@ -12,12 +12,13 @@ from dataclasses import dataclass
 from datetime import date, datetime
 from typing import Annotated, Literal
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Response
+from fastapi import APIRouter, Depends, Query, Response
 from psycopg_pool import AsyncConnectionPool
 
 from app.api.errors import ProblemError
 from app.auth.deps import get_pool, require_user, utc_now
 from app.clock import israel_today
+from app.export import records_export
 from app.rules.senders import sender_names
 from app.schemas.api import (
     ApproveRequest,
@@ -42,10 +43,6 @@ router = APIRouter(
 )
 
 _NOT_FOUND = {404: {"model": Problem, "description": "No such record"}}
-
-
-def _not_implemented() -> HTTPException:
-    return HTTPException(status_code=501, detail="Not implemented yet")
 
 
 PoolDep = Annotated[AsyncConnectionPool, Depends(get_pool)]
@@ -113,6 +110,10 @@ async def approve_many(
         return await review.approve_many(conn, body.items, user, today=israel_today(now), now=now)
 
 
+_MEDIA_TYPES = {"csv": "text/csv; charset=utf-8", "json": "application/json"}
+_WRITERS = {"csv": records_export.to_csv, "json": records_export.to_json}
+
+
 @router.get(
     "/records/export",
     response_class=Response,
@@ -120,19 +121,40 @@ async def approve_many(
         200: {
             "content": {"text/csv": {}, "application/json": {}},
             "description": "A file to download (Content-Disposition: attachment): "
-            "CSV in UTF-8 with BOM, or JSON as a list of Record.",
-        }
+            "CSV in UTF-8 with BOM (SPEC 10), or JSON as a list of Record.",
+        },
+        422: {
+            "model": Problem,
+            "description": 'More than 5,000 records match ("export_too_large")',
+        },
     },
 )
-def export_records(
+async def export_records(
     filters: FiltersDep,
     export_format: Annotated[ExportFormat, Query(alias="format")],
+    pool: PoolDep,
+    user: UserDep,
+    now: NowDep,
 ) -> Response:
     """Every record that matches the screen's filters, without paging (D19).
 
-    Sent with Cache-Control: no-store, and logged in export_log without values.
+    The same filters as GET /records: with no status, every record. Sent with
+    Cache-Control: no-store, and logged in export_log without values.
     """
-    raise _not_implemented()
+    async with pool.connection() as conn:
+        records = await _run(
+            review.export_records(conn, user, export_format=export_format, now=now, **vars(filters))
+        )
+    filename = records_export.export_filename(export_format, israel_today(now))
+    return Response(
+        _WRITERS[export_format](records),
+        media_type=_MEDIA_TYPES[export_format],
+        headers={
+            "Content-Disposition": f'attachment; filename="{filename}"',
+            # no-store: the file holds patients' details (D4).
+            "Cache-Control": "no-store",
+        },
+    )
 
 
 @router.get("/records/{record_id}", responses=_NOT_FOUND)
