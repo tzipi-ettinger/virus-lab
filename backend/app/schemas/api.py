@@ -272,6 +272,11 @@ class User(BaseModel):
     display_name: str
 
 
+class LoginRequest(BaseModel):
+    username: str = Field(min_length=1, max_length=100)
+    password: str = Field(min_length=1, max_length=1024)
+
+
 # --- Errors (application/problem+json, SPEC 9.5)
 
 

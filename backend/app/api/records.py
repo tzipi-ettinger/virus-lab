@@ -9,8 +9,9 @@ Owner: B
 from datetime import date
 from typing import Annotated
 
-from fastapi import APIRouter, HTTPException, Query, Response
+from fastapi import APIRouter, Depends, HTTPException, Query, Response
 
+from app.auth.deps import require_user
 from app.schemas.api import (
     ApproveRequest,
     Problem,
@@ -21,7 +22,12 @@ from app.schemas.api import (
     RecordStatus,
 )
 
-router = APIRouter(prefix="/api/v1")
+# Every records endpoint needs a signed-in user (Dev-B plan 2.6).
+router = APIRouter(
+    prefix="/api/v1",
+    dependencies=[Depends(require_user)],
+    responses={401: {"model": Problem, "description": 'No valid session ("unauthenticated")'}},
+)
 
 _NOT_FOUND = {404: {"model": Problem, "description": "No such record"}}
 _CONFLICT = {409: {"model": Problem, "description": 'Stale version (type "version_conflict")'}}
