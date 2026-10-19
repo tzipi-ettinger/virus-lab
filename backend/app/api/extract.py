@@ -178,6 +178,9 @@ def get_save_form(
     response_model=ExtractResponse,
     responses=_PROBLEMS,
     openapi_extra=_UPLOAD_BODY,
+    # Here and not only in get_save_form, so a test that overrides the saver can't
+    # turn sign-in off. FastAPI runs require_user once per request either way.
+    dependencies=[Depends(require_user)],
 )
 async def extract(
     request: Request,

@@ -11,7 +11,7 @@ from app.api import extract
 from app.auth.passwords import hash_password
 from app.main import create_app
 from app.settings import Settings, get_settings
-from tests.unit.api.test_extract import Answers, make_pdf, upload
+from tests.unit.api.uploads import Answers, make_pdf, upload
 
 ORIGIN = "http://localhost:5173"
 PASSWORD = "correct horse battery"

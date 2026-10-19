@@ -52,8 +52,9 @@ export const NOT_SENT_QUOTA = "המכסה היומית נגמרה. אפשר לש
 export const NOT_SENT_CONNECTION = "ההעלאה נעצרה כי החיבור נקטע";
 export const SIGNED_OUT = "צריך להתחבר מחדש, ואז לשלוח שוב";
 
-// 4xx types where the server says nothing was saved and sending again may work.
-const RETRYABLE_4XX = new Set(["invalid_upload"]);
+// Problem types where the server says nothing was saved and sending again may work.
+// database_unavailable is a 503 sent before any page is read.
+const RETRYABLE = new Set(["invalid_upload", "database_unavailable"]);
 
 export function classify(status: number, body: unknown): Outcome {
   if (status === 200) {
@@ -75,13 +76,13 @@ export function classify(status: number, body: unknown): Outcome {
     return { kind: "quota", message: NOT_SENT_QUOTA };
   }
   // Pages may already be saved when the server breaks or the connection drops.
-  if (status >= 500) return { kind: "interrupted" };
+  if (status >= 500 && !RETRYABLE.has(problem.type ?? "")) return { kind: "interrupted" };
   // Refused before anything was read: sending again after signing in is safe.
   if (status === 401) return { kind: "signed_out" };
   const parts = [problem.title || "הקובץ לא התקבל"];
   if (problem.detail) parts.push(problem.detail);
   if (problem.type === "too_many_pages") parts.push("אפשר לחלק את הקובץ לכמה קבצים");
-  return { kind: "failed", message: parts.join(". "), canRetry: RETRYABLE_4XX.has(problem.type ?? "") };
+  return { kind: "failed", message: parts.join(". "), canRetry: RETRYABLE.has(problem.type ?? "") };
 }
 
 export async function sendFile(file: File, fetchImpl: typeof fetch = fetch): Promise<Outcome> {

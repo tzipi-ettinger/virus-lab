@@ -1,89 +1,33 @@
-import os
 import secrets
 import tempfile
 from datetime import UTC, datetime
-from uuid import uuid4
 
-import pymupdf
 import pytest
 from fastapi.testclient import TestClient
 from starlette import formparsers
 
 from app.api import extract
+from app.auth.deps import require_user
 from app.extraction.cached_provider import CachedProvider
-from app.extraction.fake_provider import FIXTURES_DIR
 from app.extraction.gemini_provider import GeminiProvider
-from app.extraction.provider import PageImage, ProviderError, QuotaExhausted
 from app.main import create_app
 from app.pipeline.service import ExtractedForm
 from app.rules.records import build_records
-from app.schemas.api import Record
-from app.schemas.extraction import RawExtraction
+from app.schemas.api import Record, User
 from app.settings import Settings, get_settings
+from app.storage.service import _to_record
+from tests.unit.api.uploads import QUOTA, Answers, make_pdf, upload
 
-# Maccabi, one page with three central numbers and one commitment number.
-MACCABI = RawExtraction.model_validate_json(
-    (FIXTURES_DIR / "03_maccabi_three_centrals.json").read_text(encoding="utf-8")
-)
-
-
-def make_pdf(pages: int = 1, noise_px: int = 0) -> bytes:
-    """A blank PDF; noise_px adds a random (incompressible) image to make it big."""
-    with pymupdf.open() as doc:
-        for _ in range(pages):
-            page = doc.new_page(width=595, height=842)
-            if noise_px:
-                samples = os.urandom(noise_px * noise_px * 3)
-                image = pymupdf.Pixmap(pymupdf.csRGB, noise_px, noise_px, samples, False)
-                page.insert_image(page.rect, stream=image.tobytes("png"))
-        return doc.tobytes()
-
-
-QUOTA = "המכסה היומית של Gemini נגמרה. אפשר לנסות שוב מחר"
-
-
-class Answers:
-    """Every page reads as Maccabi, except the listed pages: an error, or the quota."""
-
-    def __init__(self, errors=(), quota_from=None) -> None:
-        self.errors = set(errors)
-        self.quota_from = quota_from
-
-    async def extract(self, page: PageImage) -> RawExtraction:
-        if self.quota_from is not None and page.page_number >= self.quota_from:
-            raise QuotaExhausted(QUOTA)
-        if page.page_number in self.errors:
-            raise ProviderError("המודל לא ענה")
-        return MACCABI.model_copy(deep=True)
+SIGNED_IN = User(id="u1", username="dana", display_name="דנה")
 
 
 async def unsaved_records(extracted: ExtractedForm) -> list[Record]:
-    """The records save_extracted_page would return, without a database or a user.
-    Saving itself is tested in test_extract_saves.py."""
-    now = datetime.now(UTC)
+    """What form_saver returns, without a database or a user. Saving itself is
+    tested in test_extract_saves.py."""
     form = extracted.form
     page_id = f"p_{secrets.token_hex(8)}"
-    return [
-        Record(
-            record_id=str(uuid4()),
-            page_id=page_id,
-            source_file=form.source_file,
-            page_number=form.page_number,
-            continuation_pages=form.continuation_pages,
-            commitment_index=draft.commitment_index,
-            status="pending",
-            version=1,
-            form_type=form.form_type,
-            fields=draft.fields,
-            central_numbers=draft.central_numbers,
-            issues=draft.issues,
-            needs_review=draft.needs_review,
-            created_at=now,
-            updated_at=now,
-            approved_at=None,
-        )
-        for draft in build_records(form)
-    ]
+    now = datetime.now(UTC)
+    return [_to_record(draft, form, page_id, [], now) for draft in build_records(form)]
 
 
 @pytest.fixture
@@ -93,13 +37,10 @@ def make_client():
         app.dependency_overrides[get_settings] = lambda: Settings(_env_file=None, **settings)
         app.dependency_overrides[extract.get_provider] = lambda: provider or Answers()
         app.dependency_overrides[extract.get_save_form] = lambda: save_form or unsaved_records
+        app.dependency_overrides[require_user] = lambda: SIGNED_IN
         return TestClient(app)
 
     return build
-
-
-def upload(*files):
-    return [("files", (name, data, "application/pdf")) for name, data in files]
 
 
 def test_every_page_comes_back_as_records(make_client):
