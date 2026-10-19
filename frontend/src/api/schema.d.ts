@@ -118,7 +118,8 @@ export interface paths {
         };
         /**
          * List Records
-         * @description Newest first, then page number, then commitment order.
+         * @description In the `sort` order (newest first by default), then page number, then
+         *     commitment order.
          *
          *     `status=approved` is also the hand-off point for the lab's system (D6).
          */
@@ -922,6 +923,8 @@ export interface operations {
                 date_from?: string | null;
                 /** @description received_date, inclusive */
                 date_to?: string | null;
+                /** @description A column, ascending; "-" in front for descending. Empty values last. */
+                sort?: "created_at" | "-created_at" | "received_date" | "-received_date" | "last_name" | "-last_name" | "first_name" | "-first_name" | "national_id" | "-national_id" | "commitment_number" | "-commitment_number" | "sender" | "-sender" | "form_type" | "-form_type" | "status" | "-status";
             };
             header?: never;
             path?: never;
@@ -1015,6 +1018,8 @@ export interface operations {
                 date_from?: string | null;
                 /** @description received_date, inclusive */
                 date_to?: string | null;
+                /** @description A column, ascending; "-" in front for descending. Empty values last. */
+                sort?: "created_at" | "-created_at" | "received_date" | "-received_date" | "last_name" | "-last_name" | "first_name" | "-first_name" | "national_id" | "-national_id" | "commitment_number" | "-commitment_number" | "sender" | "-sender" | "form_type" | "-form_type" | "status" | "-status";
             };
             header?: never;
             path?: never;

@@ -19,6 +19,28 @@ from pydantic import BaseModel, Field
 ModelStatus = Literal["found", "unclear", "not_found"]
 Severity = Literal["info", "warning", "error"]
 RecordStatus = Literal["pending", "approved"]
+# The records list's order: a column, ascending, or descending with a "-" in front.
+# Equal values keep the default order (newest first), so paging stays stable.
+RecordSort = Literal[
+    "created_at",
+    "-created_at",
+    "received_date",
+    "-received_date",
+    "last_name",
+    "-last_name",
+    "first_name",
+    "-first_name",
+    "national_id",
+    "-national_id",
+    "commitment_number",
+    "-commitment_number",
+    "sender",
+    "-sender",
+    "form_type",
+    "-form_type",
+    "status",
+    "-status",
+]
 
 # D17 in #15: the form family only. The organization itself is in `sender`, and the
 # Hebrew labels live in the UI. Same values as FormType in schemas/extraction.py.

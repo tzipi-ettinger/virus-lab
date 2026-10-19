@@ -133,10 +133,14 @@ async def list_records(
     form_type: str | None = None,
     date_from: date | None = None,
     date_to: date | None = None,
+    sort: str = "-created_at",
     limit: int = 50,
     offset: int = 0,
 ) -> RecordList:
-    """Newest first. `q` is folded like search_text, so ״ and " or niqqud don't matter."""
+    """In the `sort` order, newest first by default.
+
+    `q` is folded like search_text, so ״ and " or niqqud don't matter.
+    """
     search = fold_text(q) if q else ""
     async with conn.transaction():
         rows, total, counts = await repo.list_records(
@@ -148,6 +152,7 @@ async def list_records(
             form_type=form_type,
             date_from=date_from,
             date_to=date_to,
+            sort=sort,
             limit=limit,
             offset=offset,
         )
@@ -177,6 +182,7 @@ async def export_records(
     form_type: str | None = None,
     date_from: date | None = None,
     date_to: date | None = None,
+    sort: str = "-created_at",
 ) -> list[Record]:
     """Every record the list shows with these filters, and an export_log row (D19).
 
@@ -194,6 +200,7 @@ async def export_records(
             form_type=form_type,
             date_from=date_from,
             date_to=date_to,
+            sort=sort,
             limit=MAX_EXPORT + 1,
         )
         if len(rows) > MAX_EXPORT:
