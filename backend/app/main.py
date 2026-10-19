@@ -13,6 +13,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.api import auth, extract, health, records
 from app.api.errors import add_problem_handler
+from app.keep_alive import start_keep_alive, stop_keep_alive
 from app.settings import Settings, get_settings
 from app.spa import mount_spa
 from app.storage.db import open_pool
@@ -29,9 +30,11 @@ def _lifespan(settings: Settings):
         app.state.pool = await open_pool(url) if url else None
         if app.state.pool is None:
             logger.warning("DATABASE_URL is not set: login and records answer 503")
+        keep_alive = start_keep_alive(settings.keep_alive_base_url, settings.keep_alive_interval_s)
         try:
             yield
         finally:
+            await stop_keep_alive(keep_alive)
             if app.state.pool is not None:
                 await app.state.pool.close()
 

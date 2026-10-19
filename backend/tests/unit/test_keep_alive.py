@@ -2,9 +2,15 @@
 
 import asyncio
 import logging
+import time
 import urllib.error
 
+import pytest
+from fastapi.testclient import TestClient
+
 from app import keep_alive
+from app.main import create_app
+from app.settings import Settings
 
 
 def run_for(seconds: float, url: str, ping_fn) -> None:
@@ -64,3 +70,49 @@ def test_start_pings_health_on_the_base_url(monkeypatch):
     asyncio.run(scenario())
 
     assert calls and set(calls) == {"https://virus-lab.example/api/health"}
+
+
+@pytest.mark.parametrize(
+    ("env", "expected"),
+    [
+        ({}, ""),
+        (
+            {"RENDER_EXTERNAL_URL": "https://virus-lab.onrender.com"},
+            "https://virus-lab.onrender.com",
+        ),
+        (
+            {
+                "RENDER_EXTERNAL_URL": "https://virus-lab.onrender.com",
+                "KEEP_ALIVE_URL": "https://x.y",
+            },
+            "https://x.y",
+        ),
+    ],
+)
+def test_base_url_is_keep_alive_url_then_render_external_url(monkeypatch, env, expected):
+    for name in ("KEEP_ALIVE_URL", "RENDER_EXTERNAL_URL"):
+        monkeypatch.delenv(name, raising=False)
+    for name, value in env.items():
+        monkeypatch.setenv(name, value)
+
+    assert Settings(_env_file=None).keep_alive_base_url == expected
+
+
+def test_interval_is_at_least_a_minute():
+    with pytest.raises(ValueError):
+        Settings(_env_file=None, keep_alive_interval_s=5)
+
+
+def test_app_runs_the_loop_while_up_and_stops_it_on_shutdown(monkeypatch):
+    calls = []
+    monkeypatch.setattr(keep_alive, "ping", lambda url: calls.append(url) or 200)
+    settings = Settings(_env_file=None, database_url="", keep_alive_url="https://virus-lab.example")
+    settings.keep_alive_interval_s = 0.01  # the minimum is a minute; too long for a test
+
+    with TestClient(create_app(settings)):
+        time.sleep(0.2)
+    count = len(calls)
+    time.sleep(0.1)
+
+    assert count >= 3
+    assert len(calls) == count  # nothing after shutdown
