@@ -205,6 +205,39 @@
   margin-block-start: 4px;
 }
 
+.review-approve-all {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+}
+
+.review-approve-all button {
+  padding: 8px 16px;
+  font: inherit;
+  font-weight: 600;
+  color: #ffffff;
+  background: var(--color-accent, #0b6e79);
+  border: 0;
+  border-radius: var(--radius-md, 8px);
+  cursor: pointer;
+}
+
+.review-approve-all button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.review-approve-all button:focus-visible {
+  outline: 3px solid var(--color-focus, #1d4ed8);
+  outline-offset: 2px;
+}
+
+.review-summary {
+  color: var(--color-success, #1e6b3a);
+  font-weight: 600;
+}
+
 .review-approve {
   display: flex;
   flex-direction: column;

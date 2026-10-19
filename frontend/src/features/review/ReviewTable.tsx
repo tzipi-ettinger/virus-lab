@@ -2,7 +2,9 @@
 // with a confidence label, each field edited in place (PLAN-DEV-B 3.1).
 // Owner: B
 
+import { useState } from "react";
 import { useSenders } from "../../shared/useSenders";
+import { ApproveAllBar } from "./ApproveAllBar";
 import { ApproveButton } from "./ApproveButton";
 import { CentralNumbersCell } from "./CentralNumbersCell";
 import { FieldCell } from "./FieldCell";
@@ -19,8 +21,9 @@ interface ReviewTableProps {
 }
 
 export function ReviewTable({ records, selectedId, onSelect, onRecords }: ReviewTableProps) {
-  const { saveField, saveCentrals, approve } = useRecordMutations(onRecords);
+  const { saveField, saveCentrals, approve, approveMany } = useRecordMutations(onRecords);
   const senders = useSenders();
+  const [skipped, setSkipped] = useState<Record<string, string>>({});
   if (records.length === 0) {
     return <p className="review-empty">עוד אין רשומות. העלי טפסים כדי להתחיל</p>;
   }
@@ -34,6 +37,7 @@ export function ReviewTable({ records, selectedId, onSelect, onRecords }: Review
           {records.length} רשומות · {flagged} דורשות בדיקה
         </span>
       </h2>
+      <ApproveAllBar records={records} onApproveMany={approveMany} onSkipped={setSkipped} />
       <div className="review-scroll">
         <table className="review-table">
           <thead>
@@ -83,6 +87,9 @@ export function ReviewTable({ records, selectedId, onSelect, onRecords }: Review
                   <td className={r.needs_review ? "review-status is-flagged" : "review-status"}>{statusText(r)}</td>
                   <td className="review-actions">
                     <ApproveButton record={r} onApprove={approve} />
+                    {skipped[r.record_id] && r.status === "pending" && (
+                      <span className="review-cell-error">{skipped[r.record_id]}</span>
+                    )}
                   </td>
                 </tr>
               );

@@ -112,6 +112,20 @@ export function fieldTitle(name: string): string {
   return FIELD_COLUMNS.find((c) => c.name === name)?.title ?? name;
 }
 
+/** Why "approve all ready" skipped a record, for its row. */
+export function skipReason(skipped: components["schemas"]["SkippedRecord"]): string {
+  switch (skipped.type) {
+    case "review_required":
+      return `לא אושרה: יש לטפל ב${(skipped.blocking_fields ?? []).map(fieldTitle).join(", ")}`;
+    case "version_conflict":
+      return "לא אושרה: עודכנה בינתיים בחלון אחר";
+    case "record_approved":
+      return "כבר אושרה";
+    case "not_found":
+      return "לא אושרה: נמחקה בינתיים";
+  }
+}
+
 export const FORM_TYPE_TEXT: Record<ApiRecord["form_type"], string> = {
   hmo_form: "טופס קופה",
   hospital_form: "טופס בית חולים",

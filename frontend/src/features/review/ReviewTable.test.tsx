@@ -65,6 +65,47 @@ describe("ReviewTable", () => {
     expect(within(row1).queryByText("דורש בדיקה")).toBeNull();
   });
 
+  test("approve all ready sends only the ready ones and says what's left", async () => {
+    const ready1 = record();
+    const ready2 = record({ record_id: "r2", version: 3 });
+    const blocked = record({
+      record_id: "r3",
+      needs_review: true,
+      fields: { ...record().fields, national_id: field("1122", flagged("1122")) },
+    });
+    const answer = {
+      approved: [{ ...ready1, status: "approved", version: 2 }],
+      skipped: [{ record_id: "r2", type: "version_conflict" }],
+    };
+    fetchMock.mockImplementation(async (url) => reply(String(url).endsWith("/senders") ? [] : answer));
+    render(<Table initial={[ready1, ready2, blocked]} />);
+    const user = userEvent.setup();
+
+    await user.click(screen.getByRole("button", { name: "✓ אשרי את כל המוכנות (2)" }));
+
+    const call = fetchMock.mock.calls.find(([url]) => url === "/api/v1/records/approve");
+    expect(JSON.parse(String(call?.[1]?.body))).toEqual({
+      items: [
+        { record_id: "r1", version: 1 },
+        { record_id: "r2", version: 3 },
+      ],
+    });
+    expect(screen.getByRole("status").textContent).toBe("אושרו 1 רשומות. 2 נשארו לבדיקה");
+    const [, row1, row2] = screen.getAllByRole("row");
+    expect(within(row1).getByText("✓ אושר")).toBeTruthy();
+    expect(within(row2).getByText("לא אושרה: עודכנה בינתיים בחלון אחר")).toBeTruthy();
+  });
+
+  test("nothing ready, nothing to send", () => {
+    const blocked = record({ fields: { ...record().fields, sender: field("x", flagged("x")) } });
+    fetchMock.mockImplementation(async () => reply([]));
+    render(<Table initial={[blocked]} />);
+
+    expect((screen.getByRole("button", { name: /אשרי את כל המוכנות \(0\)/ }) as HTMLButtonElement).disabled).toBe(
+      true,
+    );
+  });
+
   test("an approved row is read-only", () => {
     render(<Table initial={[record({ status: "approved" })]} />);
 
