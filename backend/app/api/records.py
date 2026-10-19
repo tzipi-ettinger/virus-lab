@@ -1,21 +1,23 @@
 """Records endpoints: list/search/filter, export, get, patch, approve (one or many),
 delete, page image and the senders list.
 
-DRAFT for A1 (docs/GUIDELINES-V2-CHANGES.md, section 4.2): the signatures are the
-contract, the bodies return 501 until storage/repo.py and rules/engine.py are filled.
+Only parses the request and calls storage/review.py, which holds the logic.
+Export still answers 501 (Dev-B plan PR 16a).
 
 Owner: B
 """
 
+from collections.abc import Awaitable
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, datetime
 from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from psycopg_pool import AsyncConnectionPool
 
 from app.api.errors import ProblemError
-from app.auth.deps import get_pool, require_user
+from app.auth.deps import get_pool, require_user, utc_now
+from app.clock import israel_today
 from app.rules.senders import sender_names
 from app.schemas.api import (
     ApproveRequest,
@@ -28,8 +30,9 @@ from app.schemas.api import (
     RecordPatch,
     RecordPatchResponse,
     RecordStatus,
+    User,
 )
-from app.storage import repo
+from app.storage import repo, review
 
 # Every records endpoint needs a signed-in user (Dev-B plan 2.6).
 router = APIRouter(
@@ -39,11 +42,25 @@ router = APIRouter(
 )
 
 _NOT_FOUND = {404: {"model": Problem, "description": "No such record"}}
-_CONFLICT = {409: {"model": Problem, "description": 'Stale version (type "version_conflict")'}}
 
 
 def _not_implemented() -> HTTPException:
     return HTTPException(status_code=501, detail="Not implemented yet")
+
+
+PoolDep = Annotated[AsyncConnectionPool, Depends(get_pool)]
+UserDep = Annotated[User, Depends(require_user)]  # the same call as the router's
+NowDep = Annotated[datetime, Depends(utc_now)]
+
+
+async def _run[T](call: Awaitable[T]) -> T:
+    """A review call, with its RecordProblem answered as a Problem."""
+    try:
+        return await call
+    except review.RecordProblem as exc:
+        error = ProblemError(exc.status, exc.type, exc.title)
+        error.problem.blocking_fields = exc.blocking_fields
+        raise error from None
 
 
 @dataclass(frozen=True)
@@ -66,8 +83,9 @@ ExportFormat = Literal["csv", "json"]
 
 
 @router.get("/records")
-def list_records(
+async def list_records(
     filters: FiltersDep,
+    pool: PoolDep,
     limit: Annotated[int, Query(ge=1, le=200)] = 50,
     offset: Annotated[int, Query(ge=0)] = 0,
 ) -> RecordList:
@@ -75,20 +93,24 @@ def list_records(
 
     `status=approved` is also the hand-off point for the lab's system (D6).
     """
-    raise _not_implemented()
+    async with pool.connection() as conn:
+        return await review.list_records(conn, **vars(filters), limit=limit, offset=offset)
 
 
 # Fixed paths under /records go before /records/{record_id}, or it would take them.
 
 
 @router.post("/records/approve")
-def approve_many(body: BulkApproveRequest) -> BulkApproveResponse:
+async def approve_many(
+    body: BulkApproveRequest, pool: PoolDep, user: UserDep, now: NowDep
+) -> BulkApproveResponse:
     """Approve all ready (D20): each record is checked and saved on its own.
 
     Always 200. A record with a field still flagged, a stale version or one already
     approved is listed in `skipped` with the reason, and the others are approved.
     """
-    raise _not_implemented()
+    async with pool.connection() as conn:
+        return await review.approve_many(conn, body.items, user, today=israel_today(now), now=now)
 
 
 @router.get(
@@ -114,17 +136,36 @@ def export_records(
 
 
 @router.get("/records/{record_id}", responses=_NOT_FOUND)
-def get_record(record_id: str) -> Record:
-    raise _not_implemented()
+async def get_record(record_id: str, pool: PoolDep) -> Record:
+    async with pool.connection() as conn:
+        return await _run(review.get_record(conn, record_id))
 
 
-@router.patch("/records/{record_id}", responses={**_NOT_FOUND, **_CONFLICT})
-def patch_record(record_id: str, body: RecordPatch) -> RecordPatchResponse:
+@router.patch(
+    "/records/{record_id}",
+    responses={
+        **_NOT_FOUND,
+        409: {
+            "model": Problem,
+            "description": 'Stale version ("version_conflict"), an approved record '
+            '("record_approved"), or a shared field while another record of the form is '
+            'approved ("sibling_approved")',
+        },
+        422: {"model": Problem, "description": 'No central number at that idx ("validation")'},
+    },
+)
+async def patch_record(
+    record_id: str, body: RecordPatch, pool: PoolDep, user: UserDep, now: NowDep
+) -> RecordPatchResponse:
     """Correct or confirm fields, rerun apply_rules (SPEC 7.4) and save.
 
-    Approved records are read-only (A6).
+    A shared field (names, ID, date, sender, central numbers) changes in the form's
+    other records too, returned in `siblings` (A3). Approved records are read-only (A6).
     """
-    raise _not_implemented()
+    async with pool.connection() as conn:
+        return await _run(
+            review.patch_record(conn, record_id, body, user, today=israel_today(now), now=now)
+        )
 
 
 @router.post(
@@ -138,9 +179,14 @@ def patch_record(record_id: str, body: RecordPatch) -> RecordPatchResponse:
         },
     },
 )
-def approve_record(record_id: str, body: ApproveRequest) -> Record:
+async def approve_record(
+    record_id: str, body: ApproveRequest, pool: PoolDep, user: UserDep, now: NowDep
+) -> Record:
     """Rerun the rules; approve only if no field still needs review (D3)."""
-    raise _not_implemented()
+    async with pool.connection() as conn:
+        return await _run(
+            review.approve_record(conn, record_id, body, user, today=israel_today(now), now=now)
+        )
 
 
 @router.delete(
@@ -152,9 +198,11 @@ def approve_record(record_id: str, body: ApproveRequest) -> Record:
         409: {"model": Problem, "description": 'Approved records stay ("record_approved")'},
     },
 )
-def delete_record(record_id: str) -> Response:
-    """Delete a pending record (A5)."""
-    raise _not_implemented()
+async def delete_record(record_id: str, pool: PoolDep) -> Response:
+    """Delete a pending record (A5). The form's pages go too once no record needs them."""
+    async with pool.connection() as conn:
+        await _run(review.delete_record(conn, record_id))
+    return Response(status_code=204)
 
 
 @router.get("/senders")
@@ -171,9 +219,7 @@ def senders() -> list[str]:
         404: {"model": Problem, "description": 'No such page ("page_not_found")'},
     },
 )
-async def page_image(
-    page_id: str, pool: Annotated[AsyncConnectionPool, Depends(get_pool)]
-) -> Response:
+async def page_image(page_id: str, pool: PoolDep) -> Response:
     """The rotated, compressed page the fields came from (D4). Sent with Cache-Control: no-store."""
     async with pool.connection() as conn:
         jpeg = await repo.get_page_image(conn, page_id)

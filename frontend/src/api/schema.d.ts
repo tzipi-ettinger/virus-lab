@@ -189,7 +189,7 @@ export interface paths {
         post?: never;
         /**
          * Delete Record
-         * @description Delete a pending record (A5).
+         * @description Delete a pending record (A5). The form's pages go too once no record needs them.
          */
         delete: operations["delete_record_api_v1_records__record_id__delete"];
         options?: never;
@@ -198,7 +198,8 @@ export interface paths {
          * Patch Record
          * @description Correct or confirm fields, rerun apply_rules (SPEC 7.4) and save.
          *
-         *     Approved records are read-only (A6).
+         *     A shared field (names, ID, date, sender, central numbers) changes in the form's
+         *     other records too, returned in `siblings` (A3). Approved records are read-only (A6).
          */
         patch: operations["patch_record_api_v1_records__record_id__patch"];
         trace?: never;
@@ -1179,7 +1180,7 @@ export interface operations {
                     "application/json": components["schemas"]["Problem"];
                 };
             };
-            /** @description Stale version (type "version_conflict") */
+            /** @description Stale version ("version_conflict"), an approved record ("record_approved"), or a shared field while another record of the form is approved ("sibling_approved") */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -1188,13 +1189,13 @@ export interface operations {
                     "application/json": components["schemas"]["Problem"];
                 };
             };
-            /** @description Validation Error */
+            /** @description No central number at that idx ("validation") */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/json": components["schemas"]["Problem"];
                 };
             };
         };
