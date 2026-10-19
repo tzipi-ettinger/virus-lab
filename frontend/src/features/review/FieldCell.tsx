@@ -1,6 +1,7 @@
 // One field in the review table: its value and confidence label, edited in place
 // (PLAN-DEV-B 3.1, 3.3). Click or Enter opens it; Enter or leaving the field saves,
-// Escape cancels. The server's answer sets the new flags.
+// Escape cancels. A flagged value can be confirmed as it is. The server's answer
+// sets the new flags.
 // Owner: B
 
 import { useRef, useState, type KeyboardEvent } from "react";
@@ -94,6 +95,21 @@ export function FieldCell({ title, field, editable, onSave }: FieldCellProps) {
         </button>
       ) : (
         content
+      )}
+      {draft === null && editable && field.needs_review && (
+        // The value is right as it is: the flag goes, the issue stays shown.
+        <button
+          type="button"
+          className="review-confirm"
+          disabled={busy}
+          aria-label={`אישור ערך: ${title}`}
+          onClick={(event) => {
+            event.stopPropagation();
+            void save({ confirmed: true }, false);
+          }}
+        >
+          ✓ אישור ערך
+        </button>
       )}
       {error && (
         <span className="review-cell-error" role="alert">

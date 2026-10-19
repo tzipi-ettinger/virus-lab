@@ -103,6 +103,39 @@ describe("FieldCell", () => {
     expect(screen.getByRole("alert").textContent).toBe("הרשומה עודכנה בחלון אחר");
   });
 
+  test("a flagged value can be confirmed as it is", async () => {
+    const onSave = renderCell(field("1122", flagged("1122")));
+
+    await userEvent.setup().click(screen.getByRole("button", { name: "אישור ערך: ת״ז" }));
+
+    expect(onSave).toHaveBeenCalledExactlyOnceWith({ confirmed: true });
+  });
+
+  test("an empty flagged field can be confirmed too", () => {
+    renderCell(field(null, { needs_review: true }));
+
+    expect(screen.getByRole("button", { name: "אישור ערך: ת״ז" })).toBeTruthy();
+  });
+
+  test("a confirmed field says so, keeps its issue, and needs no confirming", () => {
+    renderCell(
+      field("1122", {
+        confirmed: true,
+        issues: [{ code: "ID_CHECKSUM_INVALID", severity: "warning", message: "מספר ת״ז לא תקין" }],
+      }),
+    );
+
+    expect(screen.getByText("אושר ידנית")).toBeTruthy();
+    expect(screen.getByRole("cell").getAttribute("title")).toBe("מספר ת״ז לא תקין");
+    expect(screen.queryByRole("button", { name: /אישור ערך/ })).toBeNull();
+  });
+
+  test("a clean field has nothing to confirm", () => {
+    renderCell(field("011223344"));
+
+    expect(screen.queryByRole("button", { name: /אישור ערך/ })).toBeNull();
+  });
+
   test("an approved record can't be edited", () => {
     renderCell(field("011223344"), undefined, false);
 
