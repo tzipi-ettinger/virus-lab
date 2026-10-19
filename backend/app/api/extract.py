@@ -25,6 +25,7 @@ from starlette.datastructures import UploadFile
 from starlette.formparsers import MultiPartException, MultiPartParser
 
 from app.clock import israel_today
+from app.extraction.cached_provider import CachedProvider
 from app.extraction.fake_provider import FakeProvider
 from app.extraction.gemini_provider import GeminiProvider
 from app.extraction.provider import ExtractionProvider
@@ -139,17 +140,24 @@ def _gemini_provider(
     )
 
 
+@lru_cache
+def _cached(provider: GeminiProvider) -> CachedProvider:
+    # One per provider, so its hit and miss counts add up across requests.
+    return CachedProvider(provider, provider.fingerprint)
+
+
 def get_provider(settings: SettingsDep) -> ExtractionProvider:
     match settings.extraction_provider:
         case "fake":
-            return _fake_provider()
+            return _fake_provider()  # no quota to save: the cache is never in front of it
         case "gemini":
-            return _gemini_provider(
+            gemini = _gemini_provider(
                 settings.gemini_api_key.get_secret_value(),
                 settings.gemini_model,
                 settings.max_concurrency,
                 settings.provider_timeout_s,
             )
+            return _cached(gemini) if settings.extraction_cache else gemini
         case unknown:  # a new provider added to Settings but not here
             assert_never(unknown)
 

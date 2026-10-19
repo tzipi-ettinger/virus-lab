@@ -258,3 +258,14 @@ def test_logs_carry_the_code_but_not_the_details_or_the_answer(caplog):
 
     assert "400" in caplog.text
     assert secret not in caplog.text
+
+
+def test_the_fingerprint_changes_with_the_model_or_the_prompt():
+    base = provider(FakeClient(ANSWER)).fingerprint
+
+    assert provider(FakeClient(ANSWER)).fingerprint == base  # stable, so the cache hits
+    assert provider(FakeClient(ANSWER), prompt="PROMPT v5").fingerprint != base
+    other_model = GeminiProvider(
+        FakeClient(ANSWER), "gemini-other", max_concurrency=1, timeout_s=60, prompt="PROMPT"
+    )
+    assert other_model.fingerprint != base
