@@ -49,8 +49,6 @@
 /backend/app/storage/                    @esterrroz
 /backend/app/export/                     @esterrroz
 /backend/app/api/records.py              @esterrroz
-/backend/app/api/validate.py             @esterrroz
-/backend/app/api/export.py               @esterrroz
 /backend/eval/run_eval.py                @esterrroz
 /backend/tests/fixtures/rules/           @esterrroz
 /backend/tests/unit/rules/               @esterrroz
