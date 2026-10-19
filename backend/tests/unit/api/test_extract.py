@@ -1,54 +1,33 @@
-import os
+import secrets
 import tempfile
+from datetime import UTC, datetime
 
-import pymupdf
 import pytest
 from fastapi.testclient import TestClient
 from starlette import formparsers
 
 from app.api import extract
+from app.auth.deps import require_user
 from app.extraction.cached_provider import CachedProvider
-from app.extraction.fake_provider import FIXTURES_DIR
 from app.extraction.gemini_provider import GeminiProvider
-from app.extraction.provider import PageImage, ProviderError, QuotaExhausted
 from app.main import create_app
-from app.schemas.extraction import RawExtraction
+from app.pipeline.service import ExtractedForm
+from app.rules.records import build_records
+from app.schemas.api import Record, User
 from app.settings import Settings, get_settings
+from app.storage.service import _to_record
+from tests.unit.api.uploads import QUOTA, Answers, make_pdf, upload
 
-# Maccabi, one page with three central numbers and one commitment number.
-MACCABI = RawExtraction.model_validate_json(
-    (FIXTURES_DIR / "03_maccabi_three_centrals.json").read_text(encoding="utf-8")
-)
-
-
-def make_pdf(pages: int = 1, noise_px: int = 0) -> bytes:
-    """A blank PDF; noise_px adds a random (incompressible) image to make it big."""
-    with pymupdf.open() as doc:
-        for _ in range(pages):
-            page = doc.new_page(width=595, height=842)
-            if noise_px:
-                samples = os.urandom(noise_px * noise_px * 3)
-                image = pymupdf.Pixmap(pymupdf.csRGB, noise_px, noise_px, samples, False)
-                page.insert_image(page.rect, stream=image.tobytes("png"))
-        return doc.tobytes()
+SIGNED_IN = User(id="u1", username="dana", display_name="דנה")
 
 
-QUOTA = "המכסה היומית של Gemini נגמרה. אפשר לנסות שוב מחר"
-
-
-class Answers:
-    """Every page reads as Maccabi, except the listed pages: an error, or the quota."""
-
-    def __init__(self, errors=(), quota_from=None) -> None:
-        self.errors = set(errors)
-        self.quota_from = quota_from
-
-    async def extract(self, page: PageImage) -> RawExtraction:
-        if self.quota_from is not None and page.page_number >= self.quota_from:
-            raise QuotaExhausted(QUOTA)
-        if page.page_number in self.errors:
-            raise ProviderError("המודל לא ענה")
-        return MACCABI.model_copy(deep=True)
+async def unsaved_records(extracted: ExtractedForm) -> list[Record]:
+    """What form_saver returns, without a database or a user. Saving itself is
+    tested in test_extract_saves.py."""
+    form = extracted.form
+    page_id = f"p_{secrets.token_hex(8)}"
+    now = datetime.now(UTC)
+    return [_to_record(draft, form, page_id, [], now) for draft in build_records(form)]
 
 
 @pytest.fixture
@@ -57,15 +36,11 @@ def make_client():
         app = create_app()
         app.dependency_overrides[get_settings] = lambda: Settings(_env_file=None, **settings)
         app.dependency_overrides[extract.get_provider] = lambda: provider or Answers()
-        if save_form:
-            app.dependency_overrides[extract.get_save_form] = lambda: save_form
+        app.dependency_overrides[extract.get_save_form] = lambda: save_form or unsaved_records
+        app.dependency_overrides[require_user] = lambda: SIGNED_IN
         return TestClient(app)
 
     return build
-
-
-def upload(*files):
-    return [("files", (name, data, "application/pdf")) for name, data in files]
 
 
 def test_every_page_comes_back_as_records(make_client):
@@ -258,30 +233,6 @@ def test_an_upload_cut_off_in_the_middle_is_invalid_not_empty(make_client):
 
     body = assert_problem(response, 400, "invalid_upload")
     assert "נקטעה" in body["title"]
-
-
-def test_records_without_saving_gives_one_record_per_commitment(make_client):
-    # Two commitment numbers on one page: two records, each with all central numbers.
-    reading = MACCABI.model_copy(deep=True)
-    reading.commitment_numbers = [
-        reading.commitment_numbers[0],
-        reading.commitment_numbers[0].model_copy(update={"value": "50364187"}),
-    ]
-
-    class TwoCommitments:
-        async def extract(self, page):
-            return reading.model_copy(deep=True)
-
-    response = make_client(provider=TwoCommitments()).post(
-        "/api/v1/extract", files=upload(("a.pdf", make_pdf(1)))
-    )
-
-    records = response.json()["records"]
-    assert [r["commitment_index"] for r in records] == [0, 1]
-    assert len({r["record_id"] for r in records}) == 2
-    assert len({r["page_id"] for r in records}) == 1
-    assert all(len(r["central_numbers"]) == 3 for r in records)
-    assert all(r["form_type"] == "hmo_form" for r in records)
 
 
 def test_a_hebrew_file_name_comes_back_as_sent(make_client):
