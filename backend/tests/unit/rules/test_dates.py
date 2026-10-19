@@ -1,4 +1,4 @@
-"""Received date: formats found in the samples (SPEC 5.4) and the 2020-today range."""
+"""Received date: formats found in the samples (SPEC 5.4) and the one-year-to-today range."""
 
 from datetime import date
 
@@ -71,11 +71,18 @@ def test_missing_date_is_not_flagged_here(raw):
     ("value", "issue_codes"),
     [
         ("2026-10-18", []),
-        ("2020-01-01", []),
+        ("2025-10-18", []),
         ("2026-10-19", ["DATE_OUT_OF_RANGE"]),
-        ("2019-12-31", ["DATE_OUT_OF_RANGE"]),
+        ("2025-10-17", ["DATE_OUT_OF_RANGE"]),
         (None, []),
     ],
 )
 def test_validate_received_date(value, issue_codes):
     assert codes(validate_received_date(value, TODAY)) == issue_codes
+
+
+@pytest.mark.parametrize("raw", ["12-08-2020", "11/8/20"])
+def test_year_2026_misread_as_2020_is_flagged(raw):
+    # #18: the model read 2026 as 2020 on two sample pages (1:17, 2:18).
+    value, issues = normalize_date(raw)
+    assert codes(issues + validate_received_date(value, TODAY)) == ["DATE_OUT_OF_RANGE"]

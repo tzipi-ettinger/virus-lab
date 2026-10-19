@@ -15,6 +15,7 @@ issues:
   SENDER_UNKNOWN: גורם שולח לא מוכר
   CENTRAL_FORMAT: מספר מרכזי בפורמט חריג
   COMMITMENT_PREFIX: מספר התחייבות עם קידומת — יש לוודא
+  COMMITMENT_PREFIX_REMOVED: הוסרה קידומת המעבדה השולחת
   ROTATION_UNRESOLVED: העמוד סרוק בכיוון חריג — יש לבדוק את כל השדות
   DUPLICATE_REMOVED: הוסרה כפילות
   DUPLICATE_RECORD: מספר ההתחייבות כבר קיים ברשומה אחרת — יש לבדוק

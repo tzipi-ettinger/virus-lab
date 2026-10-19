@@ -23,7 +23,10 @@ def test_one_record_per_commitment_with_all_central_numbers(load_form):
 
 
 def test_review_flag_follows_each_records_own_commitment(load_form):
-    records = build_records(ruled(load_form, "multi_values"))
+    form = load_form("multi_values")
+    # A "/" that isn't a lab prefix still needs a person (COMMITMENT_PREFIX).
+    form.commitment_numbers[1].raw = "12/3456"
+    records = build_records(apply_rules(form, today=TODAY))
     assert [r.needs_review for r in records] == [False, True]
     assert [blocking_fields(r.fields, r.central_numbers) for r in records] == [
         [],
