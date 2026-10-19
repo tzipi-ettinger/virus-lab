@@ -54,3 +54,13 @@ def test_list_filters_by_any_form_type(form_type):
 
 def test_list_rejects_an_unknown_form_type():
     assert client.get("/api/v1/records", params={"form_type": "clalit"}).status_code == 422
+
+
+def test_approve_many_reaches_its_own_route():
+    body = {"items": [{"record_id": "r1", "version": 1}, {"record_id": "r2", "version": 3}]}
+    assert client.post("/api/v1/records/approve", json=body).status_code == 501
+
+
+@pytest.mark.parametrize("body", [{"items": []}, {"items": [{"record_id": "r1"}]}])
+def test_approve_many_needs_records_with_versions(body):
+    assert client.post("/api/v1/records/approve", json=body).status_code == 422

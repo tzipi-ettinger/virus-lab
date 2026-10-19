@@ -131,6 +131,29 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/records/approve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Approve Many
+         * @description Approve all ready (D20): each record is checked and saved on its own.
+         *
+         *     Always 200. A record with a field still flagged, a stale version or one already
+         *     approved is listed in `skipped` with the reason, and the others are approved.
+         */
+        post: operations["approve_many_api_v1_records_approve_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/records/{record_id}": {
         parameters: {
             query?: never;
@@ -202,6 +225,28 @@ export interface components {
         ApproveRequest: {
             /** Version */
             version: number;
+        };
+        /** BulkApproveItem */
+        BulkApproveItem: {
+            /** Record Id */
+            record_id: string;
+            /** Version */
+            version: number;
+        };
+        /** BulkApproveRequest */
+        BulkApproveRequest: {
+            /** Items */
+            items: components["schemas"]["BulkApproveItem"][];
+        };
+        /**
+         * BulkApproveResponse
+         * @description Each record is checked on its own: one that is skipped doesn't stop the others.
+         */
+        BulkApproveResponse: {
+            /** Approved */
+            approved: components["schemas"]["Record"][];
+            /** Skipped */
+            skipped: components["schemas"]["SkippedRecord"][];
         };
         /** ErrorInfo */
         ErrorInfo: {
@@ -544,6 +589,22 @@ export interface components {
             /** Approved At */
             approved_at: string | null;
         };
+        /** SkippedRecord */
+        SkippedRecord: {
+            /** Record Id */
+            record_id: string;
+            /**
+             * Type
+             * @description The same type the single approve answers with.
+             * @enum {string}
+             */
+            type: "review_required" | "version_conflict" | "record_approved" | "not_found";
+            /**
+             * Blocking Fields
+             * @description type "review_required" only: the fields still flagged.
+             */
+            blocking_fields?: string[] | null;
+        };
         /**
          * User
          * @description The signed-in user, as require_user gives it to the endpoints.
@@ -809,6 +870,48 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["RecordList"];
+                };
+            };
+            /** @description No valid session ("unauthenticated") */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    approve_many_api_v1_records_approve_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BulkApproveRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BulkApproveResponse"];
                 };
             };
             /** @description No valid session ("unauthenticated") */

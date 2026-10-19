@@ -134,3 +134,29 @@ def test_record_list_requires_counts():
 
     counts = {"pending": 1, "approved": 0, "needs_review": 0}
     assert api.RecordList.model_validate({**data, "counts": counts}).counts.pending == 1
+
+
+def test_bulk_approve_response_lists_approved_and_skipped_records():
+    response = api.BulkApproveResponse.model_validate(
+        {
+            "approved": [record_data(status="approved", approved_at=NOW, approved_by="esty")],
+            "skipped": [
+                {
+                    "record_id": "r2",
+                    "type": "review_required",
+                    "blocking_fields": ["national_id", "central_numbers[1]"],
+                },
+                {"record_id": "r3", "type": "version_conflict"},
+            ],
+        }
+    )
+    assert [r.record_id for r in response.approved] == ["r1"]
+    assert [(s.record_id, s.blocking_fields) for s in response.skipped] == [
+        ("r2", ["national_id", "central_numbers[1]"]),
+        ("r3", None),
+    ]
+
+
+def test_skipped_record_needs_a_known_reason():
+    with pytest.raises(ValidationError, match="type"):
+        api.SkippedRecord.model_validate({"record_id": "r1", "type": "oops"})

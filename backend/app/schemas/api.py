@@ -280,6 +280,36 @@ class ApproveRequest(BaseModel):
     version: int
 
 
+# --- POST /api/v1/records/approve ("approve all ready", D20)
+
+
+class BulkApproveItem(BaseModel):
+    record_id: str
+    version: int
+
+
+class BulkApproveRequest(BaseModel):
+    items: list[BulkApproveItem] = Field(min_length=1, max_length=500)
+
+
+SkipReason = Literal["review_required", "version_conflict", "record_approved", "not_found"]
+
+
+class SkippedRecord(BaseModel):
+    record_id: str
+    type: SkipReason = Field(description="The same type the single approve answers with.")
+    blocking_fields: list[str] | None = Field(
+        default=None, description='type "review_required" only: the fields still flagged.'
+    )
+
+
+class BulkApproveResponse(BaseModel):
+    """Each record is checked on its own: one that is skipped doesn't stop the others."""
+
+    approved: list[Record]
+    skipped: list[SkippedRecord]
+
+
 # --- Auth (Dev-B plan 2.6): users are created only by scripts/create_user.py
 
 

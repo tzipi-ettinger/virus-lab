@@ -447,6 +447,55 @@
         }
       }
     },
+    "/api/v1/records/approve": {
+      "post": {
+        "summary": "Approve Many",
+        "description": "Approve all ready (D20): each record is checked and saved on its own.\n\nAlways 200. A record with a field still flagged, a stale version or one already\napproved is listed in `skipped` with the reason, and the others are approved.",
+        "operationId": "approve_many_api_v1_records_approve_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BulkApproveRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BulkApproveResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid session (\"unauthenticated\")",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/records/{record_id}": {
       "get": {
         "summary": "Get Record",
@@ -735,6 +784,67 @@
           "version"
         ],
         "title": "ApproveRequest"
+      },
+      "BulkApproveItem": {
+        "properties": {
+          "record_id": {
+            "type": "string",
+            "title": "Record Id"
+          },
+          "version": {
+            "type": "integer",
+            "title": "Version"
+          }
+        },
+        "type": "object",
+        "required": [
+          "record_id",
+          "version"
+        ],
+        "title": "BulkApproveItem"
+      },
+      "BulkApproveRequest": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/BulkApproveItem"
+            },
+            "type": "array",
+            "maxItems": 500,
+            "minItems": 1,
+            "title": "Items"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "title": "BulkApproveRequest"
+      },
+      "BulkApproveResponse": {
+        "properties": {
+          "approved": {
+            "items": {
+              "$ref": "#/components/schemas/Record"
+            },
+            "type": "array",
+            "title": "Approved"
+          },
+          "skipped": {
+            "items": {
+              "$ref": "#/components/schemas/SkippedRecord"
+            },
+            "type": "array",
+            "title": "Skipped"
+          }
+        },
+        "type": "object",
+        "required": [
+          "approved",
+          "skipped"
+        ],
+        "title": "BulkApproveResponse",
+        "description": "Each record is checked on its own: one that is skipped doesn't stop the others."
       },
       "ErrorInfo": {
         "properties": {
@@ -1680,6 +1790,46 @@
         ],
         "title": "RecordSummary",
         "description": "A row on the records screen: effective values only, straight from the record table."
+      },
+      "SkippedRecord": {
+        "properties": {
+          "record_id": {
+            "type": "string",
+            "title": "Record Id"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "review_required",
+              "version_conflict",
+              "record_approved",
+              "not_found"
+            ],
+            "title": "Type",
+            "description": "The same type the single approve answers with."
+          },
+          "blocking_fields": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Blocking Fields",
+            "description": "type \"review_required\" only: the fields still flagged."
+          }
+        },
+        "type": "object",
+        "required": [
+          "record_id",
+          "type"
+        ],
+        "title": "SkippedRecord"
       },
       "User": {
         "properties": {

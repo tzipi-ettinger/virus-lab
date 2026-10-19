@@ -17,6 +17,8 @@ from app.api.errors import ProblemError
 from app.auth.deps import get_pool, require_user
 from app.schemas.api import (
     ApproveRequest,
+    BulkApproveRequest,
+    BulkApproveResponse,
     FormType,
     Problem,
     Record,
@@ -69,6 +71,19 @@ def list_records(
     """Newest first, then page number, then commitment order.
 
     `status=approved` is also the hand-off point for the lab's system (D6).
+    """
+    raise _not_implemented()
+
+
+# Fixed paths under /records go before /records/{record_id}, or it would take them.
+
+
+@router.post("/records/approve")
+def approve_many(body: BulkApproveRequest) -> BulkApproveResponse:
+    """Approve all ready (D20): each record is checked and saved on its own.
+
+    Always 200. A record with a field still flagged, a stale version or one already
+    approved is listed in `skipped` with the reason, and the others are approved.
     """
     raise _not_implemented()
 
