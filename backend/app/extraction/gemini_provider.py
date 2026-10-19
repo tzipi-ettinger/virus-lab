@@ -2,7 +2,9 @@
 
 Every call counts against the free tier's 20 requests a day, failed ones too, so
 retries are few and deliberate:
-- the daily quota is used up -> QuotaExhausted at once, never retried (the batch stops);
+- the daily quota is used up -> the same page goes to the next key (GEMINI_API_KEYS,
+  one per project: the quota is per project); once every key is used up,
+  QuotaExhausted (the batch stops);
 - too many requests this minute (429) -> one retry after the delay Gemini asks for,
   if it is short; 500 / 502 / 503 / 504, or no connection at all -> one retry after
   a pause;
@@ -23,7 +25,7 @@ Owner: A
 import asyncio
 import logging
 import re
-from collections.abc import Awaitable, Callable
+from collections.abc import Awaitable, Callable, Sequence
 from pathlib import Path
 
 import httpx  # comes with google-genai, which raises its transport errors as is
@@ -60,7 +62,7 @@ def load_prompt(path: Path = PROMPT_FILE) -> str:
 class GeminiProvider:
     def __init__(
         self,
-        client: genai.Client,
+        clients: Sequence[genai.Client],
         model: str,
         *,
         max_concurrency: int,
@@ -68,7 +70,10 @@ class GeminiProvider:
         prompt: str | None = None,
         sleep: Callable[[float], Awaitable[None]] = asyncio.sleep,
     ) -> None:
-        self._client = client
+        if not clients:
+            raise ValueError("GeminiProvider needs at least one client")
+        self._clients = list(clients)  # one per key, in the order of GEMINI_API_KEYS
+        self._current = 0  # the key in use, shared by every upload on the server
         self._model = model
         self._timeout_s = timeout_s
         self._prompt = prompt if prompt is not None else load_prompt()
@@ -86,32 +91,51 @@ class GeminiProvider:
     async def extract(self, page: PageImage) -> RawExtraction:
         contents = [types.Part.from_bytes(data=page.jpeg, mime_type="image/jpeg"), self._prompt]
         async with self._semaphore:
-            for attempt in range(1, MAX_ATTEMPTS + 1):
+            # Each key in turn, starting from the one in use. Wrapping around means a
+            # key that ran out yesterday is found again once its quota is back.
+            for _ in range(len(self._clients)):
+                key = self._current
                 try:
-                    return await self._call(contents)
-                except errors.APIError as exc:
-                    wait = self._retry_wait(exc, attempt)
-                    if wait is None:
-                        raise _provider_error(exc) from None
-                    reason = f"{exc.code} {exc.status}"
-                except httpx.TransportError as exc:  # no answer at all: refused, reset, DNS
-                    if attempt == MAX_ATTEMPTS:
-                        logger.warning("gemini unreachable: %s", type(exc).__name__)
-                        raise ProviderError(UNAVAILABLE_MESSAGE) from None
-                    wait, reason = SERVER_ERROR_WAIT_S, type(exc).__name__
-                except ProviderError:  # from _call: already a message for the user
-                    raise
-                except Exception as exc:  # keep the contract: a provider raises only these two
-                    logger.error("gemini call failed unexpectedly: %s", type(exc).__name__)
-                    raise ProviderError(FAILED_MESSAGE) from None
-                logger.warning("gemini %s, retrying in %.0fs", reason, wait)
-                await self._sleep(wait)
+                    return await self._extract_with(self._clients[key], contents)
+                except QuotaExhausted:
+                    # Only the first page to hit it moves on; another page may have already.
+                    if self._current == key:
+                        self._current = (key + 1) % len(self._clients)
+                    if len(self._clients) > 1:
+                        logger.warning(
+                            "gemini key %d of %d is out of daily quota, moving to the next",
+                            key + 1,
+                            len(self._clients),
+                        )
+        raise QuotaExhausted(QUOTA_MESSAGE)
+
+    async def _extract_with(self, client: genai.Client, contents: list) -> RawExtraction:
+        for attempt in range(1, MAX_ATTEMPTS + 1):
+            try:
+                return await self._call(client, contents)
+            except errors.APIError as exc:
+                wait = self._retry_wait(exc, attempt)
+                if wait is None:
+                    raise _provider_error(exc) from None
+                reason = f"{exc.code} {exc.status}"
+            except httpx.TransportError as exc:  # no answer at all: refused, reset, DNS
+                if attempt == MAX_ATTEMPTS:
+                    logger.warning("gemini unreachable: %s", type(exc).__name__)
+                    raise ProviderError(UNAVAILABLE_MESSAGE) from None
+                wait, reason = SERVER_ERROR_WAIT_S, type(exc).__name__
+            except ProviderError:  # from _call: already a message for the user
+                raise
+            except Exception as exc:  # keep the contract: a provider raises only these two
+                logger.error("gemini call failed unexpectedly: %s", type(exc).__name__)
+                raise ProviderError(FAILED_MESSAGE) from None
+            logger.warning("gemini %s, retrying in %.0fs", reason, wait)
+            await self._sleep(wait)
         raise AssertionError("unreachable: the last attempt returns or raises")
 
-    async def _call(self, contents: list) -> RawExtraction:
+    async def _call(self, client: genai.Client, contents: list) -> RawExtraction:
         try:
             async with asyncio.timeout(self._timeout_s):
-                response = await self._client.aio.models.generate_content(
+                response = await client.aio.models.generate_content(
                     model=self._model, contents=contents, config=self._config
                 )
         except TimeoutError:

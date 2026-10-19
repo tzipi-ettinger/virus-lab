@@ -340,7 +340,7 @@ def test_quota_after_a_page_failed_for_another_reason_is_still_503(make_client):
 def test_gemini_is_one_provider_for_every_request():
     # Its semaphore limits the whole server only if every request gets the same one.
     settings = Settings(
-        _env_file=None, extraction_provider="gemini", gemini_api_key="k", gemini_model="m"
+        _env_file=None, extraction_provider="gemini", gemini_api_keys="k1,k2", gemini_model="m"
     )
 
     first, second = extract.get_provider(settings), extract.get_provider(settings)

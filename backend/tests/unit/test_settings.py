@@ -26,7 +26,39 @@ def test_gemini_needs_a_key_and_a_model():
     with pytest.raises(ValidationError) as error:
         Settings(_env_file=None, extraction_provider="gemini")
 
-    assert "GEMINI_API_KEY and GEMINI_MODEL" in str(error.value)
+    assert "GEMINI_API_KEYS and GEMINI_MODEL" in str(error.value)
+
+
+def test_keys_are_read_from_a_comma_separated_list(monkeypatch):
+    monkeypatch.setenv("GEMINI_API_KEYS", "key-1, key-2,,key-3 ,")
+    monkeypatch.delenv("GEMINI_API_KEY", raising=False)
+    settings = Settings(_env_file=None)
+
+    assert settings.gemini_keys() == ("key-1", "key-2", "key-3")
+    assert "key-2" not in repr(settings)
+
+
+def test_the_old_single_key_still_works_and_comes_last(monkeypatch):
+    monkeypatch.setenv("GEMINI_API_KEYS", "key-1,key-2")
+    monkeypatch.setenv("GEMINI_API_KEY", "old-key")
+
+    assert Settings(_env_file=None).gemini_keys() == ("key-1", "key-2", "old-key")
+
+
+def test_a_key_listed_twice_is_used_once(monkeypatch):
+    monkeypatch.setenv("GEMINI_API_KEYS", "key-1,key-1")
+    monkeypatch.setenv("GEMINI_API_KEY", "key-1")
+
+    assert Settings(_env_file=None).gemini_keys() == ("key-1",)
+
+
+def test_only_commas_counts_as_no_key():
+    with pytest.raises(ValidationError) as error:
+        Settings(
+            _env_file=None, extraction_provider="gemini", gemini_api_keys=" , ,", gemini_model="m"
+        )
+
+    assert "GEMINI_API_KEYS" in str(error.value)
 
 
 def test_gemini_with_a_key_and_a_model_loads_without_showing_the_key():

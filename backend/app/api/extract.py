@@ -128,11 +128,11 @@ def _fake_provider() -> FakeProvider:
 
 @lru_cache
 def _gemini_provider(
-    api_key: str, model: str, max_concurrency: int, timeout_s: int
+    api_keys: tuple[str, ...], model: str, max_concurrency: int, timeout_s: int
 ) -> GeminiProvider:
     # One provider per configuration, so its semaphore limits the whole server.
     return GeminiProvider(
-        genai.Client(api_key=api_key),
+        [genai.Client(api_key=key) for key in api_keys],
         model,
         max_concurrency=max_concurrency,
         timeout_s=timeout_s,
@@ -145,7 +145,7 @@ def get_provider(settings: SettingsDep) -> ExtractionProvider:
             return _fake_provider()
         case "gemini":
             return _gemini_provider(
-                settings.gemini_api_key.get_secret_value(),
+                settings.gemini_keys(),
                 settings.gemini_model,
                 settings.max_concurrency,
                 settings.provider_timeout_s,

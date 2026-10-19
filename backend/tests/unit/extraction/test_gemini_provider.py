@@ -83,9 +83,11 @@ class Sleeps:
         self.waits.append(seconds)
 
 
-def provider(client, sleep=None, **kwargs):
+def provider(clients, sleep=None, **kwargs):
+    """One FakeClient, or a list of them: one per key."""
+    clients = clients if isinstance(clients, list) else [clients]
     options = {"max_concurrency": 4, "timeout_s": 60, "prompt": "PROMPT", **kwargs}
-    return GeminiProvider(client, "gemini-test", sleep=sleep or Sleeps(), **options)
+    return GeminiProvider(clients, "gemini-test", sleep=sleep or Sleeps(), **options)
 
 
 def run(coro):
@@ -131,6 +133,73 @@ def test_a_used_up_daily_quota_stops_at_once():
     assert error.value.message == gemini_provider.QUOTA_MESSAGE
     assert len(client.calls) == 1  # no retry: it would fail too, and still count
     assert sleeps.waits == []
+
+
+def test_a_used_up_key_hands_the_page_to_the_next_key():
+    first, second, sleeps = FakeClient(DAILY), FakeClient(ANSWER), Sleeps()
+
+    result = run(provider([first, second], sleeps).extract(PAGE))
+
+    assert isinstance(result, RawExtraction)
+    assert len(first.calls) == 1 and len(second.calls) == 1
+    assert sleeps.waits == []  # another project's quota: no reason to wait
+
+
+def test_after_a_key_runs_out_the_next_pages_start_from_the_next_key():
+    first, second = FakeClient(DAILY), FakeClient(ANSWER)
+    shared = provider([first, second])
+
+    run(shared.extract(PAGE))
+    run(shared.extract(PAGE))
+
+    assert len(first.calls) == 1  # not asked again for every page
+    assert len(second.calls) == 2
+
+
+def test_every_key_used_up_stops_the_batch():
+    clients = [FakeClient(DAILY), FakeClient(DAILY), FakeClient(DAILY)]
+
+    with pytest.raises(QuotaExhausted) as error:
+        run(provider(clients).extract(PAGE))
+
+    assert error.value.message == gemini_provider.QUOTA_MESSAGE
+    assert [len(client.calls) for client in clients] == [1, 1, 1]
+
+
+def test_the_keys_wrap_around_so_a_renewed_quota_is_found_again():
+    # Both keys run out on one page; by the next page key 1 has its quota back (a new day).
+    first, second = FakeClient(DAILY, ANSWER), FakeClient(DAILY)
+    shared = provider([first, second])
+
+    with pytest.raises(QuotaExhausted):
+        run(shared.extract(PAGE))
+    result = run(shared.extract(PAGE))
+
+    assert isinstance(result, RawExtraction)
+    assert len(first.calls) == 2 and len(second.calls) == 1
+
+
+def test_a_per_minute_limit_does_not_switch_keys():
+    first, second, sleeps = FakeClient(per_minute("7s"), ANSWER), FakeClient(ANSWER), Sleeps()
+
+    run(provider([first, second], sleeps).extract(PAGE))
+
+    assert len(first.calls) == 2 and second.calls == []
+    assert sleeps.waits == [7.0]
+
+
+def test_the_log_names_the_key_by_number_only(caplog):
+    first, second = FakeClient(DAILY), FakeClient(ANSWER)
+
+    with caplog.at_level(logging.INFO, logger="app.extraction.gemini_provider"):
+        run(provider([first, second]).extract(PAGE))
+
+    assert "key 1 of 2" in caplog.text
+
+
+def test_a_provider_needs_a_key():
+    with pytest.raises(ValueError):
+        provider([])
 
 
 def test_the_per_minute_limit_is_retried_once_after_the_asked_delay():
