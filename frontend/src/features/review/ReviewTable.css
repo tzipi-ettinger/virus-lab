@@ -205,6 +205,50 @@
   margin-block-start: 4px;
 }
 
+.review-approve {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+}
+
+.review-approve button,
+.review-actions > button {
+  padding: 4px 12px;
+  font: inherit;
+  font-weight: 600;
+  color: #ffffff;
+  background: var(--color-accent, #0b6e79);
+  border: 0;
+  border-radius: var(--radius-md, 8px);
+  cursor: pointer;
+}
+
+.review-approve button:disabled {
+  color: var(--color-text-muted, #52606d);
+  background: var(--color-surface-muted, #f7f9fb);
+  border: 1px solid var(--color-border, #dde3e9);
+  cursor: not-allowed;
+}
+
+.review-approve button:focus-visible,
+.review-actions > button:focus-visible {
+  outline: 3px solid var(--color-focus, #1d4ed8);
+  outline-offset: 2px;
+}
+
+.review-blocking {
+  max-inline-size: 22ch;
+  color: var(--color-warning, #8a5300);
+  font-size: 0.75rem;
+  white-space: normal;
+}
+
+.review-approved {
+  color: var(--color-success, #1e6b3a);
+  font-weight: 600;
+}
+
 .review-cell-error {
   display: block;
   max-inline-size: 28ch;

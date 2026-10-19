@@ -3,6 +3,7 @@
 // Owner: B
 
 import { useSenders } from "../../shared/useSenders";
+import { ApproveButton } from "./ApproveButton";
 import { CentralNumbersCell } from "./CentralNumbersCell";
 import { FieldCell } from "./FieldCell";
 import { useRecordMutations, type ApiRecord } from "./recordMutations";
@@ -18,7 +19,7 @@ interface ReviewTableProps {
 }
 
 export function ReviewTable({ records, selectedId, onSelect, onRecords }: ReviewTableProps) {
-  const { saveField, saveCentrals } = useRecordMutations(onRecords);
+  const { saveField, saveCentrals, approve } = useRecordMutations(onRecords);
   const senders = useSenders();
   if (records.length === 0) {
     return <p className="review-empty">עוד אין רשומות. העלי טפסים כדי להתחיל</p>;
@@ -44,6 +45,7 @@ export function ReviewTable({ records, selectedId, onSelect, onRecords }: Review
               ))}
               <th scope="col">מספרים מרכזיים</th>
               <th scope="col">סטטוס</th>
+              <th scope="col">פעולות</th>
             </tr>
           </thead>
           <tbody>
@@ -79,6 +81,9 @@ export function ReviewTable({ records, selectedId, onSelect, onRecords }: Review
                     onSave={(items) => saveCentrals(r, items)}
                   />
                   <td className={r.needs_review ? "review-status is-flagged" : "review-status"}>{statusText(r)}</td>
+                  <td className="review-actions">
+                    <ApproveButton record={r} onApprove={approve} />
+                  </td>
                 </tr>
               );
             })}

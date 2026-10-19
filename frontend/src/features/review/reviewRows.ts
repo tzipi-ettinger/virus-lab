@@ -87,6 +87,31 @@ export const FIELD_COLUMNS: { name: FieldName; title: string }[] = [
   { name: "received_date", title: "תאריך קבלה" },
 ];
 
+/**
+ * The fields that still block approval, named as the server names them in
+ * blocking_fields (rules/records.py): a flagged field, or "central_numbers[i]".
+ * An issue on the whole record shows but doesn't block (#59).
+ */
+export function blockingFields(record: ApiRecord): string[] {
+  const names = FIELD_COLUMNS.filter((c) => record.fields[c.name].needs_review).map((c) => c.name as string);
+  record.central_numbers.forEach((item, i) => {
+    if (item.needs_review) names.push(`central_numbers[${i}]`);
+  });
+  return names;
+}
+
+/** Pending, with nothing left to fix: "approve all ready" sends these. */
+export function isReady(record: ApiRecord): boolean {
+  return record.status === "pending" && blockingFields(record).length === 0;
+}
+
+/** A blocking field's name in Hebrew: "national_id" → ת״ז, "central_numbers[1]" → מספר מרכזי 2. */
+export function fieldTitle(name: string): string {
+  const central = /^central_numbers\[(\d+)\]$/.exec(name);
+  if (central) return `מספר מרכזי ${Number(central[1]) + 1}`;
+  return FIELD_COLUMNS.find((c) => c.name === name)?.title ?? name;
+}
+
 export const FORM_TYPE_TEXT: Record<ApiRecord["form_type"], string> = {
   hmo_form: "טופס קופה",
   hospital_form: "טופס בית חולים",

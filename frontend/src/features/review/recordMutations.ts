@@ -7,6 +7,7 @@
 import { useCallback } from "react";
 import { ApiError, apiFetch } from "../../api/client";
 import type { components } from "../../api/schema";
+import { fieldTitle } from "./reviewRows";
 
 export type ApiRecord = components["schemas"]["Record"];
 export type FieldEdit = components["schemas"]["FieldEdit"];
@@ -14,6 +15,8 @@ export type ListItemEdit = components["schemas"]["ListItemEdit"];
 export type FieldName = keyof components["schemas"]["RecordFieldsEdit"];
 type RecordPatch = components["schemas"]["RecordPatch"];
 type RecordPatchResponse = components["schemas"]["RecordPatchResponse"];
+export type BulkApproveResponse = components["schemas"]["BulkApproveResponse"];
+export type SkippedRecord = components["schemas"]["SkippedRecord"];
 
 export const VERSION_CONFLICT =
   "הרשומה עודכנה בינתיים בחלון אחר. טענתי את הגרסה החדשה, ומה שהקלדת נשאר: בדקי ושמרי שוב";
@@ -28,6 +31,11 @@ export function mutationError(error: unknown): string {
       return "הרשומה כבר אושרה, ואי אפשר לשנות אותה";
     case "sibling_approved":
       return "רשומה אחרת מאותו טופס כבר אושרה, ולכן אי אפשר לשנות שדה שמשותף לשתיהן";
+    case "review_required":
+      return `אי אפשר לאשר עדיין. יש לטפל קודם ב: ${error.blockingFields.map(fieldTitle).join(", ")}`;
+    case "record_not_found":
+    case "not_found":
+      return "הרשומה לא נמצאה. ייתכן שנמחקה בחלון אחר";
     default:
       return error.message;
   }
@@ -70,6 +78,20 @@ export type Saved = string | null;
  * record itself and the form's other records whose shared field changed too (A3).
  */
 export function useRecordMutations(onRecords: (records: ApiRecord[]) => void) {
+  /** The message for a failure; on a stale version, also show what the other window saved. */
+  const failed = useCallback(
+    async (record: ApiRecord, error: unknown): Promise<string> => {
+      if (error instanceof ApiError && error.type === "version_conflict") {
+        await apiFetch<ApiRecord>(`/api/v1/records/${record.record_id}`).then(
+          (fresh) => onRecords([fresh]),
+          () => {},
+        );
+      }
+      return mutationError(error);
+    },
+    [onRecords],
+  );
+
   const send = useCallback(
     async (record: ApiRecord, body: RecordPatch): Promise<Saved> => {
       try {
@@ -80,18 +102,54 @@ export function useRecordMutations(onRecords: (records: ApiRecord[]) => void) {
         onRecords([answer.record, ...answer.siblings]);
         return null;
       } catch (error) {
-        if (error instanceof ApiError && error.type === "version_conflict") {
-          // Show what the other window saved; the editor keeps the user's text.
-          await apiFetch<ApiRecord>(`/api/v1/records/${record.record_id}`).then(
-            (fresh) => onRecords([fresh]),
-            () => {},
-          );
-        }
+        return failed(record, error); // the editor keeps the user's text
+      }
+    },
+    [onRecords, failed],
+  );
+
+  const approve = useCallback(
+    async (record: ApiRecord): Promise<Saved> => {
+      try {
+        const approved = await apiFetch<ApiRecord>(`/api/v1/records/${record.record_id}/approve`, {
+          method: "POST",
+          body: { version: record.version },
+        });
+        onRecords([approved]);
+        return null;
+      } catch (error) {
+        return failed(record, error);
+      }
+    },
+    [onRecords, failed],
+  );
+
+  /** "Approve all ready" (D20): the server checks each one and may skip some. */
+  const approveMany = useCallback(
+    async (records: ApiRecord[]): Promise<BulkApproveResponse | string> => {
+      try {
+        const answer = await apiFetch<BulkApproveResponse>("/api/v1/records/approve", {
+          method: "POST",
+          body: { items: records.map((r) => ({ record_id: r.record_id, version: r.version })) },
+        });
+        onRecords(answer.approved);
+        return answer;
+      } catch (error) {
         return mutationError(error);
       }
     },
     [onRecords],
   );
+
+  /** Delete a pending record (A5). The caller takes it off the screen when this is null. */
+  const remove = useCallback(async (record: ApiRecord): Promise<Saved> => {
+    try {
+      await apiFetch(`/api/v1/records/${record.record_id}`, { method: "DELETE" });
+      return null;
+    } catch (error) {
+      return mutationError(error);
+    }
+  }, []);
 
   const saveField = useCallback(
     (record: ApiRecord, name: FieldName, edit: FieldEdit) => send(record, fieldPatch(record, name, edit)),
@@ -101,5 +159,5 @@ export function useRecordMutations(onRecords: (records: ApiRecord[]) => void) {
     (record: ApiRecord, items: ListItemEdit[]) => send(record, centralsPatch(record, items)),
     [send],
   );
-  return { saveField, saveCentrals };
+  return { saveField, saveCentrals, approve, approveMany, remove };
 }
