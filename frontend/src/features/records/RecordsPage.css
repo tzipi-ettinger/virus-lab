@@ -1,0 +1,221 @@
+/* The records screen and the record page. Logical properties only (RTL). Owner: B */
+
+.records {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding-block: 16px;
+}
+
+.records-title {
+  margin: 0;
+  font-size: 1.4rem;
+}
+
+.records-counts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.records button,
+.record-page button {
+  padding: 6px 12px;
+  font: inherit;
+  color: var(--color-text, #0f1b2a);
+  background: var(--color-surface, #fff);
+  border: 1px solid var(--color-border-strong, #9fb3c8);
+  border-radius: var(--radius-md, 8px);
+  cursor: pointer;
+}
+
+.records button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.records-counts button[aria-pressed="true"] {
+  color: var(--color-accent-strong, #08515a);
+  background: var(--color-accent-soft, #e5f1f2);
+  border-color: var(--color-accent, #0b6e79);
+}
+
+.records button:focus-visible,
+.records a:focus-visible,
+.records input:focus-visible,
+.records select:focus-visible,
+.record-page a:focus-visible {
+  outline: 2px solid var(--color-focus, #1d4ed8);
+  outline-offset: 2px;
+}
+
+.records-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 12px;
+}
+
+.records-filters label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.9rem;
+  color: var(--color-text-muted, #52606d);
+}
+
+.records-filters .records-check {
+  flex-direction: row;
+  align-items: center;
+  padding-block-end: 8px;
+}
+
+.records-filters input,
+.records-filters select {
+  padding: 6px 8px;
+  font: inherit;
+  color: var(--color-text, #0f1b2a);
+  border: 1px solid var(--color-border-strong, #9fb3c8);
+  border-radius: var(--radius-md, 8px);
+}
+
+.records-search input {
+  min-inline-size: 260px;
+}
+
+.records-banner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px;
+  color: var(--color-danger, #a12222);
+  background: var(--color-danger-soft, #fdecec);
+  border-radius: var(--radius-md, 8px);
+}
+
+.records-empty {
+  padding: 24px;
+  text-align: center;
+  color: var(--color-text-muted, #52606d);
+}
+
+.records-scroll {
+  overflow-x: auto;
+}
+
+.records-table {
+  inline-size: 100%;
+  border-collapse: collapse;
+}
+
+.records-table th,
+.records-table td {
+  padding: 8px 10px;
+  text-align: start;
+  border-block-end: 1px solid var(--color-border, #dde3e9);
+  white-space: nowrap;
+}
+
+.records-table th {
+  font-weight: 600;
+  background: var(--color-surface-muted, #f7f9fb);
+}
+
+.records-table tbody tr {
+  cursor: pointer;
+}
+
+.records-table tbody tr:hover {
+  background: var(--color-surface-muted, #f7f9fb);
+}
+
+.records-number {
+  font-variant-numeric: tabular-nums;
+}
+
+.records-status.is-approved {
+  color: var(--color-success, #1e6b3a);
+}
+
+.records-status.is-review {
+  color: var(--color-warning, #8a5300);
+}
+
+.records-pages {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+}
+
+.record-page {
+  display: grid;
+  grid-template-columns: minmax(0, 3fr) minmax(280px, 2fr);
+  align-items: start;
+  gap: 16px;
+  padding-block: 16px;
+}
+
+.record-page > .preview {
+  position: sticky;
+  inset-block-start: 16px;
+}
+
+@media (max-width: 900px) {
+  .record-page {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .record-page > .preview {
+    position: static;
+  }
+}
+
+.record-main {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.record-back {
+  color: var(--color-accent-strong, #08515a);
+}
+
+.record-meta {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 4px 16px;
+  margin: 0;
+}
+
+.record-meta dt {
+  color: var(--color-text-muted, #52606d);
+}
+
+.record-meta dd {
+  margin: 0;
+}
+
+.record-issues {
+  margin: 0;
+  padding: 8px 12px;
+  list-style: none;
+  color: var(--color-warning, #8a5300);
+  background: var(--color-warning-soft, #fff4db);
+  border-radius: var(--radius-md, 8px);
+}
+
+.record-fields tr.is-flagged td {
+  background: var(--color-warning-soft, #fff4db);
+}
+
+.record-fields th[scope="row"] {
+  font-weight: 600;
+  background: none;
+}
+
+.record-evidence {
+  white-space: normal;
+  max-inline-size: 280px;
+  color: var(--color-text-muted, #52606d);
+}
