@@ -219,3 +219,26 @@
   max-inline-size: 280px;
   color: var(--color-text-muted, #52606d);
 }
+
+.records-export {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.records-export a {
+  padding: 6px 12px;
+  color: var(--color-accent-strong, #08515a);
+  text-decoration: none;
+  border: 1px solid var(--color-accent, #0b6e79);
+  border-radius: var(--radius-md, 8px);
+}
+
+.records-export a:hover {
+  background: var(--color-accent-soft, #e5f1f2);
+}
+
+.records-export-none {
+  color: var(--color-text-muted, #52606d);
+}
