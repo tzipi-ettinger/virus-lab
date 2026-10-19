@@ -136,6 +136,35 @@ describe("FieldCell", () => {
     expect(screen.queryByRole("button", { name: /אישור ערך/ })).toBeNull();
   });
 
+  test("a closed list edits with a dropdown that saves on pick", async () => {
+    const onSave = vi.fn<(edit: FieldEdit) => Promise<Saved>>().mockResolvedValue(null);
+    render(
+      <table>
+        <tbody>
+          <tr>
+            <FieldCell
+              title="גורם שולח"
+              field={field("מכבי העמק", flagged("מכבי העמק", "גורם שולח לא מוכר"))}
+              editable
+              onSave={onSave}
+              options={["כללית", "מכבי"]}
+            />
+          </tr>
+        </tbody>
+      </table>,
+    );
+    const user = userEvent.setup();
+
+    await user.click(screen.getByRole("button", { name: /^גורם שולח:/ }));
+    const select = screen.getByRole("combobox", { name: "עריכת גורם שולח" });
+    // The text as read stays available, marked as not on the list.
+    expect((select as HTMLSelectElement).value).toBe("מכבי העמק");
+    expect(screen.getByRole("option", { name: /כפי שנקרא: מכבי העמק/ })).toBeTruthy();
+    await user.selectOptions(select, "מכבי");
+
+    expect(onSave).toHaveBeenCalledExactlyOnceWith({ value: "מכבי" });
+  });
+
   test("an approved record can't be edited", () => {
     renderCell(field("011223344"), undefined, false);
 

@@ -16,9 +16,11 @@ interface FieldCellProps {
   field: FormField;
   editable: boolean; // false once the record is approved
   onSave: (edit: FieldEdit) => Promise<Saved>;
+  /** A closed list (the senders): edited with a dropdown that saves on pick. */
+  options?: string[];
 }
 
-export function FieldCell({ title, field, editable, onSave }: FieldCellProps) {
+export function FieldCell({ title, field, editable, onSave, options }: FieldCellProps) {
   const cell = fieldCell(field);
   const [draft, setDraft] = useState<string | null>(null); // null: not editing
   const [busy, setBusy] = useState(false);
@@ -43,7 +45,7 @@ export function FieldCell({ title, field, editable, onSave }: FieldCellProps) {
     void save({ value: value || null }, true); // on a conflict the typed text stays
   }
 
-  function onKeyDown(event: KeyboardEvent<HTMLInputElement>) {
+  function onKeyDown(event: KeyboardEvent<HTMLElement>) {
     if (event.key === "Enter") {
       event.preventDefault();
       commit();
@@ -66,7 +68,36 @@ export function FieldCell({ title, field, editable, onSave }: FieldCellProps) {
       className={cell.flagged ? "review-cell is-flagged" : "review-cell"}
       title={cell.issues.join("\n") || undefined}
     >
-      {draft !== null ? (
+      {draft !== null && options ? (
+        <select
+          className="review-cell-input"
+          aria-label={`עריכת ${title}`}
+          value={draft}
+          disabled={busy}
+          autoFocus
+          onChange={(event) => {
+            const value = event.target.value;
+            setDraft(value);
+            if (value !== (field.value ?? "")) void save({ value: value || null }, true);
+          }}
+          onKeyDown={onKeyDown}
+          onClick={(event) => event.stopPropagation()}
+          onBlur={() => {
+            if (!busy) setDraft(null);
+          }}
+        >
+          {/* Text that isn't on the list stays as read, and stays flagged. */}
+          {field.value && !options.includes(field.value) && (
+            <option value={field.value}>כפי שנקרא: {field.value} (לא ברשימה)</option>
+          )}
+          <option value="">ריק</option>
+          {options.map((name) => (
+            <option key={name} value={name}>
+              {name}
+            </option>
+          ))}
+        </select>
+      ) : draft !== null ? (
         <input
           className="review-cell-input"
           aria-label={`עריכת ${title}`}

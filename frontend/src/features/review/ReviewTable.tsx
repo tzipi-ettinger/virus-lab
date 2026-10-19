@@ -2,6 +2,7 @@
 // with a confidence label, each field edited in place (PLAN-DEV-B 3.1).
 // Owner: B
 
+import { useSenders } from "../../shared/useSenders";
 import { FieldCell } from "./FieldCell";
 import { useRecordMutations, type ApiRecord } from "./recordMutations";
 import {
@@ -33,6 +34,7 @@ function CellView({ cell }: { cell: Cell }) {
 
 export function ReviewTable({ records, selectedId, onSelect, onRecords }: ReviewTableProps) {
   const { saveField } = useRecordMutations(onRecords);
+  const senders = useSenders();
   if (records.length === 0) {
     return <p className="review-empty">עוד אין רשומות. העלי טפסים כדי להתחיל</p>;
   }
@@ -83,6 +85,7 @@ export function ReviewTable({ records, selectedId, onSelect, onRecords }: Review
                       field={r.fields[c.name]}
                       editable={r.status === "pending"}
                       onSave={(edit) => saveField(r, c.name, edit)}
+                      options={c.name === "sender" && senders.length > 0 ? senders : undefined}
                     />
                   ))}
                   <CellView cell={listCell(r.central_numbers)} />
