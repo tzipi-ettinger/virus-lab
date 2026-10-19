@@ -56,5 +56,4 @@
 /backend/tests/unit/export/              @esterrroz
 /frontend/src/features/review/           @esterrroz
 /frontend/src/features/records/          @esterrroz
-/frontend/src/features/export/           @esterrroz
 /frontend/src/shared/ui/StatusBadge.tsx  @esterrroz
