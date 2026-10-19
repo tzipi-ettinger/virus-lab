@@ -162,7 +162,7 @@ EXTRACTION_PROVIDER=fake
 | `GEMINI_MODEL` | `gemini-3.8-flash` | החלפת מודל בלי שינוי קוד |
 | `GEMINI_THINKING` | `low` | `low` / `medium` / `high` |
 | `EXTRACTION_PROVIDER` | `gemini` | `gemini` / `fake` 🚧 |
-| `EXTRACTION_CACHE` | `false` | מטמון לפיתוח בלבד, על קובצי דוגמה בלבד 🚧 |
+| `EXTRACTION_CACHE` | `false` | מטמון לפיתוח בלבד, על קובצי דוגמה בלבד: עמוד ש־Gemini כבר קרא (אותו מודל ואותו prompt) נלקח מ־`backend/.cache/` בלי פנייה חדשה. לא בשרת החי |
 | `FRONTEND_ORIGIN` | `http://localhost:5173` | CORS |
 | `MAX_FILE_MB` | `20` | גודל קובץ מקסימלי 🚧 |
 | `MAX_CONCURRENCY` | `4` | עמודים שמעובדים במקביל 🚧 |

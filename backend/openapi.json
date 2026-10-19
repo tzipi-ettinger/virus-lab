@@ -16,7 +16,14 @@
               "application/json": {
                 "schema": {
                   "additionalProperties": {
-                    "type": "string"
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "boolean"
+                      }
+                    ]
                   },
                   "type": "object",
                   "title": "Response Health Api Health Get"

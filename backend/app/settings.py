@@ -30,6 +30,9 @@ class Settings(BaseSettings):
     extraction_provider: Literal["fake", "gemini"] = "fake"
     # One model call, retries not included (SPEC 9.7).
     provider_timeout_s: int = Field(60, ge=1)
+    # Dev only, sample files only: answer a page Gemini already read from
+    # backend/.cache/ (gitignored) instead of a new call. Never on the live server.
+    extraction_cache: bool = False
 
     # Upload limits (SPEC 9.7)
     max_file_mb: int = Field(20, ge=1)
