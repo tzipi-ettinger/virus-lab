@@ -6,6 +6,14 @@ from pydantic import ValidationError
 from app.settings import ENV_FILE, Settings
 
 
+@pytest.fixture(autouse=True)
+def no_keys_from_the_shell(monkeypatch):
+    # _env_file=None skips .env, not the environment: a key exported in the shell
+    # would turn "no key" tests green-to-red on that machine only.
+    monkeypatch.delenv("GEMINI_API_KEYS", raising=False)
+    monkeypatch.delenv("GEMINI_API_KEY", raising=False)
+
+
 def test_api_key_is_masked(monkeypatch):
     monkeypatch.setenv("GEMINI_API_KEY", "real-key-123")
     settings = Settings(_env_file=None)
@@ -31,7 +39,6 @@ def test_gemini_needs_a_key_and_a_model():
 
 def test_keys_are_read_from_a_comma_separated_list(monkeypatch):
     monkeypatch.setenv("GEMINI_API_KEYS", "key-1, key-2,,key-3 ,")
-    monkeypatch.delenv("GEMINI_API_KEY", raising=False)
     settings = Settings(_env_file=None)
 
     assert settings.gemini_keys() == ("key-1", "key-2", "key-3")
