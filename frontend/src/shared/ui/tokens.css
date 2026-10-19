@@ -1,1 +1,32 @@
-/* RTL via CSS logical properties. Owner: shared */
+/* Design tokens: the only place colors and radii are set. Components use
+   var(--name, fallback), so the names below are the contract between the
+   screens (#32). The values are temporary until the Claude Design tokens land.
+   RTL via CSS logical properties. Owner: shared */
+
+:root {
+  /* Page and text */
+  --color-surface: #ffffff;
+  --color-surface-muted: #f7f9fb;
+  --color-text: #0f1b2a;
+  --color-text-muted: #52606d;
+  --color-border: #dde3e9;
+  --color-border-strong: #9fb3c8;
+  --color-focus: #1d4ed8;
+
+  /* Main action */
+  --color-accent: #0b6e79;
+  --color-accent-strong: #08515a;
+  --color-accent-soft: #e5f1f2;
+
+  /* Status. Always shown with text and an icon too, never by color alone.
+     Warning is "needs review", the orange of the challenge's walkthrough. */
+  --color-success: #1e6b3a;
+  --color-warning: #8a5300;
+  --color-warning-soft: #fff4db;
+  --color-warning-border: #d9a514;
+  --color-danger: #a12222;
+  --color-danger-soft: #fdecec;
+
+  --radius-md: 8px;
+  --radius-lg: 12px;
+}
