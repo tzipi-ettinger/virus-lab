@@ -52,8 +52,8 @@ class Settings(BaseSettings):
             missing = [
                 name
                 for name, value in (
-                    ("GEMINI_API_KEYS", ",".join(self.gemini_keys())),
-                    ("GEMINI_MODEL", self.gemini_model.strip()),
+                    ("GEMINI_API_KEYS", bool(self.gemini_keys())),
+                    ("GEMINI_MODEL", bool(self.gemini_model.strip())),
                 )
                 if not value
             ]
