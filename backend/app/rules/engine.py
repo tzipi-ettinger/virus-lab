@@ -63,13 +63,15 @@ def _rule_list(
 ) -> list[FormField]:
     """Rule every item, drop repeated values (SPEC 7.2), and make sure one item is left.
 
-    Items are required only when none of them has a value.
+    When none of the items has a value, only the first is required, so the
+    screen shows one REQUIRED_MISSING and not one per empty item.
     """
     items = items or [MISSING_ITEM]
     ruled = [_rule_field(item, normalize, validate, required=False) for item in items]
     keep = dedupe_positions([item.value for item in ruled])
     if not any(ruled[position].value for position in keep):
-        ruled = [_rule_field(item, normalize, validate, required=True) for item in items]
+        first = keep[0]
+        ruled[first] = _rule_field(items[first], normalize, validate, required=True)
     kept = {position: ruled[position] for position in keep}
     first_with_value = {item.value: position for position, item in reversed(kept.items())}
     for position, item in enumerate(ruled):

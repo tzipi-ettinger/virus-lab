@@ -4,7 +4,7 @@ from datetime import date
 
 import pytest
 
-from app.rules.engine import apply_rules
+from app.rules.engine import MISSING_ITEM, apply_rules
 from app.rules.issues import make_issue
 from app.schemas.api import Form, FormFields
 
@@ -73,6 +73,31 @@ def test_empty_central_list_is_flagged(load_form):
     form.central_numbers = []
     assert summary(apply_rules(form, today=TODAY))["central_numbers"] == [
         (None, ["REQUIRED_MISSING"], True)
+    ]
+
+
+def test_several_empty_items_get_one_required_missing(load_form):
+    form = load_form("clean")
+    form.central_numbers = [MISSING_ITEM, MISSING_ITEM, MISSING_ITEM]
+    ruled = apply_rules(form, today=TODAY)
+    assert summary(ruled)["central_numbers"] == [
+        (None, ["REQUIRED_MISSING"], True),
+        (None, [], False),
+        (None, [], False),
+    ]
+    assert ruled.needs_review is True
+    assert apply_rules(ruled, today=TODAY) == ruled
+
+
+def test_unclear_first_item_is_flagged_without_required_missing(load_form):
+    form = load_form("clean")
+    form.central_numbers = [
+        MISSING_ITEM.model_copy(update={"model_status": "unclear"}),
+        MISSING_ITEM,
+    ]
+    assert summary(apply_rules(form, today=TODAY))["central_numbers"] == [
+        (None, ["FIELD_UNCLEAR"], True),
+        (None, [], False),
     ]
 
 
