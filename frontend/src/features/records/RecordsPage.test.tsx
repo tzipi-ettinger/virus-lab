@@ -153,6 +153,27 @@ describe("RecordsPage", () => {
     expect(screen.getByTestId("where").textContent).toBe("/records");
   });
 
+  test("export downloads every record under the current filters, not one page", async () => {
+    serve(list([summary()], { total: 120 }));
+    renderAt("/records?status=approved&page=2");
+
+    const csv = await screen.findByRole("link", { name: "CSV" });
+    expect(screen.getByText("ייצוא 120 רשומות:")).toBeTruthy();
+    expect(csv.getAttribute("href")).toBe("/api/v1/records/export?status=approved&format=csv");
+    expect(csv.hasAttribute("download")).toBe(true);
+    expect(screen.getByRole("link", { name: "JSON" }).getAttribute("href")).toBe(
+      "/api/v1/records/export?status=approved&format=json",
+    );
+  });
+
+  test("with nothing to export, there is no link and it says why", async () => {
+    serve(list([]));
+    renderAt("/records?sender=מכבי");
+
+    expect(await screen.findByText("אין רשומות לייצוא לפי הסינון הנוכחי")).toBeTruthy();
+    expect(screen.queryByRole("link", { name: "CSV" })).toBeNull();
+  });
+
   test("a failed load says so and can try again", async () => {
     fetchMock.mockImplementation(async (url) => {
       if (String(url).startsWith("/api/v1/senders")) return answer(SENDERS);

@@ -80,6 +80,15 @@ export function hasFilters(filters: RecordFilters): boolean {
   return toParams({ ...filters, page: 1 }).size > 0;
 }
 
+export type ExportFormat = "csv" | "json";
+
+/** GET /api/v1/records/export for these filters: every record they show, not one page (D19). */
+export function exportUrl(filters: RecordFilters, format: ExportFormat): string {
+  const params = toParams({ ...filters, page: 1 });
+  params.set("format", format);
+  return `/api/v1/records/export?${params}`;
+}
+
 /** GET /api/v1/records for these filters: the same names, plus limit and offset. */
 export function listUrl(filters: RecordFilters): string {
   const params = toParams({ ...filters, page: 1 });

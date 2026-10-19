@@ -5,6 +5,7 @@
 import { useCallback } from "react";
 import { useSearchParams } from "react-router";
 import type { components } from "../../api/schema";
+import { ExportButton } from "./ExportButton";
 import { NO_FILTERS, PAGE_SIZE, hasFilters, parseFilters, toParams, withChange, type RecordFilters } from "./filters";
 import { RecordsFilters } from "./RecordsFilters";
 import { RecordsTable } from "./RecordsTable";
@@ -33,6 +34,7 @@ export function RecordsPage() {
       </h1>
       {data && <Counts counts={data.counts} filters={filters} onPick={change} />}
       <RecordsFilters filters={filters} onChange={change} />
+      {data && <ExportButton filters={filters} total={data.total} />}
       {query.status === "error" && (
         <div className="records-banner" role="alert">
           ⚠ {query.message}

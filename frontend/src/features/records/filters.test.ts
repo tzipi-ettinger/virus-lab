@@ -5,6 +5,7 @@ import { describe, expect, test } from "vitest";
 import {
   NO_FILTERS,
   PAGE_SIZE,
+  exportUrl,
   hasFilters,
   listUrl,
   parseFilters,
@@ -61,6 +62,27 @@ describe("hasFilters", () => {
   test("the page alone is not a filter", () => {
     expect(hasFilters({ ...NO_FILTERS, page: 2 })).toBe(false);
     expect(hasFilters({ ...NO_FILTERS, sender: "מכבי" })).toBe(true);
+  });
+});
+
+describe("exportUrl", () => {
+  test("sends the same filters and the format, and never the page", () => {
+    const params = new URL(exportUrl(ALL, "csv"), "http://x").searchParams;
+
+    expect(Object.fromEntries(params)).toEqual({
+      q: "0112",
+      status: "approved",
+      needs_review: "true",
+      sender: "מכבי",
+      form_type: "hmo_form",
+      date_from: "2026-10-01",
+      date_to: "2026-10-19",
+      format: "csv",
+    });
+  });
+
+  test("with no filters, only the format", () => {
+    expect(exportUrl(NO_FILTERS, "json")).toBe("/api/v1/records/export?format=json");
   });
 });
 
