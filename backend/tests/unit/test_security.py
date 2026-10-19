@@ -76,3 +76,11 @@ def test_the_contract_is_still_built_in_production():
     app = create_app(Settings(_env_file=None, database_url="", env="production"))
 
     assert "/api/v1/records" in app.openapi()["paths"]
+
+
+@pytest.mark.parametrize("path", ["/docs", "/redoc", "/openapi.json"])
+def test_api_docs_are_off_in_production_even_behind_the_page(dist, path):
+    response = client_for(env="production", static_dir=str(dist)).get(path)
+
+    assert response.status_code == 404
+    assert response.headers["content-type"] == "application/problem+json"
