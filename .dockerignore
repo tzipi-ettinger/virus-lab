@@ -1,0 +1,33 @@
+# Keep the build context small, and keep secrets and patient files out of the image.
+# Owner: B
+
+.git
+.github
+.claude
+docs
+**/.env
+**/.env.*
+**/*.pdf
+**/*.xlsx
+**/*.png
+**/*.jpg
+**/*.jpeg
+**/*.tif
+**/*.tiff
+**/*.heic
+
+# Python
+**/__pycache__
+**/*.py[cod]
+**/.venv
+**/.pytest_cache
+**/.ruff_cache
+backend/.cache
+backend/data
+backend/output
+backend/tmp
+
+# Node
+**/node_modules
+frontend/dist
+frontend/coverage
