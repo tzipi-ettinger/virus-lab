@@ -146,6 +146,10 @@ class Record(BaseModel):
     created_at: datetime
     updated_at: datetime
     approved_at: datetime | None
+    approved_by: str | None = Field(default=None, description="Username; null until approved.")
+    updated_by: str | None = Field(
+        default=None, description="Username of the last edit; null if never edited."
+    )
 
 
 class RecordSummary(BaseModel):
@@ -170,11 +174,24 @@ class RecordSummary(BaseModel):
     approved_at: datetime | None
 
 
+class RecordCounts(BaseModel):
+    """The counters on the records screen.
+
+    Counted over the other filters (q, sender, form_type, dates) but not status or
+    needs_review, so they stay put while the user switches between them.
+    """
+
+    pending: int
+    approved: int
+    needs_review: int = Field(description="Pending records with a field still flagged.")
+
+
 class RecordList(BaseModel):
     items: list[RecordSummary]
     total: int = Field(description="Matches before limit / offset, for paging.")
     limit: int
     offset: int
+    counts: RecordCounts
 
 
 # --- POST /api/v1/extract
@@ -261,6 +278,36 @@ class RecordPatchResponse(BaseModel):
 
 class ApproveRequest(BaseModel):
     version: int
+
+
+# --- POST /api/v1/records/approve ("approve all ready", D20)
+
+
+class BulkApproveItem(BaseModel):
+    record_id: str
+    version: int
+
+
+class BulkApproveRequest(BaseModel):
+    items: list[BulkApproveItem] = Field(min_length=1, max_length=500)
+
+
+SkipReason = Literal["review_required", "version_conflict", "record_approved", "not_found"]
+
+
+class SkippedRecord(BaseModel):
+    record_id: str
+    type: SkipReason = Field(description="The same type the single approve answers with.")
+    blocking_fields: list[str] | None = Field(
+        default=None, description='type "review_required" only: the fields still flagged.'
+    )
+
+
+class BulkApproveResponse(BaseModel):
+    """Each record is checked on its own: one that is skipped doesn't stop the others."""
+
+    approved: list[Record]
+    skipped: list[SkippedRecord]
 
 
 # --- Auth (Dev-B plan 2.6): users are created only by scripts/create_user.py

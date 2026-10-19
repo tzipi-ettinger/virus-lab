@@ -113,3 +113,50 @@ def test_form_keeps_its_continuation_pages():
 def test_record_continuation_pages_default_to_empty():
     assert api.Record.model_validate(record_data()).continuation_pages == []
     assert api.Record.model_validate(record_data(continuation_pages=[2])).continuation_pages == [2]
+
+
+def test_record_who_approved_and_edited_is_empty_until_someone_does():
+    record = api.Record.model_validate(record_data())
+    assert (record.approved_by, record.updated_by) == (None, None)
+
+
+def test_record_keeps_who_approved_and_edited_it():
+    record = api.Record.model_validate(
+        record_data(status="approved", approved_at=NOW, approved_by="esty", updated_by="tzipi")
+    )
+    assert (record.approved_by, record.updated_by) == ("esty", "tzipi")
+
+
+def test_record_list_requires_counts():
+    data = {"items": [summary_data()], "total": 1, "limit": 50, "offset": 0}
+    with pytest.raises(ValidationError, match="counts"):
+        api.RecordList.model_validate(data)
+
+    counts = {"pending": 1, "approved": 0, "needs_review": 0}
+    assert api.RecordList.model_validate({**data, "counts": counts}).counts.pending == 1
+
+
+def test_bulk_approve_response_lists_approved_and_skipped_records():
+    response = api.BulkApproveResponse.model_validate(
+        {
+            "approved": [record_data(status="approved", approved_at=NOW, approved_by="esty")],
+            "skipped": [
+                {
+                    "record_id": "r2",
+                    "type": "review_required",
+                    "blocking_fields": ["national_id", "central_numbers[1]"],
+                },
+                {"record_id": "r3", "type": "version_conflict"},
+            ],
+        }
+    )
+    assert [r.record_id for r in response.approved] == ["r1"]
+    assert [(s.record_id, s.blocking_fields) for s in response.skipped] == [
+        ("r2", ["national_id", "central_numbers[1]"]),
+        ("r3", None),
+    ]
+
+
+def test_skipped_record_needs_a_known_reason():
+    with pytest.raises(ValidationError, match="type"):
+        api.SkippedRecord.model_validate({"record_id": "r1", "type": "oops"})
