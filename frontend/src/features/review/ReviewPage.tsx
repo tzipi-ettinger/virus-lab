@@ -3,25 +3,28 @@
 // down (#32). The selection is kept as an id, so a newer copy of the record shows.
 // Owner: B
 
-import { useState } from "react";
-import type { components } from "../../api/schema";
+import { useCallback, useState } from "react";
 import { DocumentPreview } from "../preview/DocumentPreview";
 import { UploadPanel } from "../upload/UploadPanel";
+import type { ApiRecord } from "./recordMutations";
 import { ReviewTable } from "./ReviewTable";
-import { findRecord, mergeRecords } from "./reviewRows";
+import { findRecord, mergeRecords, replaceRecords } from "./reviewRows";
 import "./ReviewPage.css";
-
-type ApiRecord = components["schemas"]["Record"];
 
 export function ReviewPage() {
   const [records, setRecords] = useState<ApiRecord[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  // Stable, so the table's save functions keep their identity between renders.
+  const onRecords = useCallback(
+    (changed: ApiRecord[]) => setRecords((current) => replaceRecords(current, changed)),
+    [],
+  );
 
   return (
     <div className="review-page">
       <UploadPanel onResult={(result) => setRecords((current) => mergeRecords(current, result.records))} />
       <div className="review-page-work">
-        <ReviewTable records={records} selectedId={selectedId} onSelect={setSelectedId} />
+        <ReviewTable records={records} selectedId={selectedId} onSelect={setSelectedId} onRecords={onRecords} />
         <DocumentPreview record={findRecord(records, selectedId)} />
       </div>
     </div>

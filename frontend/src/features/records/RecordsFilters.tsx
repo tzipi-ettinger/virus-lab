@@ -3,7 +3,7 @@
 // Owner: B
 
 import { useEffect, useState } from "react";
-import { apiFetch } from "../../api/client";
+import { useSenders } from "../../shared/useSenders";
 import { FORM_TYPE_TEXT } from "../review/reviewRows";
 import type { FormType, RecordFilters, RecordStatus } from "./filters";
 
@@ -105,18 +105,4 @@ function SearchBox({ value, onSearch }: { value: string; onSearch: (q: string) =
       />
     </label>
   );
-}
-
-/** The closed list of senders, once. Without it the filter still works on links. */
-function useSenders(): string[] {
-  const [senders, setSenders] = useState<string[]>([]);
-  useEffect(() => {
-    const controller = new AbortController();
-    apiFetch<unknown>("/api/v1/senders", { signal: controller.signal }).then(
-      (names) => setSenders(Array.isArray(names) ? names.filter((n) => typeof n === "string") : []),
-      () => {},
-    );
-    return () => controller.abort();
-  }, []);
-  return senders;
 }

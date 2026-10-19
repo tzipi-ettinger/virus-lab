@@ -1,37 +1,25 @@
 // Review table: one row per record, one column per field, flagged cells in orange
-// with a confidence label. Read-only for now: editing in place comes next (B1.7).
+// with a confidence label, each field edited in place (PLAN-DEV-B 3.1).
 // Owner: B
 
-import type { components } from "../../api/schema";
-import {
-  CONFIDENCE_TEXT,
-  FIELD_COLUMNS,
-  FORM_TYPE_TEXT,
-  fieldCell,
-  listCell,
-  statusText,
-  type Cell,
-} from "./reviewRows";
+import { useSenders } from "../../shared/useSenders";
+import { CentralNumbersCell } from "./CentralNumbersCell";
+import { FieldCell } from "./FieldCell";
+import { useRecordMutations, type ApiRecord } from "./recordMutations";
+import { FIELD_COLUMNS, FORM_TYPE_TEXT, statusText } from "./reviewRows";
 import "./ReviewTable.css";
-
-type ApiRecord = components["schemas"]["Record"];
 
 interface ReviewTableProps {
   records: ApiRecord[];
   selectedId: string | null;
   onSelect: (recordId: string) => void;
+  /** Records the server sent back after a change: they replace the local ones. */
+  onRecords: (records: ApiRecord[]) => void;
 }
 
-function CellView({ cell }: { cell: Cell }) {
-  return (
-    <td className={cell.flagged ? "review-cell is-flagged" : "review-cell"} title={cell.issues.join("\n") || undefined}>
-      <span className="review-value">{cell.text ? <bdi>{cell.text}</bdi> : "—"}</span>
-      <span className={`review-confidence is-${cell.confidence}`}>{CONFIDENCE_TEXT[cell.confidence]}</span>
-    </td>
-  );
-}
-
-export function ReviewTable({ records, selectedId, onSelect }: ReviewTableProps) {
+export function ReviewTable({ records, selectedId, onSelect, onRecords }: ReviewTableProps) {
+  const { saveField, saveCentrals } = useRecordMutations(onRecords);
+  const senders = useSenders();
   if (records.length === 0) {
     return <p className="review-empty">עוד אין רשומות. העלי טפסים כדי להתחיל</p>;
   }
@@ -76,9 +64,20 @@ export function ReviewTable({ records, selectedId, onSelect }: ReviewTableProps)
                   </th>
                   <td>{FORM_TYPE_TEXT[r.form_type]}</td>
                   {FIELD_COLUMNS.map((c) => (
-                    <CellView key={c.name} cell={fieldCell(r.fields[c.name])} />
+                    <FieldCell
+                      key={c.name}
+                      title={c.title}
+                      field={r.fields[c.name]}
+                      editable={r.status === "pending"}
+                      onSave={(edit) => saveField(r, c.name, edit)}
+                      options={c.name === "sender" && senders.length > 0 ? senders : undefined}
+                    />
                   ))}
-                  <CellView cell={listCell(r.central_numbers)} />
+                  <CentralNumbersCell
+                    items={r.central_numbers}
+                    editable={r.status === "pending"}
+                    onSave={(items) => saveCentrals(r, items)}
+                  />
                   <td className={r.needs_review ? "review-status is-flagged" : "review-status"}>{statusText(r)}</td>
                 </tr>
               );
