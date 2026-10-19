@@ -130,6 +130,11 @@ class Record(BaseModel):
         description="Later pages of the same file that belong to this form. "
         "page_id / page_number are its first page.",
     )
+    continuation_page_ids: list[str] = Field(
+        default_factory=list,
+        description="The page_id of each continuation page, in the order of "
+        "continuation_pages. Load its image from /api/v1/pages/{page_id}/image.",
+    )
     commitment_index: int
     status: RecordStatus
     version: int = Field(description="Send back on PATCH / approve; a stale one returns 409.")
@@ -256,6 +261,22 @@ class RecordPatchResponse(BaseModel):
 
 class ApproveRequest(BaseModel):
     version: int
+
+
+# --- Auth (Dev-B plan 2.6): users are created only by scripts/create_user.py
+
+
+class User(BaseModel):
+    """The signed-in user, as require_user gives it to the endpoints."""
+
+    id: str
+    username: str
+    display_name: str
+
+
+class LoginRequest(BaseModel):
+    username: str = Field(min_length=1, max_length=100)
+    password: str = Field(min_length=1, max_length=1024)
 
 
 # --- Errors (application/problem+json, SPEC 9.5)
