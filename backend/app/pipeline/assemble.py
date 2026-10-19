@@ -17,7 +17,8 @@ from app.schemas.extraction import RawField
 
 
 def form_id(file_id: str, page_number: int) -> str:
-    return f"{file_id}#p{page_number}"
+    # No "#": in a URL it starts the fragment, and the page number would be lost.
+    return f"{file_id}-p{page_number}"
 
 
 def assemble(page: OrientedPage) -> Form:

@@ -324,7 +324,7 @@ rows(form) =
   ],
   "forms": [
     {
-      "form_id": "f_01#p25",
+      "form_id": "f_01-p25",
       "file_id": "f_01",
       "source_file": "part1.pdf",
       "page_number": 25,
