@@ -2,12 +2,12 @@
 // Owner: A
 
 import { useState } from "react";
-import { previewPages, zoomIn, zoomOut, type Record, type Zoom } from "./previewPages";
+import { MAX_ZOOM, previewPages, zoomIn, zoomOut, type ApiRecord, type Zoom } from "./previewPages";
 import "./DocumentPreview.css";
 
 interface DocumentPreviewProps {
   // The selected record, or null when nothing is selected (#32).
-  record: Record | null;
+  record: ApiRecord | null;
 }
 
 export function DocumentPreview({ record }: DocumentPreviewProps) {
@@ -15,8 +15,9 @@ export function DocumentPreview({ record }: DocumentPreviewProps) {
     <section className="preview" aria-labelledby="preview-title">
       <h2 id="preview-title" className="preview-title">הטופס המקורי</h2>
       {record ? (
-        // A new record starts on its first page, fitted to the width.
-        <Pages key={record.record_id} record={record} />
+        // A different form starts on its first page, fitted to the width. Records of
+        // the same form (one per commitment) share its pages, so page and zoom stay.
+        <Pages key={record.page_id} record={record} />
       ) : (
         <p className="preview-empty">בחרי שורה בטבלה כדי לראות את הטופס המקורי</p>
       )}
@@ -24,7 +25,7 @@ export function DocumentPreview({ record }: DocumentPreviewProps) {
   );
 }
 
-function Pages({ record }: { record: Record }) {
+function Pages({ record }: { record: ApiRecord }) {
   const pages = previewPages(record);
   const [index, setIndex] = useState(0);
   const [zoom, setZoom] = useState<Zoom>("fit");
@@ -38,7 +39,7 @@ function Pages({ record }: { record: Record }) {
         {pages.length > 1 && ` (${index + 1} מתוך ${pages.length} בטופס)`}
       </p>
 
-      <div className="preview-toolbar" role="toolbar" aria-label="תצוגת העמוד">
+      <div className="preview-toolbar" role="group" aria-label="תצוגת העמוד">
         {pages.length > 1 && (
           <div className="preview-pages">
             {pages.map((p, i) => (
@@ -76,7 +77,7 @@ function Pages({ record }: { record: Record }) {
             type="button"
             className="preview-button"
             onClick={() => setZoom(zoomIn)}
-            disabled={zoom === 300}
+            disabled={zoom === MAX_ZOOM}
             aria-label="הגדלה"
           >
             +
@@ -87,7 +88,7 @@ function Pages({ record }: { record: Record }) {
         </div>
       </div>
 
-      <div className="preview-frame" tabIndex={0} aria-label="תמונת העמוד. אפשר לגלול עם החיצים">
+      <div className="preview-frame" role="region" tabIndex={0} aria-label="תמונת העמוד. אפשר לגלול עם החיצים">
         {page.imageUrl === null ? (
           <p className="preview-message">התמונה של עמוד ההמשך עוד לא זמינה כאן. העמוד שייך לטופס הזה</p>
         ) : failed === page.imageUrl ? (

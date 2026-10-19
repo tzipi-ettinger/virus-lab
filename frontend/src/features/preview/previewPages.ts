@@ -4,7 +4,8 @@
 
 import type { components } from "../../api/schema";
 
-export type Record = components["schemas"]["Record"];
+// Not named Record: that would hide TypeScript's built-in Record<K, V>.
+export type ApiRecord = components["schemas"]["Record"];
 
 export interface PreviewPage {
   pageNumber: number;
@@ -21,24 +22,24 @@ export function pageImageUrl(pageId: string): string {
 // A Record has the continuation page numbers but not their page ids yet, so only
 // the first page has an image until continuation_page_ids is in the contract
 // (asked in #15); then this is the only place that changes.
-export function previewPages(record: Record): PreviewPage[] {
+export function previewPages(record: ApiRecord): PreviewPage[] {
   return [
     { pageNumber: record.page_number, imageUrl: pageImageUrl(record.page_id) },
     ...(record.continuation_pages ?? []).map((pageNumber) => ({ pageNumber, imageUrl: null })),
   ];
 }
 
-// "fit" follows the panel's width; the numbers are percent of that width.
+// "fit" is the panel's width (100%); the steps are percent of that width.
 export type Zoom = "fit" | number;
-export const ZOOM_STEPS = [100, 150, 200, 300] as const;
+export const ZOOM_STEPS = [150, 200, 300] as const;
+export const MAX_ZOOM = ZOOM_STEPS[ZOOM_STEPS.length - 1];
 
 export function zoomIn(zoom: Zoom): Zoom {
   const current = zoom === "fit" ? 100 : zoom;
-  return ZOOM_STEPS.find((step) => step > current) ?? ZOOM_STEPS[ZOOM_STEPS.length - 1];
+  return ZOOM_STEPS.find((step) => step > current) ?? MAX_ZOOM;
 }
 
 export function zoomOut(zoom: Zoom): Zoom {
   if (zoom === "fit") return "fit";
-  const smaller = [...ZOOM_STEPS].reverse().find((step) => step < zoom);
-  return smaller === undefined || smaller === 100 ? "fit" : smaller;
+  return [...ZOOM_STEPS].reverse().find((step) => step < zoom) ?? "fit";
 }
