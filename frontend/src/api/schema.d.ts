@@ -782,17 +782,19 @@ export interface operations {
     list_records_api_v1_records_get: {
         parameters: {
             query?: {
+                limit?: number;
+                offset?: number;
                 /** @description Free text: name, national ID, central or commitment number */
                 q?: string | null;
                 status?: ("pending" | "approved") | null;
+                needs_review?: boolean | null;
+                /** @description A name from GET /senders */
                 sender?: string | null;
+                form_type?: ("hmo_form" | "hospital_form" | "hospital_system_screenshot" | "lab_report" | "private_lab" | "government" | "unknown") | null;
                 /** @description received_date, inclusive */
                 date_from?: string | null;
                 /** @description received_date, inclusive */
                 date_to?: string | null;
-                needs_review?: boolean | null;
-                limit?: number;
-                offset?: number;
             };
             header?: never;
             path?: never;

@@ -255,6 +255,29 @@
         "operationId": "list_records_api_v1_records_get",
         "parameters": [
           {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Offset"
+            }
+          },
+          {
             "name": "q",
             "in": "query",
             "required": false,
@@ -293,6 +316,22 @@
             }
           },
           {
+            "name": "needs_review",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Needs Review"
+            }
+          },
+          {
             "name": "sender",
             "in": "query",
             "required": false,
@@ -305,7 +344,34 @@
                   "type": "null"
                 }
               ],
+              "description": "A name from GET /senders",
               "title": "Sender"
+            },
+            "description": "A name from GET /senders"
+          },
+          {
+            "name": "form_type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "hmo_form",
+                    "hospital_form",
+                    "hospital_system_screenshot",
+                    "lab_report",
+                    "private_lab",
+                    "government",
+                    "unknown"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Form Type"
             }
           },
           {
@@ -345,45 +411,6 @@
               "title": "Date To"
             },
             "description": "received_date, inclusive"
-          },
-          {
-            "name": "needs_review",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "boolean"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Needs Review"
-            }
-          },
-          {
-            "name": "limit",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "integer",
-              "maximum": 200,
-              "minimum": 1,
-              "default": 50,
-              "title": "Limit"
-            }
-          },
-          {
-            "name": "offset",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "integer",
-              "minimum": 0,
-              "default": 0,
-              "title": "Offset"
-            }
           }
         ],
         "responses": {

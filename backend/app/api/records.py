@@ -6,6 +6,7 @@ contract, the bodies return 501 until storage/repo.py and rules/engine.py are fi
 Owner: B
 """
 
+from dataclasses import dataclass
 from datetime import date
 from typing import Annotated
 
@@ -16,6 +17,7 @@ from app.api.errors import ProblemError
 from app.auth.deps import get_pool, require_user
 from app.schemas.api import (
     ApproveRequest,
+    FormType,
     Problem,
     Record,
     RecordList,
@@ -40,16 +42,27 @@ def _not_implemented() -> HTTPException:
     return HTTPException(status_code=501, detail="Not implemented yet")
 
 
-@router.get("/records")
-def list_records(
+@dataclass(frozen=True)
+class RecordFilters:
+    """The filters of the records screen. Every one is optional and they combine with AND."""
+
     q: Annotated[
         str | None, Query(description="Free text: name, national ID, central or commitment number")
-    ] = None,
-    status: RecordStatus | None = None,
-    sender: str | None = None,
-    date_from: Annotated[date | None, Query(description="received_date, inclusive")] = None,
-    date_to: Annotated[date | None, Query(description="received_date, inclusive")] = None,
-    needs_review: bool | None = None,
+    ] = None
+    status: RecordStatus | None = None
+    needs_review: bool | None = None
+    sender: Annotated[str | None, Query(description="A name from GET /senders")] = None
+    form_type: FormType | None = None
+    date_from: Annotated[date | None, Query(description="received_date, inclusive")] = None
+    date_to: Annotated[date | None, Query(description="received_date, inclusive")] = None
+
+
+FiltersDep = Annotated[RecordFilters, Depends()]
+
+
+@router.get("/records")
+def list_records(
+    filters: FiltersDep,
     limit: Annotated[int, Query(ge=1, le=200)] = 50,
     offset: Annotated[int, Query(ge=0)] = 0,
 ) -> RecordList:
