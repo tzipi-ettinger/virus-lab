@@ -270,6 +270,23 @@
   outline-offset: 2px;
 }
 
+.review-delete {
+  margin-block-start: 4px;
+  padding: 2px 8px;
+  font: inherit;
+  font-size: 0.75rem;
+  color: var(--color-danger, #a12222);
+  background: var(--color-surface, #ffffff);
+  border: 1px solid var(--color-danger, #a12222);
+  border-radius: var(--radius-md, 8px);
+  cursor: pointer;
+}
+
+.review-delete:focus-visible {
+  outline: 3px solid var(--color-focus, #1d4ed8);
+  outline-offset: 2px;
+}
+
 .review-blocking {
   max-inline-size: 22ch;
   color: var(--color-warning, #8a5300);

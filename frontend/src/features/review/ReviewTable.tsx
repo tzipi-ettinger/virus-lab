@@ -6,6 +6,7 @@ import { useState } from "react";
 import { useSenders } from "../../shared/useSenders";
 import { ApproveAllBar } from "./ApproveAllBar";
 import { ApproveButton } from "./ApproveButton";
+import { DeleteButton } from "./DeleteButton";
 import { CentralNumbersCell } from "./CentralNumbersCell";
 import { FieldCell } from "./FieldCell";
 import { useRecordMutations, type ApiRecord } from "./recordMutations";
@@ -18,10 +19,12 @@ interface ReviewTableProps {
   onSelect: (recordId: string) => void;
   /** Records the server sent back after a change: they replace the local ones. */
   onRecords: (records: ApiRecord[]) => void;
+  /** A record deleted on the server: take its row off. */
+  onRemoved: (recordId: string) => void;
 }
 
-export function ReviewTable({ records, selectedId, onSelect, onRecords }: ReviewTableProps) {
-  const { saveField, saveCentrals, approve, approveMany } = useRecordMutations(onRecords);
+export function ReviewTable({ records, selectedId, onSelect, onRecords, onRemoved }: ReviewTableProps) {
+  const { saveField, saveCentrals, approve, approveMany, remove } = useRecordMutations(onRecords);
   const senders = useSenders();
   const [skipped, setSkipped] = useState<Record<string, string>>({});
   if (records.length === 0) {
@@ -90,6 +93,7 @@ export function ReviewTable({ records, selectedId, onSelect, onRecords }: Review
                     {skipped[r.record_id] && r.status === "pending" && (
                       <span className="review-cell-error">{skipped[r.record_id]}</span>
                     )}
+                    <DeleteButton record={r} onDelete={remove} onDeleted={(gone) => onRemoved(gone.record_id)} />
                   </td>
                 </tr>
               );

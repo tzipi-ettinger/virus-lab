@@ -19,12 +19,22 @@ export function ReviewPage() {
     (changed: ApiRecord[]) => setRecords((current) => replaceRecords(current, changed)),
     [],
   );
+  const onRemoved = useCallback((recordId: string) => {
+    setRecords((current) => current.filter((r) => r.record_id !== recordId));
+    setSelectedId((selected) => (selected === recordId ? null : selected));
+  }, []);
 
   return (
     <div className="review-page">
       <UploadPanel onResult={(result) => setRecords((current) => mergeRecords(current, result.records))} />
       <div className="review-page-work">
-        <ReviewTable records={records} selectedId={selectedId} onSelect={setSelectedId} onRecords={onRecords} />
+        <ReviewTable
+          records={records}
+          selectedId={selectedId}
+          onSelect={setSelectedId}
+          onRecords={onRecords}
+          onRemoved={onRemoved}
+        />
         <DocumentPreview record={findRecord(records, selectedId)} />
       </div>
     </div>

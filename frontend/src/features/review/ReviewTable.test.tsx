@@ -30,6 +30,7 @@ function Table({ initial }: { initial: ApiRecord[] }) {
       selectedId={null}
       onSelect={() => {}}
       onRecords={(changed) => setRecords((current) => replaceRecords(current, changed))}
+      onRemoved={(id) => setRecords((current) => current.filter((r) => r.record_id !== id))}
     />
   );
 }
@@ -106,9 +107,37 @@ describe("ReviewTable", () => {
     );
   });
 
+  test("a pending record is deleted after asking, and its row goes", async () => {
+    fetchMock.mockImplementation(async (_url, init) =>
+      init?.method === "DELETE" ? new Response(null, { status: 204 }) : reply([]),
+    );
+    const ask = vi.spyOn(window, "confirm").mockReturnValue(true);
+    render(<Table initial={[record(), record({ record_id: "r2" })]} />);
+
+    await userEvent.setup().click(screen.getAllByRole("button", { name: "מחיקה" })[0]);
+
+    expect(ask.mock.calls[0][0]).toContain("למחוק את הרשומה של דנה לוי");
+    expect(fetchMock.mock.calls.some(([url, init]) => url === "/api/v1/records/r1" && init?.method === "DELETE")).toBe(
+      true,
+    );
+    expect(screen.getAllByRole("row")).toHaveLength(2); // the header and r2
+  });
+
+  test("saying no deletes nothing", async () => {
+    fetchMock.mockImplementation(async () => reply([]));
+    vi.spyOn(window, "confirm").mockReturnValue(false);
+    render(<Table initial={[record()]} />);
+
+    await userEvent.setup().click(screen.getByRole("button", { name: "מחיקה" }));
+
+    expect(fetchMock.mock.calls.some(([, init]) => init?.method === "DELETE")).toBe(false);
+    expect(screen.getAllByRole("row")).toHaveLength(2);
+  });
+
   test("an approved row is read-only", () => {
     render(<Table initial={[record({ status: "approved" })]} />);
 
     expect(screen.queryByRole("button", { name: /לעריכה/ })).toBeNull();
+    expect(screen.queryByRole("button", { name: "מחיקה" })).toBeNull();
   });
 });
