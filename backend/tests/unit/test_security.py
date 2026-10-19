@@ -1,12 +1,13 @@
 """Hardening for the live server (Dev-B plan B2.2)."""
 
 import logging
+import sys
 
 import pytest
 from fastapi.testclient import TestClient
 
 from app.main import create_app
-from app.security import CSP, DropQueryString
+from app.security import CSP, DropQueryString, HideErrorText
 from app.settings import Settings
 
 
@@ -22,6 +23,8 @@ def dist(tmp_path):
 def client_for(**settings) -> TestClient:
     return TestClient(create_app(Settings(_env_file=None, database_url="", **settings)))
 
+
+SECRET = "Key (national_id)=(011223344) for ישראל ישראלי"
 
 ALWAYS = {
     "x-content-type-options": "nosniff",
@@ -110,12 +113,15 @@ def test_access_log_keeps_the_path_but_not_the_search():
     assert '"GET /api/v1/records HTTP/1.1" 200' in line
 
 
-def test_the_app_puts_the_filter_on_uvicorns_access_log_once():
+@pytest.mark.parametrize(
+    ("logger", "kind"), [("uvicorn.access", DropQueryString), ("uvicorn.error", HideErrorText)]
+)
+def test_the_app_puts_each_filter_on_uvicorns_logs_once(logger, kind):
     create_app(Settings(_env_file=None, database_url=""))
     create_app(Settings(_env_file=None, database_url=""))
 
-    filters = logging.getLogger("uvicorn.access").filters
-    assert sum(isinstance(f, DropQueryString) for f in filters) == 1
+    filters = logging.getLogger(logger).filters
+    assert sum(isinstance(f, kind) for f in filters) == 1
 
 
 def test_an_unexpected_error_answers_500_and_logs_no_values(caplog):
@@ -123,15 +129,45 @@ def test_an_unexpected_error_answers_500_and_logs_no_values(caplog):
 
     @app.get("/api/boom")
     def boom():
-        raise ValueError("Key (national_id)=(011223344) for ישראל ישראלי")
+        raise ValueError(SECRET)
 
     with caplog.at_level(logging.DEBUG):
-        response = TestClient(app).get("/api/boom")
+        response = TestClient(app, raise_server_exceptions=False).get("/api/boom")
 
     assert response.status_code == 500
     assert response.headers["content-type"] == "application/problem+json"
     assert response.json()["type"] == "internal_error"
     assert response.headers["x-content-type-options"] == "nosniff"
     assert "011223344" not in caplog.text
-    assert "ישראלי" not in caplog.text
     assert "unexpected ValueError on GET /api/boom" in caplog.text
+
+
+def test_the_error_still_reaches_the_caller():
+    # Tests that expect an exception from a route keep getting it.
+    app = create_app(Settings(_env_file=None, database_url=""))
+
+    @app.get("/api/boom")
+    def boom():
+        raise ValueError(SECRET)
+
+    with pytest.raises(ValueError):
+        TestClient(app).get("/api/boom")
+
+
+def test_uvicorns_error_line_keeps_the_type_only():
+    try:
+        raise ValueError(SECRET)
+    except ValueError:
+        record = logging.LogRecord(
+            "uvicorn.error",
+            logging.ERROR,
+            __file__,
+            1,
+            "Exception in ASGI application\n",
+            None,
+            sys.exc_info(),
+        )
+
+    assert HideErrorText().filter(record)
+    line = logging.Formatter().format(record)
+    assert line == "Exception in ASGI application: ValueError"

@@ -65,10 +65,10 @@ class SecurityHeaders:
 
 
 class HideUnexpectedErrors:
-    """An error nobody handled answers a plain 500 and logs its type and path only.
-
-    Left alone, uvicorn would log the traceback and the error's text, and a database
-    or validation error can quote the values it choked on (a national ID, a name).
+    """An error nobody handled answers a 500 problem+json, with the security headers,
+    and logs its type and path only. Then it goes on up, as before: the server still
+    sees it, and tests that expect it still get it. HideErrorText keeps its text out
+    of the server's own log line.
     """
 
     def __init__(self, app: ASGIApp) -> None:
@@ -97,6 +97,22 @@ class HideUnexpectedErrors:
                     type="internal_error", title="משהו השתבש בשרת. אפשר לנסות שוב", status=500
                 )
                 await problem_response(problem)(scope, receive, send)
+            raise
+
+
+class HideErrorText(logging.Filter):
+    """Uvicorn logs an unhandled error with its traceback and its text, and a database
+    or validation error can quote the value it choked on (a national ID, a name).
+    Keep the error's type only."""
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        if record.exc_info and record.exc_info[0] is not None:
+            record.msg = f"{str(record.msg).strip()}: %s"
+            record.args = (record.exc_info[0].__name__,)
+            record.exc_info = None
+            record.exc_text = None
+            record.stack_info = None
+        return True
 
 
 class DropQueryString(logging.Filter):
@@ -111,7 +127,9 @@ class DropQueryString(logging.Filter):
         return True
 
 
-def keep_queries_out_of_access_log() -> None:
-    access = logging.getLogger("uvicorn.access")
-    if not any(isinstance(f, DropQueryString) for f in access.filters):
-        access.addFilter(DropQueryString())
+def keep_patient_data_out_of_server_logs() -> None:
+    """Put the filters on uvicorn's loggers, once."""
+    for name, kind in (("uvicorn.access", DropQueryString), ("uvicorn.error", HideErrorText)):
+        log = logging.getLogger(name)
+        if not any(isinstance(f, kind) for f in log.filters):
+            log.addFilter(kind())

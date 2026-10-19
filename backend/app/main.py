@@ -17,7 +17,7 @@ from app.keep_alive import start_keep_alive, stop_keep_alive
 from app.security import (
     HideUnexpectedErrors,
     SecurityHeaders,
-    keep_queries_out_of_access_log,
+    keep_patient_data_out_of_server_logs,
 )
 from app.settings import Settings, get_settings
 from app.spa import mount_spa
@@ -48,7 +48,7 @@ def _lifespan(settings: Settings):
 
 def create_app(settings: Settings | None = None) -> FastAPI:
     settings = settings or get_settings()
-    keep_queries_out_of_access_log()
+    keep_patient_data_out_of_server_logs()
     if settings.extraction_provider == "fake":
         logger.warning("EXTRACTION_PROVIDER=fake: every answer is a test fixture, not a reading")
     elif settings.extraction_cache:
