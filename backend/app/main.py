@@ -51,7 +51,14 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             "EXTRACTION_CACHE=true: pages already read come from backend/.cache "
             "(dev only, sample files only)"
         )
-    app = FastAPI(title="virus-lab", lifespan=_lifespan(settings))
+    # The live server doesn't describe its API to strangers: no /docs, /redoc or
+    # /openapi.json. scripts/export_openapi still builds the contract from the code.
+    hidden = {"docs_url": None, "redoc_url": None, "openapi_url": None}
+    app = FastAPI(
+        title="virus-lab",
+        lifespan=_lifespan(settings),
+        **(hidden if settings.production else {}),
+    )
     app.state.pool = None  # until the lifespan opens it
     app.add_middleware(
         CORSMiddleware,

@@ -64,3 +64,15 @@ def test_dev_docs_page_is_left_without_csp_so_it_loads():
     assert response.status_code == 200
     assert "content-security-policy" not in response.headers
     assert response.headers["x-content-type-options"] == "nosniff"
+
+
+@pytest.mark.parametrize("path", ["/docs", "/redoc", "/openapi.json"])
+def test_api_docs_are_off_in_production(path):
+    assert client_for().get(path).status_code == 200
+    assert client_for(env="production").get(path).status_code == 404
+
+
+def test_the_contract_is_still_built_in_production():
+    app = create_app(Settings(_env_file=None, database_url="", env="production"))
+
+    assert "/api/v1/records" in app.openapi()["paths"]
