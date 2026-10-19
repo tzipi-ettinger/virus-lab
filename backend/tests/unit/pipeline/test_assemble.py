@@ -70,6 +70,15 @@ def test_every_field_is_copied():
     ]
 
 
+@pytest.mark.parametrize(
+    "name, form_type",
+    [("03_maccabi_three_centrals", "hmo_form"), ("06_rosenblatt_no_commitment", "private_lab")],
+)
+def test_the_form_type_comes_from_the_reading(name, form_type):
+    # Not the contract's default "unknown": that now means the model itself said so.
+    assert assemble(oriented(name)).form_type == form_type
+
+
 def test_unresolved_rotation_flags_the_page():
     assert assemble(oriented("01_meuhedet_clean")).issues == []
 
@@ -86,6 +95,7 @@ def test_every_reading_runs_through_the_rules(path):
     form = apply_rules(assemble(oriented(path.stem)), today=date(2026, 10, 18))
 
     assert form.processing_status == "ok"
+    assert form.form_type == oriented(path.stem).extraction.form_type  # the rules keep it
     assert form.commitment_numbers  # the rules always leave at least one item
 
 

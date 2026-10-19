@@ -280,6 +280,7 @@ def test_records_without_saving_gives_one_record_per_commitment(make_client):
     assert len({r["record_id"] for r in records}) == 2
     assert len({r["page_id"] for r in records}) == 1
     assert all(len(r["central_numbers"]) == 3 for r in records)
+    assert all(r["form_type"] == "hmo_form" for r in records)
 
 
 def test_a_hebrew_file_name_comes_back_as_sent(make_client):
