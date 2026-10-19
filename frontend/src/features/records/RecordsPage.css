@@ -147,3 +147,75 @@
   justify-content: center;
   gap: 12px;
 }
+
+.record-page {
+  display: grid;
+  grid-template-columns: minmax(0, 3fr) minmax(280px, 2fr);
+  align-items: start;
+  gap: 16px;
+  padding-block: 16px;
+}
+
+.record-page > .preview {
+  position: sticky;
+  inset-block-start: 16px;
+}
+
+@media (max-width: 900px) {
+  .record-page {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .record-page > .preview {
+    position: static;
+  }
+}
+
+.record-main {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.record-back {
+  color: var(--color-accent-strong, #08515a);
+}
+
+.record-meta {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 4px 16px;
+  margin: 0;
+}
+
+.record-meta dt {
+  color: var(--color-text-muted, #52606d);
+}
+
+.record-meta dd {
+  margin: 0;
+}
+
+.record-issues {
+  margin: 0;
+  padding: 8px 12px;
+  list-style: none;
+  color: var(--color-warning, #8a5300);
+  background: var(--color-warning-soft, #fff4db);
+  border-radius: var(--radius-md, 8px);
+}
+
+.record-fields tr.is-flagged td {
+  background: var(--color-warning-soft, #fff4db);
+}
+
+.record-fields th[scope="row"] {
+  font-weight: 600;
+  background: none;
+}
+
+.record-evidence {
+  white-space: normal;
+  max-inline-size: 280px;
+  color: var(--color-text-muted, #52606d);
+}

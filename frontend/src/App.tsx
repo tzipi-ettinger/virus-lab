@@ -8,6 +8,7 @@ import { BrowserRouter, Link, Route, Routes } from "react-router";
 import { AuthProvider } from "./features/auth/AuthProvider";
 import { LoginPage } from "./features/auth/LoginPage";
 import { RequireAuth } from "./features/auth/RequireAuth";
+import { RecordPage } from "./features/records/RecordPage";
 import { RecordsPage } from "./features/records/RecordsPage";
 import { ReviewPage } from "./features/review/ReviewPage";
 import { Layout } from "./shared/layout/Layout";
@@ -26,8 +27,7 @@ export function AppRoutes() {
       >
         <Route index element={<ReviewPage />} />
         <Route path="records" element={<RecordsPage />} />
-        {/* The record page comes next (B1.8). */}
-        <Route path="records/:recordId" element={<Soon what="דף הרשומה" />} />
+        <Route path="records/:recordId" element={<RecordPage />} />
         <Route path="*" element={<NotFound />} />
       </Route>
     </Routes>
@@ -44,10 +44,6 @@ function App() {
       </BrowserRouter>
     </ErrorBoundary>
   );
-}
-
-function Soon({ what }: { what: string }) {
-  return <p className="app-status">{what} בבנייה.</p>;
 }
 
 function NotFound() {
