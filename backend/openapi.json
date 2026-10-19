@@ -668,14 +668,14 @@
             }
           },
           "404": {
+            "description": "No such page (\"page_not_found\")",
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/Problem"
                 }
               }
-            },
-            "description": "Not Found"
+            }
           },
           "422": {
             "description": "Validation Error",
