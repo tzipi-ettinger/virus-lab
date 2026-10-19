@@ -61,6 +61,8 @@ UNAVAILABLE_MESSAGE = "שירות Gemini לא זמין כרגע. אפשר לנס
 TIMEOUT_MESSAGE = "Gemini לא ענה בזמן. אפשר לנסות שוב"
 BAD_ANSWER_MESSAGE = "התשובה של Gemini לא הייתה תקינה. אפשר לנסות שוב"
 FAILED_MESSAGE = "הפנייה ל־Gemini נכשלה"
+# Every key refused: nothing the user can do but tell whoever runs the server.
+KEYS_REFUSED_MESSAGE = "Gemini דחה את מפתחות ה־API של השרת. יש לפנות למי שמנהל את השרת"
 
 
 def load_prompt(path: Path = PROMPT_FILE) -> str:
@@ -242,7 +244,7 @@ def _no_key_left(failures: list[_KeyFailure]) -> ProviderError | QuotaExhausted:
         return ProviderError(RATE_MESSAGE)  # a minute away: the batch goes on
     if any(isinstance(failure, QuotaExhausted) for failure in failures):
         return QuotaExhausted(QUOTA_MESSAGE)  # no key will do until tomorrow: stop the batch
-    return ProviderError(FAILED_MESSAGE)
+    return ProviderError(KEYS_REFUSED_MESSAGE)
 
 
 def _provider_error(exc: errors.APIError) -> ProviderError | QuotaExhausted:
@@ -250,7 +252,7 @@ def _provider_error(exc: errors.APIError) -> ProviderError | QuotaExhausted:
     if exc.code == 429 and _is_daily_quota(exc):
         return QuotaExhausted(QUOTA_MESSAGE)
     if _is_bad_key(exc):
-        return _KeyRejected(FAILED_MESSAGE)
+        return _KeyRejected(KEYS_REFUSED_MESSAGE)
     if exc.code == 429:
         return _RateLimited(RATE_MESSAGE)
     if exc.code in _RETRYABLE:

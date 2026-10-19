@@ -323,7 +323,8 @@ def test_every_key_refused_fails_the_page_but_not_the_batch():
 
     assert not isinstance(error.value, QuotaExhausted)
     assert type(error.value) is ProviderError  # the private _KeyRejected stays inside
-    assert error.value.message == gemini_provider.FAILED_MESSAGE
+    # Not the general message: with wrong keys on the server, every page says so.
+    assert error.value.message == gemini_provider.KEYS_REFUSED_MESSAGE
 
 
 def test_used_up_and_refused_keys_together_stop_the_batch():
@@ -443,14 +444,20 @@ def test_any_other_client_error_is_a_provider_error_without_retry():
     assert len(client.calls) == 1
 
 
-@pytest.mark.parametrize("code, status", [(400, "INVALID_ARGUMENT"), (403, "PERMISSION_DENIED")])
-def test_a_bad_request_or_key_is_not_retried(code, status):
+@pytest.mark.parametrize(
+    "code, status, message",
+    [
+        (400, "INVALID_ARGUMENT", gemini_provider.FAILED_MESSAGE),
+        (403, "PERMISSION_DENIED", gemini_provider.KEYS_REFUSED_MESSAGE),
+    ],
+)
+def test_a_bad_request_or_key_is_not_retried(code, status, message):
     client = FakeClient(api_error(code, status))
 
     with pytest.raises(ProviderError) as error:
         run(provider(client).extract(PAGE))
 
-    assert error.value.message == gemini_provider.FAILED_MESSAGE
+    assert error.value.message == message
     assert len(client.calls) == 1
 
 
