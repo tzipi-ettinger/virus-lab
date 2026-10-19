@@ -96,6 +96,14 @@ senders:
     aliases: [Assuta Rishon]
   - name: אסותא באר שבע
     aliases: [Assuta Beer Sheva]
+  - name: אסותא ירושלים
+    aliases: [המרכז הרפואי אסותא ירושלים, Assuta Jerusalem]
+  - name: אסותא השלום (תל אביב)
+    aliases: [אסותא השלום, המרכז הרפואי אסותא השלום, Assuta HaShalom]
+  - name: אסותא כלניות (אשדוד)
+    aliases: [אסותא כלניות, אסותא אשדוד כלניות, Assuta Kalaniyot]
+  - name: אסותא רעננה
+    aliases: [המרכז הרפואי אסותא רעננה, Assuta Raanana]
   - name: הרצליה מדיקל סנטר
     aliases: [Herzliya Medical Center]
   - name: אלישע

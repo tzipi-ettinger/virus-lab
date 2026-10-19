@@ -45,19 +45,26 @@ def sender_names() -> list[str]:
 def match_sender(text: str, senders: tuple[Sender, ...]) -> str | None:
     """The sender whose name or alias equals the text, or the only one found in it as words.
 
-    Two different senders in one text ("מכבי העמק") is ambiguous: no match.
+    Two different senders in one text ("מכבי העמק") is ambiguous: no match. A key
+    found only inside a longer key that was also found does not count ("אסותא אשדוד"
+    inside "אסותא אשדוד כלניות").
     """
     folded = fold_text(text)
     if not folded:
         return None
     padded = f" {folded} "
-    found = set()
+    hits = []
     for sender in senders:
         for key in sender.keys():
             if key == folded:
                 return sender.name
             if key and f" {key} " in padded:
-                found.add(sender.name)
+                hits.append((sender.name, key))
+    found = {
+        name
+        for name, key in hits
+        if not any(other != key and f" {key} " in f" {other} " for _, other in hits)
+    }
     return found.pop() if len(found) == 1 else None
 
 
