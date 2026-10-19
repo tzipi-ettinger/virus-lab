@@ -1,10 +1,13 @@
-"""Security headers on every response, the page's and the API's (Dev-B plan 2.7).
+"""Hardening for the live server (Dev-B plan 2.7, B2.2): security headers on every
+response, and no patient data in the server's logs.
 
-A plain ASGI middleware, not BaseHTTPMiddleware: it only adds headers to the
-response start, so file and streaming responses go through untouched.
+Plain ASGI middleware, not BaseHTTPMiddleware: file and streaming responses go
+through untouched.
 
 Owner: B
 """
+
+import logging
 
 from starlette.datastructures import MutableHeaders
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
@@ -54,3 +57,21 @@ class SecurityHeaders:
             await send(message)
 
         await self.app(scope, receive, send_with_headers)
+
+
+class DropQueryString(logging.Filter):
+    """Uvicorn's access log writes the full URL, so a search would put a national ID
+    or a name in the logs (GET /api/v1/records?q=...). Keep the path, drop the query."""
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        args = record.args
+        # uvicorn: (client, method, path with query, http version, status)
+        if isinstance(args, tuple) and len(args) == 5 and isinstance(args[2], str):
+            record.args = (*args[:2], args[2].split("?", 1)[0], *args[3:])
+        return True
+
+
+def keep_queries_out_of_access_log() -> None:
+    access = logging.getLogger("uvicorn.access")
+    if not any(isinstance(f, DropQueryString) for f in access.filters):
+        access.addFilter(DropQueryString())

@@ -1,10 +1,12 @@
 """Hardening for the live server (Dev-B plan B2.2)."""
 
+import logging
+
 import pytest
 from fastapi.testclient import TestClient
 
 from app.main import create_app
-from app.security import CSP
+from app.security import CSP, DropQueryString
 from app.settings import Settings
 
 
@@ -84,3 +86,33 @@ def test_api_docs_are_off_in_production_even_behind_the_page(dist, path):
 
     assert response.status_code == 404
     assert response.headers["content-type"] == "application/problem+json"
+
+
+def access_record(path: str) -> logging.LogRecord:
+    # The same call uvicorn makes for each request.
+    return logging.LogRecord(
+        "uvicorn.access",
+        logging.INFO,
+        __file__,
+        1,
+        '%s - "%s %s HTTP/%s" %d',
+        ("127.0.0.1:5000", "GET", path, "1.1", 200),
+        None,
+    )
+
+
+def test_access_log_keeps_the_path_but_not_the_search():
+    record = access_record("/api/v1/records?q=011223344&status=pending")
+
+    assert DropQueryString().filter(record)
+    line = record.getMessage()
+    assert "011223344" not in line
+    assert '"GET /api/v1/records HTTP/1.1" 200' in line
+
+
+def test_the_app_puts_the_filter_on_uvicorns_access_log_once():
+    create_app(Settings(_env_file=None, database_url=""))
+    create_app(Settings(_env_file=None, database_url=""))
+
+    filters = logging.getLogger("uvicorn.access").filters
+    assert sum(isinstance(f, DropQueryString) for f in filters) == 1

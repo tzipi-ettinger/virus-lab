@@ -14,7 +14,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.api import auth, extract, health, records
 from app.api.errors import add_problem_handler
 from app.keep_alive import start_keep_alive, stop_keep_alive
-from app.security import SecurityHeaders
+from app.security import SecurityHeaders, keep_queries_out_of_access_log
 from app.settings import Settings, get_settings
 from app.spa import mount_spa
 from app.storage.db import open_pool
@@ -44,6 +44,7 @@ def _lifespan(settings: Settings):
 
 def create_app(settings: Settings | None = None) -> FastAPI:
     settings = settings or get_settings()
+    keep_queries_out_of_access_log()
     if settings.extraction_provider == "fake":
         logger.warning("EXTRACTION_PROVIDER=fake: every answer is a test fixture, not a reading")
     elif settings.extraction_cache:
