@@ -66,3 +66,6 @@
 /backend/app/keep_alive.py               @esterrroz
 /backend/tests/unit/test_security.py     @esterrroz
 /backend/tests/unit/test_keep_alive.py   @esterrroz
+/frontend/src/features/auth/             @esterrroz
+/frontend/src/shared/layout/             @esterrroz
+/frontend/src/shared/ui/ErrorBoundary.tsx @esterrroz
