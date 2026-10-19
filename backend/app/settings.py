@@ -24,6 +24,9 @@ class Settings(BaseSettings):
     gemini_api_key: SecretStr = SecretStr("")
     gemini_model: str = ""
     frontend_origin: str = "http://localhost:5173"
+    # Postgres (Dev-B plan B0.3): docker compose locally, Render's internal URL on the
+    # live server. SecretStr, since the URL holds the password.
+    database_url: SecretStr = SecretStr("")
 
     # "fake" serves tests/fixtures: no key, no quota, no real data. "gemini" sends
     # each page to GEMINI_MODEL and needs GEMINI_API_KEY (checked at startup).

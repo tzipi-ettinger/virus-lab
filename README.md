@@ -99,6 +99,7 @@ virus-lab/
 
 - Python 3.13
 - Node.js 22
+- Docker Desktop (בשביל Postgres מקומי)
 - מפתח Gemini API מ־[Google AI Studio](https://aistudio.google.com/)
 
 > הפקודות למטה ל־Windows PowerShell. ב־macOS/Linux: `python3` במקום `py -3.13`, ו־`.venv/bin/python` במקום `.\.venv\Scripts\python.exe`.
@@ -106,6 +107,7 @@ virus-lab/
 ### Backend 🚧
 
 ```powershell
+docker compose up -d db         # מהשורש: Postgres 17 מקומי, ועוד מסד לבדיקות (virus_lab_test)
 cd backend
 py -3.13 -m venv .venv
 .\.venv\Scripts\python.exe -m pip install -r requirements.txt
@@ -114,6 +116,8 @@ copy .env.example .env          # ואז להדביק את המפתח ב־GEMINI
 ```
 
 בדיקה: `http://localhost:8000/api/health` מחזיר `{"status": "ok", ...}`. תיעוד ה־API: `http://localhost:8000/docs`.
+
+ב־Windows צריך להשאיר את `--reload`: בלעדיו uvicorn רץ על event loop ש־psycopg לא תומך בו במצב async. `docker compose down -v` מוחק את כל הנתונים המקומיים.
 
 ### Frontend 🚧
 
@@ -129,7 +133,7 @@ npm run dev
 ### בדיקות לפני PR (אותן בדיקות שה־CI מריץ)
 
 ```powershell
-# backend/
+# backend/ (pytest צריך את ה־Postgres מ־docker compose)
 .\.venv\Scripts\python.exe -m ruff check .
 .\.venv\Scripts\python.exe -m ruff format --check .
 .\.venv\Scripts\python.exe -m pytest

@@ -179,21 +179,23 @@ Dockerfile, .dockerignore, docker-compose.yml   # בשורש הריפו (חדש�
 
 כל המזהים נשארים `TEXT`, כדי לשמור על אפסים מובילים.
 
+**השדות של רשומה נשמרים כ־JSONB, ולא בטבלת `record_field` נפרדת** (שונה ב־19.10, B0.3). הרשומה נשמרת ונקראת בדיוק כמו `Record` בחוזה, בלי join ובלי המרה שדה־שדה. החיפוש והסינון רצים על העמודות האפקטיביות, שמתעדכנות מה־JSONB בכל שמירה ותיקון.
+
 ```
 users(id PK, username UNIQUE, password_hash, display_name, is_active,
       failed_attempts INT, locked_until TIMESTAMPTZ, created_at, last_login_at)
 sessions(token_hash PK, user_id → users, created_at, expires_at, last_seen_at)  -- נשמר רק hash של הטוקן
-page(id PK, source_filename, page_number, rotation, created_at, created_by → users)
+page(id PK, file_id, source_filename, page_number, rotation,
+     first_page_id → page CASCADE,   -- עמוד המשך מצביע על העמוד הראשון של הטופס; בעמוד הראשון NULL
+     created_at, created_by → users, UNIQUE(file_id, page_number))
 page_image(page_id PK → page ON DELETE CASCADE, mime, sha256, bytes BYTEA)
-record(id PK, page_id → page CASCADE, commitment_idx, status CHECK(pending|approved),
-       needs_review BOOL, version INT,
-       national_id, commitment_number, central_numbers, first_name, last_name,
-       sender, form_type, received_date DATE, search_text,
-       created_at, updated_at, approved_at, approved_by → users,
+record(id PK, page_id → page CASCADE (העמוד הראשון), commitment_idx, status CHECK(pending|approved),
+       needs_review BOOL, version INT, form_type,
+       fields JSONB, central_numbers JSONB, issues JSONB,   -- הרשומה כמו בחוזה: raw, value, issues ודגלים לכל שדה
+       national_id, commitment_number, central_values TEXT[], first_name, last_name,
+       sender, received_date DATE, search_text,             -- ערכים אפקטיביים לחיפוש ולסינון
+       created_at, created_by, updated_at, approved_at, approved_by → users,
        UNIQUE(page_id, commitment_idx))
-record_field(record_id → record CASCADE, field, idx, raw, value, model_status, evidence,
-             issues JSONB, needs_review, corrected, confirmed, updated_at,
-             PK(record_id, field, idx))
 record_event(id BIGSERIAL, record_id → record CASCADE, at, user_id, action, field)
                                         -- בלי ערכים: רק מי, איזו פעולה, איזה שדה ומתי (D13)
 export_log(id BIGSERIAL, at, user_id, format, record_count)   -- מי ייצא, מתי וכמה, בלי הפילטרים ובלי תוכן
