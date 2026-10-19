@@ -30,7 +30,13 @@ from datetime import date
 from app.extraction.provider import ExtractionProvider, PageImage, ProviderError, QuotaExhausted
 from app.pipeline.assemble import assemble, form_id
 from app.pipeline.group import FormGroup, ReadPage, join, place, start
-from app.pipeline.ingest import InvalidFile, SourcePage, split_pages_async
+from app.pipeline.ingest import (
+    SAVE_JPEG_QUALITY,
+    SAVE_MAX_SIDE_PX,
+    InvalidFile,
+    SourcePage,
+    split_pages_async,
+)
 from app.pipeline.orient import extract_upright
 from app.rules.engine import apply_rules
 from app.schemas.api import ErrorCode, ErrorInfo, FailedPage, FileResult, Form, Record
@@ -50,8 +56,9 @@ class UploadedFile:
 @dataclass(frozen=True)
 class ExtractedForm:
     form: Form  # after apply_rules; continuation_pages lists its later pages
-    # The images the fields were read from, saved for the preview (D4): the first
-    # page, then each of form.continuation_pages in order.
+    # The pages to save for the preview (D4), upright, SAVE_MAX_SIDE_PX at
+    # SAVE_JPEG_QUALITY (not the larger image the model read): the first page, then
+    # each of form.continuation_pages in order.
     images: list[PageImage]
     calls: int
     seconds: float
@@ -118,6 +125,10 @@ async def extract_files(
                 started = time.perf_counter()
                 oriented = await extract_upright(provider, page)
             seconds = time.perf_counter() - started
+            # Outside the semaphore: it limits model calls, and this is not one.
+            saved = await page.render_async(
+                oriented.applied_rotation, max_side=SAVE_MAX_SIDE_PX, quality=SAVE_JPEG_QUALITY
+            )
             form = assemble(oriented)
             ruled = apply_rules(form, today=today)
         except QuotaExhausted as exc:
@@ -140,7 +151,12 @@ async def extract_files(
             ", unresolved" if oriented.unresolved else "",
         )
         return ReadPage(
-            form=form, ruled=ruled, image=oriented.image, calls=oriented.calls, seconds=seconds
+            form=form,
+            ruled=ruled,
+            image=oriented.image,
+            saved=saved,
+            calls=oriented.calls,
+            seconds=seconds,
         )
 
     forms: list[ExtractedForm] = []

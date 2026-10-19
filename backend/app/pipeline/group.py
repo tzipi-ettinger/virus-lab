@@ -38,7 +38,8 @@ class ReadPage:
 
     form: Form  # from assemble: what the model read, before the rules
     ruled: Form  # the same page after apply_rules: what the grouping looks at
-    image: PageImage
+    image: PageImage  # what the model read (MAX_SIDE_PX)
+    saved: PageImage  # the same page, upright, for storage and the preview (SAVE_MAX_SIDE_PX)
     calls: int
     seconds: float
 
@@ -57,7 +58,8 @@ class FormGroup:
 
     @property
     def images(self) -> list[PageImage]:
-        return [page.image for page in self.pages]
+        """The images to save, first page first."""
+        return [page.saved for page in self.pages]
 
 
 def place(page: ReadPage, group: FormGroup | None, *, after_failure: bool) -> Placement:

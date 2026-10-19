@@ -21,6 +21,10 @@ from app.extraction.provider import PageImage
 # which read well in the spike; a 12MP phone photo is scaled down to the same size.
 MAX_SIDE_PX = 2200
 JPEG_QUALITY = 85
+# The image saved with the records for the preview (D4; agreed with B in #15):
+# smaller, since a person reads it on a screen with zoom, and it is kept.
+SAVE_MAX_SIDE_PX = 1600
+SAVE_JPEG_QUALITY = 80
 ROTATIONS = (0, 90, 180, 270)
 # A PNG of 126KB can hold a 108MP image, and rendering decodes all of it first. 100MP
 # leaves room for a 48MP phone photo and a 600 DPI A4 scan (35MP).
@@ -65,8 +69,14 @@ class SourcePage:
     # traceback must never carry the document.
     _pdf: bytes = field(repr=False)
 
-    def render(self, rotation: int = 0) -> PageImage:
-        """Draw the page as a viewer shows it, then turned `rotation` degrees clockwise."""
+    def render(
+        self, rotation: int = 0, *, max_side: int = MAX_SIDE_PX, quality: int = JPEG_QUALITY
+    ) -> PageImage:
+        """Draw the page as a viewer shows it, then turned `rotation` degrees clockwise.
+
+        Scaled so the longest side is `max_side` pixels. The defaults are the model's
+        image; the saved image passes SAVE_MAX_SIDE_PX and SAVE_JPEG_QUALITY.
+        """
         if rotation not in ROTATIONS:
             raise ValueError(f"rotation must be one of {ROTATIONS}, got {rotation}")
         with pymupdf.open(stream=self._pdf, filetype="pdf") as doc:
@@ -74,9 +84,9 @@ class SourcePage:
             # Add to the page's own /Rotate (scanners often store pages sideways and
             # rely on it), so rotation 0 means "as the viewer shows it".
             page.set_rotation((page.rotation + rotation) % 360)
-            zoom = MAX_SIDE_PX / max(page.rect.width, page.rect.height)
+            zoom = max_side / max(page.rect.width, page.rect.height)
             pixmap = page.get_pixmap(matrix=pymupdf.Matrix(zoom, zoom))
-            jpeg = pixmap.tobytes("jpeg", jpg_quality=JPEG_QUALITY)
+            jpeg = pixmap.tobytes("jpeg", jpg_quality=quality)
         return PageImage(
             file_id=self.file_id,
             filename=self.filename,
@@ -85,9 +95,12 @@ class SourcePage:
             jpeg=jpeg,
         )
 
-    async def render_async(self, rotation: int = 0) -> PageImage:
+    async def render_async(
+        self, rotation: int = 0, *, max_side: int = MAX_SIDE_PX, quality: int = JPEG_QUALITY
+    ) -> PageImage:
         loop = asyncio.get_running_loop()
-        return await loop.run_in_executor(_RENDER_THREAD, self.render, rotation)
+        render = partial(self.render, rotation, max_side=max_side, quality=quality)
+        return await loop.run_in_executor(_RENDER_THREAD, render)
 
 
 def detect_type(data: bytes) -> str | None:
