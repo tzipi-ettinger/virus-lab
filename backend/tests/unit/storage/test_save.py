@@ -8,10 +8,12 @@ from pathlib import Path
 import pytest
 
 from app.extraction.provider import PageImage
+from app.pipeline.service import ExtractedForm
 from app.rules.engine import apply_rules
 from app.schemas.api import Form, User
 from app.storage import repo
-from app.storage.service import save_extracted_page
+from app.storage.db import open_pool
+from app.storage.service import form_saver, save_extracted_page
 
 FIXTURES = Path(__file__).parents[2] / "fixtures" / "rules"
 TODAY = date(2026, 10, 19)
@@ -250,3 +252,20 @@ def test_two_saves_at_once_with_the_same_commitment_flag_exactly_one(db, user):
         for [record] in results
     ]
     assert sorted(flagged) == [False, True]
+
+
+def test_form_saver_saves_each_form_from_the_pool(db, user):
+    form = make_form("clean", continuation_pages=[2])
+    extracted = ExtractedForm(form=form, images=images_for(form), calls=1, seconds=0.1)
+
+    async def go():
+        pool = await open_pool(db.url, max_size=1)
+        try:
+            return await form_saver(pool, USER)(extracted)
+        finally:
+            await pool.close()
+
+    [record] = db.run(go())
+
+    assert len(record.continuation_page_ids) == 1
+    assert rows(db, "SELECT created_by FROM record") == [{"created_by": "u1"}]

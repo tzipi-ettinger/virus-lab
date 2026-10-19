@@ -7,8 +7,10 @@ from datetime import UTC, date, datetime
 from uuid import uuid4
 
 from psycopg import AsyncConnection
+from psycopg_pool import AsyncConnectionPool
 
 from app.extraction.provider import PageImage
+from app.pipeline.service import ExtractedForm, SaveForm
 from app.rules.issues import make_issue
 from app.rules.records import RecordDraft, build_records
 from app.rules.text import fold_text
@@ -68,6 +70,17 @@ async def save_extracted_page(
             await _insert(conn, record, user.id)
             records.append(record)
     return records
+
+
+def form_saver(pool: AsyncConnectionPool, user: User) -> SaveForm:
+    """The pipeline's SaveForm for one request: each form on its own short
+    connection from the pool, so a long upload never holds one."""
+
+    async def save(extracted: ExtractedForm) -> list[Record]:
+        async with pool.connection() as conn:
+            return await save_extracted_page(conn, extracted.form, extracted.images, user)
+
+    return save
 
 
 def _check_images(form: Form, images: list[PageImage]) -> None:
