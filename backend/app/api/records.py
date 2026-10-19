@@ -1,4 +1,5 @@
-"""Records endpoints: list/search/filter, get, patch, approve, page image.
+"""Records endpoints: list/search/filter, export, get, patch, approve (one or many),
+delete, page image and the senders list.
 
 DRAFT for A1 (docs/GUIDELINES-V2-CHANGES.md, section 4.2): the signatures are the
 contract, the bodies return 501 until storage/repo.py and rules/engine.py are filled.
@@ -8,13 +9,14 @@ Owner: B
 
 from dataclasses import dataclass
 from datetime import date
-from typing import Annotated
+from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from psycopg_pool import AsyncConnectionPool
 
 from app.api.errors import ProblemError
 from app.auth.deps import get_pool, require_user
+from app.rules.senders import sender_names
 from app.schemas.api import (
     ApproveRequest,
     BulkApproveRequest,
@@ -60,6 +62,7 @@ class RecordFilters:
 
 
 FiltersDep = Annotated[RecordFilters, Depends()]
+ExportFormat = Literal["csv", "json"]
 
 
 @router.get("/records")
@@ -84,6 +87,28 @@ def approve_many(body: BulkApproveRequest) -> BulkApproveResponse:
 
     Always 200. A record with a field still flagged, a stale version or one already
     approved is listed in `skipped` with the reason, and the others are approved.
+    """
+    raise _not_implemented()
+
+
+@router.get(
+    "/records/export",
+    response_class=Response,
+    responses={
+        200: {
+            "content": {"text/csv": {}, "application/json": {}},
+            "description": "A file to download (Content-Disposition: attachment): "
+            "CSV in UTF-8 with BOM, or JSON as a list of Record.",
+        }
+    },
+)
+def export_records(
+    filters: FiltersDep,
+    export_format: Annotated[ExportFormat, Query(alias="format")],
+) -> Response:
+    """Every record that matches the screen's filters, without paging (D19).
+
+    Sent with Cache-Control: no-store, and logged in export_log without values.
     """
     raise _not_implemented()
 
@@ -116,6 +141,26 @@ def patch_record(record_id: str, body: RecordPatch) -> RecordPatchResponse:
 def approve_record(record_id: str, body: ApproveRequest) -> Record:
     """Rerun the rules; approve only if no field still needs review (D3)."""
     raise _not_implemented()
+
+
+@router.delete(
+    "/records/{record_id}",
+    status_code=204,
+    response_class=Response,
+    responses={
+        **_NOT_FOUND,
+        409: {"model": Problem, "description": 'Approved records stay ("record_approved")'},
+    },
+)
+def delete_record(record_id: str) -> Response:
+    """Delete a pending record (A5)."""
+    raise _not_implemented()
+
+
+@router.get("/senders")
+def senders() -> list[str]:
+    """The closed list of senders (SPEC 5.5), for the dropdown and the filter."""
+    return sender_names()
 
 
 @router.get(

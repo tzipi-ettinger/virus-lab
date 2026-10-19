@@ -496,6 +496,192 @@
         }
       }
     },
+    "/api/v1/records/export": {
+      "get": {
+        "summary": "Export Records",
+        "description": "Every record that matches the screen's filters, without paging (D19).\n\nSent with Cache-Control: no-store, and logged in export_log without values.",
+        "operationId": "export_records_api_v1_records_export_get",
+        "parameters": [
+          {
+            "name": "format",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "enum": [
+                "csv",
+                "json"
+              ],
+              "type": "string",
+              "title": "Format"
+            }
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Free text: name, national ID, central or commitment number",
+              "title": "Q"
+            },
+            "description": "Free text: name, national ID, central or commitment number"
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "pending",
+                    "approved"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            }
+          },
+          {
+            "name": "needs_review",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Needs Review"
+            }
+          },
+          {
+            "name": "sender",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "A name from GET /senders",
+              "title": "Sender"
+            },
+            "description": "A name from GET /senders"
+          },
+          {
+            "name": "form_type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "hmo_form",
+                    "hospital_form",
+                    "hospital_system_screenshot",
+                    "lab_report",
+                    "private_lab",
+                    "government",
+                    "unknown"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Form Type"
+            }
+          },
+          {
+            "name": "date_from",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "received_date, inclusive",
+              "title": "Date From"
+            },
+            "description": "received_date, inclusive"
+          },
+          {
+            "name": "date_to",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "received_date, inclusive",
+              "title": "Date To"
+            },
+            "description": "received_date, inclusive"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A file to download (Content-Disposition: attachment): CSV in UTF-8 with BOM, or JSON as a list of Record.",
+            "content": {
+              "text/csv": {},
+              "application/json": {}
+            }
+          },
+          "401": {
+            "description": "No valid session (\"unauthenticated\")",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/records/{record_id}": {
       "get": {
         "summary": "Get Record",
@@ -631,6 +817,67 @@
             }
           }
         }
+      },
+      "delete": {
+        "summary": "Delete Record",
+        "description": "Delete a pending record (A5).",
+        "operationId": "delete_record_api_v1_records__record_id__delete",
+        "parameters": [
+          {
+            "name": "record_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Record Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "401": {
+            "description": "No valid session (\"unauthenticated\")",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such record",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Approved records stay (\"record_approved\")",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/api/v1/records/{record_id}/approve": {
@@ -706,6 +953,39 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/senders": {
+      "get": {
+        "summary": "Senders",
+        "description": "The closed list of senders (SPEC 5.5), for the dropdown and the filter.",
+        "operationId": "senders_api_v1_senders_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array",
+                  "title": "Response Senders Api V1 Senders Get"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid session (\"unauthenticated\")",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
                 }
               }
             }

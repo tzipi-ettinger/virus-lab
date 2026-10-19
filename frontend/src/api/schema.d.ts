@@ -154,6 +154,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/records/export": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Export Records
+         * @description Every record that matches the screen's filters, without paging (D19).
+         *
+         *     Sent with Cache-Control: no-store, and logged in export_log without values.
+         */
+        get: operations["export_records_api_v1_records_export_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/records/{record_id}": {
         parameters: {
             query?: never;
@@ -165,7 +187,11 @@ export interface paths {
         get: operations["get_record_api_v1_records__record_id__get"];
         put?: never;
         post?: never;
-        delete?: never;
+        /**
+         * Delete Record
+         * @description Delete a pending record (A5).
+         */
+        delete: operations["delete_record_api_v1_records__record_id__delete"];
         options?: never;
         head?: never;
         /**
@@ -191,6 +217,26 @@ export interface paths {
          * @description Rerun the rules; approve only if no field still needs review (D3).
          */
         post: operations["approve_record_api_v1_records__record_id__approve_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/senders": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Senders
+         * @description The closed list of senders (SPEC 5.5), for the dropdown and the filter.
+         */
+        get: operations["senders_api_v1_senders_get"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -934,6 +980,58 @@ export interface operations {
             };
         };
     };
+    export_records_api_v1_records_export_get: {
+        parameters: {
+            query: {
+                format: "csv" | "json";
+                /** @description Free text: name, national ID, central or commitment number */
+                q?: string | null;
+                status?: ("pending" | "approved") | null;
+                needs_review?: boolean | null;
+                /** @description A name from GET /senders */
+                sender?: string | null;
+                form_type?: ("hmo_form" | "hospital_form" | "hospital_system_screenshot" | "lab_report" | "private_lab" | "government" | "unknown") | null;
+                /** @description received_date, inclusive */
+                date_from?: string | null;
+                /** @description received_date, inclusive */
+                date_to?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description A file to download (Content-Disposition: attachment): CSV in UTF-8 with BOM, or JSON as a list of Record. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/csv": unknown;
+                    "application/json": unknown;
+                };
+            };
+            /** @description No valid session ("unauthenticated") */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     get_record_api_v1_records__record_id__get: {
         parameters: {
             query?: never;
@@ -965,6 +1063,62 @@ export interface operations {
             };
             /** @description No such record */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_record_api_v1_records__record_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                record_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No valid session ("unauthenticated") */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description No such record */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Approved records stay ("record_approved") */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -1103,6 +1257,35 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    senders_api_v1_senders_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": string[];
+                };
+            };
+            /** @description No valid session ("unauthenticated") */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
                 };
             };
         };
