@@ -12,17 +12,26 @@ from app.pipeline.ingest import SourcePage
 from app.pipeline.service import (
     SAVE_FAILED,
     UNEXPECTED_ERROR,
-    ExtractedPage,
+    ExtractedForm,
     TooManyPages,
     UploadedFile,
     extract_files,
 )
-from app.schemas.extraction import RawExtraction
+from app.schemas.extraction import RawExtraction, RawField
 
 LIMITS = {"today": date(2026, 10, 19), "max_bytes": 20_000_000, "max_pages": 60}
 # An upright page with real values (Meuhedet; national ID read as 0011223344).
 UPRIGHT = RawExtraction.model_validate_json(
     (FIXTURES_DIR / "01_meuhedet_clean.json").read_text(encoding="utf-8")
+)
+_NOTHING = RawField(value=None, status="not_found", evidence=None)
+# A page with nothing on it that names a form or a patient: a continuation page.
+BLANK = UPRIGHT.model_copy(
+    update={
+        **{name: _NOTHING for name in ("first_name", "last_name", "national_id")},
+        "central_numbers": [],
+        "commitment_numbers": [],
+    }
 )
 
 
@@ -43,9 +52,10 @@ class PageScript:
     Records which pages were called and the most calls in flight at once.
     """
 
-    def __init__(self, errors=None, delays=None) -> None:
+    def __init__(self, errors=None, delays=None, readings=None) -> None:
         self.errors = errors or {}
         self.delays = delays or {}
+        self.readings = readings or {}  # pages that read as something other than UPRIGHT
         self.called: list[tuple[str, int]] = []
         self.in_flight = 0
         self.max_in_flight = 0
@@ -59,7 +69,7 @@ class PageScript:
             await asyncio.sleep(self.delays.get(key, 0))
             if key in self.errors:
                 raise self.errors[key]
-            return UPRIGHT.model_copy(deep=True)
+            return self.readings.get(key, UPRIGHT).model_copy(deep=True)
         finally:
             self.in_flight -= 1
 
@@ -87,16 +97,16 @@ def test_every_page_of_every_file_comes_back_ruled():
         ("a.pdf", 2, "ok"),
         ("b.pdf", 1, "ok"),
     ]
-    assert [(p.form.source_file, p.form.page_number) for p in result.pages] == [
+    assert [(p.form.source_file, p.form.page_number) for p in result.forms] == [
         ("a.pdf", 1),
         ("a.pdf", 2),
         ("b.pdf", 1),
     ]
-    page = result.pages[0]
+    page = result.forms[0]
     national_id = page.form.fields.national_id
     assert (national_id.raw, national_id.value) == ("0011223344", "011223344")  # the rules ran
     assert page.form.form_id == f"{result.files[0].file_id}#p1"
-    assert page.image.jpeg.startswith(b"\xff\xd8")  # the image for the preview
+    assert page.images[0].jpeg.startswith(b"\xff\xd8")  # the image for the preview
     assert (page.calls, result.failed_pages, result.quota_exhausted) == (1, [], False)
 
 
@@ -115,7 +125,7 @@ def test_an_invalid_file_is_reported_and_the_others_go_on():
     assert (bad.status, bad.page_count, bad.error.code) == ("error", 0, "INVALID_FILE")
     assert "לא נתמך" in bad.error.message
     assert good.status == "ok"
-    assert [p.form.source_file for p in result.pages] == ["ok.pdf"]
+    assert [p.form.source_file for p in result.forms] == ["ok.pdf"]
 
 
 def test_an_unexpected_error_on_one_file_fails_only_that_file(monkeypatch):
@@ -134,7 +144,7 @@ def test_an_unexpected_error_on_one_file_fails_only_that_file(monkeypatch):
     assert (crashed.status, crashed.error.code) == ("error", "EXTRACTION_FAILED")
     assert crashed.error.message == UNEXPECTED_ERROR
     assert good.status == "ok"
-    assert [p.form.source_file for p in result.pages] == ["ok.pdf"]
+    assert [p.form.source_file for p in result.forms] == ["ok.pdf"]
 
 
 def test_too_many_pages_across_files_fails_before_any_call():
@@ -152,7 +162,7 @@ def test_a_failed_page_does_not_stop_the_others():
 
     result = run([upload(3)], provider)
 
-    assert [p.form.page_number for p in result.pages] == [1, 3]
+    assert [p.form.page_number for p in result.forms] == [1, 3]
     [failed] = result.failed_pages
     assert (failed.page_number, failed.source_file) == (2, "forms.pdf")
     assert (failed.error.code, failed.error.message) == ("EXTRACTION_FAILED", "המודל לא ענה")
@@ -168,7 +178,7 @@ def test_an_unexpected_error_fails_only_its_page_and_logs_no_content(caplog):
 
     [failed] = result.failed_pages
     assert failed.error.message == UNEXPECTED_ERROR
-    assert [p.form.page_number for p in result.pages] == [2]
+    assert [p.form.page_number for p in result.forms] == [2]
     assert "ValueError" in caplog.text
     assert secret not in caplog.text
     assert "patient.pdf" not in caplog.text  # a file name can be a patient's name
@@ -181,7 +191,7 @@ def test_a_used_up_quota_fails_the_pages_not_started_without_calling():
     result = run([upload(4)], provider, max_concurrency=1)
 
     assert provider.called == [("forms.pdf", 1), ("forms.pdf", 2)]
-    assert [p.form.page_number for p in result.pages] == [1]
+    assert [p.form.page_number for p in result.forms] == [1]
     assert [p.page_number for p in result.failed_pages] == [2, 3, 4]
     assert {p.error.message for p in result.failed_pages} == {"המכסה היומית נגמרה"}
     # Read or not even sent, they all failed on the quota, not on the model.
@@ -218,7 +228,7 @@ def test_pages_in_flight_finish_when_the_quota_runs_out():
 
     result = run([upload(3)], provider, max_concurrency=2)
 
-    assert [p.form.page_number for p in result.pages] == [1]
+    assert [p.form.page_number for p in result.forms] == [1]
     assert [p.page_number for p in result.failed_pages] == [2, 3]
     assert ("forms.pdf", 3) not in provider.called
 
@@ -229,7 +239,7 @@ def test_no_more_than_max_concurrency_calls_at_once():
 
     result = run([upload(8)], provider, max_concurrency=3)
 
-    assert len(result.pages) == 8
+    assert len(result.forms) == 8
     assert provider.max_in_flight == 3
 
 
@@ -244,7 +254,7 @@ def test_pages_keep_upload_order_when_they_finish_out_of_order():
 
     result = run([upload(3)], provider)
 
-    assert [p.form.page_number for p in result.pages] == [1, 2, 3]
+    assert [p.form.page_number for p in result.forms] == [1, 2, 3]
 
 
 @pytest.mark.usefixtures("instant_render")
@@ -252,15 +262,15 @@ def test_with_fake_provider_rotated_pages_are_straightened():
     # 7 fixtures + 1 error: an 8-page file meets each of them once.
     result = run([upload(8, "fixtures.pdf")], FakeProvider())
 
-    assert len(result.pages) == 7
+    assert len(result.forms) == 7
     assert len(result.failed_pages) == 1
-    rotated = [p for p in result.pages if p.form.applied_rotation]
+    rotated = [p for p in result.forms if p.form.applied_rotation]
     assert {p.form.applied_rotation for p in rotated} == {90, 270}
     assert all(p.calls == 2 for p in rotated)
-    assert all(isinstance(p, ExtractedPage) for p in result.pages)
+    assert all(isinstance(p, ExtractedForm) for p in result.forms)
 
 
-# --- Saving each page as it finishes
+# --- Saving each form
 
 
 class Saver:
@@ -276,15 +286,15 @@ class Saver:
         self.in_flight = 0
         self.max_in_flight = 0
 
-    async def __call__(self, page: ExtractedPage):
+    async def __call__(self, extracted: ExtractedForm):
         self.in_flight += 1
         self.max_in_flight = max(self.max_in_flight, self.in_flight)
         try:
             await asyncio.sleep(self.delay)
-            if page.form.page_number in self.fail_on:
+            if extracted.form.page_number in self.fail_on:
                 raise RuntimeError("ישראל ישראלי: connection lost")
-            self.saved.append(page.form.page_number)
-            return [f"record of p{page.form.page_number}"]
+            self.saved.append(extracted.form.page_number)
+            return [f"record of p{extracted.form.page_number}"]
         finally:
             self.in_flight -= 1
 
@@ -294,35 +304,36 @@ def test_each_page_is_saved_once_with_its_records():
     provider = PageScript(errors={("forms.pdf", 2): ProviderError("המודל לא ענה")})
     saver = Saver()
 
-    result = run([upload(3)], provider, save_page=saver)
+    result = run([upload(3)], provider, save_form=saver)
 
     assert sorted(saver.saved) == [1, 3]  # a failed page is not saved (A7)
-    assert [p.records for p in result.pages] == [["record of p1"], ["record of p3"]]
+    assert [p.records for p in result.forms] == [["record of p1"], ["record of p3"]]
 
 
 @pytest.mark.usefixtures("instant_render")
-def test_a_page_is_saved_before_the_slow_ones_finish():
-    provider = PageScript(delays={("forms.pdf", 2): 0.1})
+def test_a_form_is_saved_once_the_next_page_is_read_not_at_the_end():
+    provider = PageScript(delays={("forms.pdf", 3): 0.1})
     saver = Saver()
     events = []
 
-    async def save(page):
-        events.append((page.form.page_number, provider.in_flight))
-        return await saver(page)
+    async def save(extracted):
+        events.append((extracted.form.page_number, provider.in_flight))
+        return await saver(extracted)
 
-    run([upload(2)], provider, save_page=save)
+    run([upload(3)], provider, save_form=save)
 
-    # Page 1 was saved while page 2 was still with the model, not at the end.
-    assert events == [(1, 1), (2, 0)]
+    # Page 2 decided that page 1 is a form of its own, so page 1 was saved while
+    # page 3 was still with the model. Page 2 waited for page 3.
+    assert events == [(1, 1), (2, 0), (3, 0)]
 
 
 @pytest.mark.usefixtures("instant_render")
 def test_saves_never_run_at_the_same_time():
     saver = Saver(delay=0.02)
 
-    result = run([upload(6)], PageScript(), max_concurrency=4, save_page=saver)
+    result = run([upload(6)], PageScript(), max_concurrency=4, save_form=saver)
 
-    assert len(result.pages) == 6
+    assert len(result.forms) == 6
     assert saver.max_in_flight == 1
 
 
@@ -331,10 +342,83 @@ def test_a_failed_save_fails_its_page_and_logs_no_content(caplog):
     saver = Saver(fail_on={2})
 
     with caplog.at_level(logging.INFO, logger="app.pipeline.service"):
-        result = run([upload(3)], PageScript(), save_page=saver)
+        result = run([upload(3)], PageScript(), save_form=saver)
 
-    assert [p.form.page_number for p in result.pages] == [1, 3]
+    assert [p.form.page_number for p in result.forms] == [1, 3]
     [failed] = result.failed_pages
     assert (failed.page_number, failed.error.message) == (2, SAVE_FAILED)
     assert "RuntimeError" in caplog.text
     assert "ישראל" not in caplog.text
+
+
+# --- Continuation pages (A1 in #15)
+
+
+def test_a_page_without_a_central_number_joins_the_form_before_it():
+    provider = PageScript(readings={("forms.pdf", 2): BLANK})
+    saver = Saver()
+
+    result = run([upload(3)], provider, save_form=saver)
+
+    first, third = result.forms
+    assert (first.form.page_number, first.form.continuation_pages) == (1, [2])
+    assert [image.page_number for image in first.images] == [1, 2]
+    assert (first.calls, first.form.issues) == (2, [])
+    assert (third.form.page_number, third.form.continuation_pages) == (3, [])
+    assert saver.saved == [1, 3]  # one save per form, not per page
+    assert result.failed_pages == []
+
+
+def test_a_form_never_continues_into_the_next_file():
+    provider = PageScript(readings={("b.pdf", 1): BLANK})
+
+    result = run([upload(1, "a.pdf"), upload(1, "b.pdf")], provider)
+
+    assert [(f.form.source_file, f.form.continuation_pages) for f in result.forms] == [
+        ("a.pdf", []),
+        ("b.pdf", []),
+    ]
+    assert result.forms[1].form.issues == []  # a file's first page: nothing to doubt
+
+
+def test_a_page_after_a_failed_page_is_its_own_form_flagged():
+    provider = PageScript(
+        errors={("forms.pdf", 2): ProviderError("המודל לא ענה")},
+        readings={("forms.pdf", 3): BLANK},
+    )
+
+    result = run([upload(3)], provider)
+
+    assert [f.form.page_number for f in result.forms] == [1, 3]
+    assert [i.code for i in result.forms[1].form.issues] == ["PAGE_GROUPING_UNCERTAIN"]
+    assert result.forms[1].form.needs_review
+    assert [p.page_number for p in result.failed_pages] == [2]
+
+
+def test_another_patient_on_a_page_without_a_central_number_is_flagged_not_attached():
+    other = BLANK.model_copy(
+        update={"national_id": RawField(value="000000018", status="found", evidence="ת.ז.")}
+    )
+    provider = PageScript(readings={("forms.pdf", 2): other})
+
+    result = run([upload(2)], provider)
+
+    assert [(f.form.page_number, f.form.continuation_pages) for f in result.forms] == [
+        (1, []),
+        (2, []),
+    ]
+    assert [i.code for i in result.forms[1].form.issues] == ["PAGE_GROUPING_UNCERTAIN"]
+
+
+@pytest.mark.usefixtures("instant_render")
+def test_a_failed_save_fails_every_page_of_its_form():
+    # One transaction per form on B's side: none of its pages was saved.
+    provider = PageScript(readings={("forms.pdf", 2): BLANK})
+
+    result = run([upload(3)], provider, save_form=Saver(fail_on={1}))
+
+    assert [f.form.page_number for f in result.forms] == [3]
+    assert [(p.page_number, p.error.message) for p in result.failed_pages] == [
+        (1, SAVE_FAILED),
+        (2, SAVE_FAILED),
+    ]

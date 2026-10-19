@@ -29,8 +29,8 @@ from app.extraction.fake_provider import FakeProvider
 from app.extraction.gemini_provider import GeminiProvider
 from app.extraction.provider import ExtractionProvider
 from app.pipeline.service import (
-    ExtractedPage,
-    SavePage,
+    ExtractedForm,
+    SaveForm,
     TooManyPages,
     UploadedFile,
     extract_files,
@@ -154,15 +154,15 @@ def get_provider(settings: SettingsDep) -> ExtractionProvider:
             assert_never(unknown)
 
 
-async def records_without_saving(page: ExtractedPage) -> list[Record]:
+async def records_without_saving(extracted: ExtractedForm) -> list[Record]:
     """Stand-in for B's save_extracted_page until storage is on main (A2).
 
     The same records build_records makes, with ids and timestamps, but NOT saved:
     the records API can't find them yet. It lets the review screen be built
-    against real responses now. Replaced by one line in get_save_page.
+    against real responses now. Replaced by one line in get_save_form.
     """
     now = datetime.now(UTC)
-    form = page.form
+    form = extracted.form
     page_id = f"p_{secrets.token_hex(8)}"
     return [
         Record(
@@ -187,7 +187,7 @@ async def records_without_saving(page: ExtractedPage) -> list[Record]:
     ]
 
 
-def get_save_page() -> SavePage:
+def get_save_form() -> SaveForm:
     # TODO(A2): B's save_extracted_page, once storage is on main.
     return records_without_saving
 
@@ -202,7 +202,7 @@ async def extract(
     request: Request,
     settings: SettingsDep,
     provider: Annotated[ExtractionProvider, Depends(get_provider)],
-    save_page: Annotated[SavePage, Depends(get_save_page)],
+    save_form: Annotated[SaveForm, Depends(get_save_form)],
 ) -> ExtractResponse | JSONResponse:
     """Read every page of every file and save it as pending records.
 
@@ -223,17 +223,17 @@ async def extract(
             max_bytes=settings.max_file_bytes,
             max_pages=settings.max_pages_per_request,
             max_concurrency=settings.max_concurrency,
-            save_page=save_page,
+            save_form=save_form,
         )
     except TooManyPages as exc:
         return _problem(Problem(type="too_many_pages", title=exc.message, status=413))
     except _BadRequest as exc:
         return _problem(exc.problem)
-    if result.quota_message is not None and not result.pages:
+    if result.quota_message is not None and not result.forms:
         return _problem(Problem(type="quota_exhausted", title=result.quota_message, status=503))
     return ExtractResponse(
         files=result.files,
-        records=[record for page in result.pages for record in page.records],
+        records=[record for form in result.forms for record in form.records],
         failed_pages=result.failed_pages,
         quota_exhausted=result.quota_exhausted,
     )

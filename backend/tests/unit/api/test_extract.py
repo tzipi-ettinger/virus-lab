@@ -52,12 +52,12 @@ class Answers:
 
 @pytest.fixture
 def make_client():
-    def build(provider=None, save_page=None, **settings):
+    def build(provider=None, save_form=None, **settings):
         app = create_app()
         app.dependency_overrides[get_settings] = lambda: Settings(_env_file=None, **settings)
         app.dependency_overrides[extract.get_provider] = lambda: provider or Answers()
-        if save_page:
-            app.dependency_overrides[extract.get_save_page] = lambda: save_page
+        if save_form:
+            app.dependency_overrides[extract.get_save_form] = lambda: save_form
         return TestClient(app)
 
     return build
@@ -112,14 +112,14 @@ def test_an_invalid_file_is_reported_with_status_200(make_client):
     assert (result["status"], result["error"]["code"]) == ("error", "INVALID_FILE")
 
 
-def test_each_page_is_saved_through_save_page(make_client):
+def test_each_form_is_saved_through_save_form(make_client):
     saved = []
 
-    async def save(page):
-        saved.append(page.form.page_number)
+    async def save(extracted):
+        saved.append(extracted.form.page_number)
         return []
 
-    make_client(save_page=save).post("/api/v1/extract", files=upload(("a.pdf", make_pdf(2))))
+    make_client(save_form=save).post("/api/v1/extract", files=upload(("a.pdf", make_pdf(2))))
 
     assert sorted(saved) == [1, 2]
 
