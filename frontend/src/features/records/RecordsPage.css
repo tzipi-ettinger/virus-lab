@@ -181,6 +181,13 @@
   color: var(--color-accent-strong, #08515a);
 }
 
+.record-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 12px;
+}
+
 .record-meta {
   display: grid;
   grid-template-columns: max-content 1fr;

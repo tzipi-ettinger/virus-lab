@@ -1,15 +1,21 @@
 // One record in full (PLAN-DEV-B 3.1): what the model read next to the value now,
 // the evidence, the confidence and every issue, with the original page beside it.
-// Approve and edit come with the review actions (B1.7).
+// The same edit, confirm, approve and delete as in the review table (B1.7).
 // Owner: B
 
 import { useCallback, useEffect, useState, type ReactNode } from "react";
-import { Link, useLocation, useParams } from "react-router";
+import { Link, useLocation, useNavigate, useParams } from "react-router";
 import { ApiError, apiFetch } from "../../api/client";
 import type { components } from "../../api/schema";
+import { useSenders } from "../../shared/useSenders";
 import { DocumentPreview } from "../preview/DocumentPreview";
-import { CONFIDENCE_TEXT, FIELD_COLUMNS, FORM_TYPE_TEXT, confidence } from "../review/reviewRows";
-import { formatDate, formatDateTime, statusView } from "./format";
+import { ApproveButton } from "../review/ApproveButton";
+import { DeleteButton } from "../review/DeleteButton";
+import { FieldCell } from "../review/FieldCell";
+import { keepCentrals, useRecordMutations, type FieldEdit, type Saved } from "../review/recordMutations";
+import { FIELD_COLUMNS, FORM_TYPE_TEXT } from "../review/reviewRows";
+import "../review/ReviewTable.css";
+import { formatDateTime, statusView } from "./format";
 import type { BackTo } from "./RecordsTable";
 import "./RecordsPage.css";
 
@@ -42,6 +48,11 @@ export function RecordPage() {
   }, [recordId, request]);
 
   const retry = useCallback(() => setAttempt((n) => n + 1), []);
+  // The server's answer to a change replaces the record on screen.
+  const update = useCallback(
+    (record: ApiRecord) => setLoaded((current) => (current && "record" in current ? { ...current, record } : current)),
+    [],
+  );
   const backLink = (
     <Link className="record-back" to={back}>
       → חזרה לרשומות
@@ -67,16 +78,44 @@ export function RecordPage() {
       </div>
     );
   }
-  return <RecordDetails record={loaded.record} backLink={backLink} />;
+  return <RecordDetails record={loaded.record} backLink={backLink} back={back} onRecord={update} />;
 }
 
-function RecordDetails({ record, backLink }: { record: ApiRecord; backLink: ReactNode }) {
+interface DetailsProps {
+  record: ApiRecord;
+  backLink: ReactNode;
+  back: string;
+  onRecord: (record: ApiRecord) => void;
+}
+
+function RecordDetails({ record, backLink, back, onRecord }: DetailsProps) {
+  const navigate = useNavigate();
+  const senders = useSenders();
+  // Siblings from a shared-field change are other pages: only this record matters here.
+  const onRecords = useCallback(
+    (changed: ApiRecord[]) => {
+      const mine = changed.find((r) => r.record_id === record.record_id);
+      if (mine) onRecord(mine);
+    },
+    [record.record_id, onRecord],
+  );
+  const { saveField, saveCentrals, approve, remove } = useRecordMutations(onRecords);
   const status = statusView(record);
   const more = record.continuation_pages ?? [];
+  const editable = record.status === "pending";
   const name = [record.fields.first_name.value, record.fields.last_name.value].filter(Boolean).join(" ");
-  const rows: { title: string; field: FormField }[] = [
-    ...FIELD_COLUMNS.map((c) => ({ title: c.title, field: record.fields[c.name] })),
-    ...record.central_numbers.map((field, i) => ({ title: `מספר מרכזי ${i + 1}`, field })),
+  const rows: { title: string; field: FormField; onSave: (edit: FieldEdit) => Promise<Saved> }[] = [
+    ...FIELD_COLUMNS.map((c) => ({
+      title: c.title,
+      field: record.fields[c.name],
+      onSave: (edit: FieldEdit) => saveField(record, c.name, edit),
+    })),
+    ...record.central_numbers.map((field, i) => ({
+      title: `מספר מרכזי ${i + 1}`,
+      field,
+      // One item changes; the others are kept by their position.
+      onSave: (edit: FieldEdit) => saveCentrals(record, keepCentrals(record.central_numbers, { [i]: edit })),
+    })),
   ];
 
   return (
@@ -86,6 +125,10 @@ function RecordDetails({ record, backLink }: { record: ApiRecord; backLink: Reac
         <h1 className="records-title">
           <bdi>{name || "ללא שם"}</bdi>
         </h1>
+        <div className="record-actions">
+          <ApproveButton record={record} onApprove={approve} />
+          <DeleteButton record={record} onDelete={remove} onDeleted={() => navigate(back, { replace: true })} />
+        </div>
         <p className={`records-status is-${status.tone}`}>
           <span aria-hidden="true">{status.icon}</span>{" "}
           {record.status === "approved" && record.approved_by
@@ -117,27 +160,29 @@ function RecordDetails({ record, backLink }: { record: ApiRecord; backLink: Reac
             <thead>
               <tr>
                 <th scope="col">שדה</th>
-                <th scope="col">ערך</th>
+                <th scope="col">ערך ורמת ביטחון</th>
                 <th scope="col">מה נקרא בטופס</th>
                 <th scope="col">ראיה</th>
-                <th scope="col">רמת ביטחון</th>
                 <th scope="col">בעיות</th>
               </tr>
             </thead>
             <tbody>
-              {rows.map(({ title, field }) => (
+              {rows.map(({ title, field, onSave }) => (
                 <tr key={title} className={field.needs_review ? "is-flagged" : undefined}>
                   <th scope="row">{title}</th>
-                  <td>
-                    <bdi>{title === "תאריך קבלה" ? formatDate(field.value) : (field.value ?? "—")}</bdi>
-                  </td>
+                  <FieldCell
+                    title={title}
+                    field={field}
+                    editable={editable}
+                    onSave={onSave}
+                    options={title === "גורם שולח" && senders.length > 0 ? senders : undefined}
+                  />
                   <td>
                     <bdi>{field.raw ?? "—"}</bdi>
                   </td>
                   <td className="record-evidence">
                     <bdi>{field.evidence ?? "—"}</bdi>
                   </td>
-                  <td>{CONFIDENCE_TEXT[confidence(field)]}</td>
                   <td>{field.issues.map((i) => i.message).join(" · ") || "—"}</td>
                 </tr>
               ))}

@@ -2,7 +2,11 @@
 // with a confidence label, each field edited in place (PLAN-DEV-B 3.1).
 // Owner: B
 
+import { useState } from "react";
 import { useSenders } from "../../shared/useSenders";
+import { ApproveAllBar } from "./ApproveAllBar";
+import { ApproveButton } from "./ApproveButton";
+import { DeleteButton } from "./DeleteButton";
 import { CentralNumbersCell } from "./CentralNumbersCell";
 import { FieldCell } from "./FieldCell";
 import { useRecordMutations, type ApiRecord } from "./recordMutations";
@@ -15,11 +19,14 @@ interface ReviewTableProps {
   onSelect: (recordId: string) => void;
   /** Records the server sent back after a change: they replace the local ones. */
   onRecords: (records: ApiRecord[]) => void;
+  /** A record deleted on the server: take its row off. */
+  onRemoved: (recordId: string) => void;
 }
 
-export function ReviewTable({ records, selectedId, onSelect, onRecords }: ReviewTableProps) {
-  const { saveField, saveCentrals } = useRecordMutations(onRecords);
+export function ReviewTable({ records, selectedId, onSelect, onRecords, onRemoved }: ReviewTableProps) {
+  const { saveField, saveCentrals, approve, approveMany, remove } = useRecordMutations(onRecords);
   const senders = useSenders();
+  const [skipped, setSkipped] = useState<Record<string, string>>({});
   if (records.length === 0) {
     return <p className="review-empty">עוד אין רשומות. העלי טפסים כדי להתחיל</p>;
   }
@@ -33,6 +40,7 @@ export function ReviewTable({ records, selectedId, onSelect, onRecords }: Review
           {records.length} רשומות · {flagged} דורשות בדיקה
         </span>
       </h2>
+      <ApproveAllBar records={records} onApproveMany={approveMany} onSkipped={setSkipped} />
       <div className="review-scroll">
         <table className="review-table">
           <thead>
@@ -44,6 +52,7 @@ export function ReviewTable({ records, selectedId, onSelect, onRecords }: Review
               ))}
               <th scope="col">מספרים מרכזיים</th>
               <th scope="col">סטטוס</th>
+              <th scope="col">פעולות</th>
             </tr>
           </thead>
           <tbody>
@@ -79,6 +88,13 @@ export function ReviewTable({ records, selectedId, onSelect, onRecords }: Review
                     onSave={(items) => saveCentrals(r, items)}
                   />
                   <td className={r.needs_review ? "review-status is-flagged" : "review-status"}>{statusText(r)}</td>
+                  <td className="review-actions">
+                    <ApproveButton record={r} onApprove={approve} />
+                    {skipped[r.record_id] && r.status === "pending" && (
+                      <span className="review-cell-error">{skipped[r.record_id]}</span>
+                    )}
+                    <DeleteButton record={r} onDelete={remove} onDeleted={(gone) => onRemoved(gone.record_id)} />
+                  </td>
                 </tr>
               );
             })}
