@@ -8,7 +8,9 @@ import {
   exportUrl,
   hasFilters,
   listUrl,
+  nextSort,
   parseFilters,
+  sortDirection,
   toParams,
   withChange,
   type RecordFilters,
@@ -22,6 +24,7 @@ const ALL: RecordFilters = {
   formType: "hmo_form",
   dateFrom: "2026-10-01",
   dateTo: "2026-10-19",
+  sort: "-received_date",
   page: 3,
 };
 
@@ -37,7 +40,7 @@ describe("filters in the URL", () => {
 
   test("values it can't use are left out, not an error", () => {
     const params = new URLSearchParams(
-      "status=done&form_type=clalit&date_from=19/10/2026&page=-2&needs_review=yes",
+      "status=done&form_type=clalit&date_from=19/10/2026&page=-2&needs_review=yes&sort=search_text",
     );
 
     expect(parseFilters(params)).toEqual(NO_FILTERS);
@@ -59,9 +62,37 @@ describe("withChange", () => {
 });
 
 describe("hasFilters", () => {
-  test("the page alone is not a filter", () => {
+  test("the page alone is not a filter, and neither is the order", () => {
     expect(hasFilters({ ...NO_FILTERS, page: 2 })).toBe(false);
+    expect(hasFilters({ ...NO_FILTERS, sort: "last_name" })).toBe(false);
     expect(hasFilters({ ...NO_FILTERS, sender: "מכבי" })).toBe(true);
+  });
+});
+
+describe("sorting", () => {
+  test("the default order stays out of the URL", () => {
+    expect(toParams({ ...NO_FILTERS, sort: "-created_at" }).has("sort")).toBe(false);
+    expect(parseFilters(new URLSearchParams("sort=last_name")).sort).toBe("last_name");
+  });
+
+  test("a click sorts up, a second click turns it around", () => {
+    expect(nextSort("-created_at", "last_name")).toBe("last_name");
+    expect(nextSort("last_name", "last_name")).toBe("-last_name");
+    expect(nextSort("-last_name", "last_name")).toBe("last_name");
+  });
+
+  test("dates start with the newest", () => {
+    expect(nextSort("last_name", "received_date")).toBe("-received_date");
+  });
+
+  test("a new order starts again at page 1", () => {
+    expect(withChange(ALL, { sort: "sender" })).toMatchObject({ sort: "sender", page: 1 });
+  });
+
+  test("aria-sort follows the order", () => {
+    expect(sortDirection("sender", "sender")).toBe("ascending");
+    expect(sortDirection("-sender", "sender")).toBe("descending");
+    expect(sortDirection("sender", "status")).toBe("none");
   });
 });
 
@@ -77,6 +108,7 @@ describe("exportUrl", () => {
       form_type: "hmo_form",
       date_from: "2026-10-01",
       date_to: "2026-10-19",
+      sort: "-received_date",
       format: "csv",
     });
   });
@@ -98,6 +130,7 @@ describe("listUrl", () => {
       form_type: "hmo_form",
       date_from: "2026-10-01",
       date_to: "2026-10-19",
+      sort: "-received_date",
       limit: String(PAGE_SIZE),
       offset: String(2 * PAGE_SIZE),
     });

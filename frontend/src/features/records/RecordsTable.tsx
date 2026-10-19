@@ -1,17 +1,39 @@
 // The records list: one row per record, effective values only. A row opens its
-// record page; the filters stay in the URL for the way back.
+// record page; the filters stay in the URL for the way back. A column header sorts
+// by it, and a second click turns the order around.
 // Owner: B
 
 import { Link, useLocation, useNavigate } from "react-router";
 import type { components } from "../../api/schema";
 import { FORM_TYPE_TEXT } from "../review/reviewRows";
+import { nextSort, sortDirection, type RecordSort, type SortColumn } from "./filters";
 import { formatDate, statusView } from "./format";
 
 type RecordSummary = components["schemas"]["RecordSummary"];
 
 export type BackTo = { back?: string };
 
-export function RecordsTable({ items }: { items: RecordSummary[] }) {
+interface Props {
+  items: RecordSummary[];
+  sort: RecordSort;
+  onSort: (sort: RecordSort) => void;
+}
+
+// The name column sorts by last name, as the lab files people.
+const COLUMNS: { title: string; sort: SortColumn | null }[] = [
+  { title: "שם", sort: "last_name" },
+  { title: "ת״ז", sort: "national_id" },
+  { title: "מספר התחייבות", sort: "commitment_number" },
+  { title: "מספרים מרכזיים", sort: null }, // a list: no single value to sort by
+  { title: "גורם שולח", sort: "sender" },
+  { title: "סוג טופס", sort: "form_type" },
+  { title: "תאריך קבלה", sort: "received_date" },
+  { title: "סטטוס", sort: "status" },
+];
+
+const ARROW = { ascending: "▲", descending: "▼", none: "" };
+
+export function RecordsTable({ items, sort, onSort }: Props) {
   const navigate = useNavigate();
   const { search } = useLocation();
   const back: BackTo = { back: `/records${search}` };
@@ -21,14 +43,26 @@ export function RecordsTable({ items }: { items: RecordSummary[] }) {
       <table className="records-table">
         <thead>
           <tr>
-            <th scope="col">שם</th>
-            <th scope="col">ת״ז</th>
-            <th scope="col">מספר התחייבות</th>
-            <th scope="col">מספרים מרכזיים</th>
-            <th scope="col">גורם שולח</th>
-            <th scope="col">סוג טופס</th>
-            <th scope="col">תאריך קבלה</th>
-            <th scope="col">סטטוס</th>
+            {COLUMNS.map(({ title, sort: column }) => {
+              if (column === null) {
+                return (
+                  <th key={title} scope="col">
+                    {title}
+                  </th>
+                );
+              }
+              const direction = sortDirection(sort, column);
+              return (
+                <th key={title} scope="col" aria-sort={direction}>
+                  <button type="button" className="records-sort" onClick={() => onSort(nextSort(sort, column))}>
+                    {title}
+                    <span aria-hidden="true" className="records-sort-arrow">
+                      {ARROW[direction]}
+                    </span>
+                  </button>
+                </th>
+              );
+            })}
           </tr>
         </thead>
         <tbody>

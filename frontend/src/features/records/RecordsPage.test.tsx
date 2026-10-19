@@ -238,3 +238,39 @@ describe("RecordsFilters", () => {
     expect((screen.getByRole("searchbox") as HTMLInputElement).value).toBe("");
   });
 });
+
+describe("sorting", () => {
+  test("a header sorts by its column, and a second click turns it around", async () => {
+    serve(list([summary()]));
+    renderAt("/records?status=pending&page=2");
+    const user = userEvent.setup();
+
+    const date = await screen.findByRole("columnheader", { name: /תאריך קבלה/ });
+    expect(date.getAttribute("aria-sort")).toBe("none");
+    await user.click(within(date).getByRole("button"));
+
+    expect(screen.getByTestId("where").textContent).toBe("/records?status=pending&sort=-received_date");
+    expect(requested().get("sort")).toBe("-received_date");
+    expect(screen.getByRole("columnheader", { name: /תאריך קבלה/ }).getAttribute("aria-sort")).toBe("descending");
+
+    await user.click(within(screen.getByRole("columnheader", { name: /תאריך קבלה/ })).getByRole("button"));
+    expect(requested().get("sort")).toBe("received_date");
+  });
+
+  test("the order from the URL is shown on its column", async () => {
+    serve(list([summary()]));
+    renderAt("/records?sort=-last_name");
+
+    const name = await screen.findByRole("columnheader", { name: /שם/ });
+    expect(name.getAttribute("aria-sort")).toBe("descending");
+    expect(requested().get("sort")).toBe("-last_name");
+  });
+
+  test("central numbers are a list, with nothing to sort by", async () => {
+    serve(list([summary()]));
+    renderAt("/records");
+
+    const centrals = await screen.findByRole("columnheader", { name: "מספרים מרכזיים" });
+    expect(within(centrals).queryByRole("button")).toBeNull();
+  });
+});

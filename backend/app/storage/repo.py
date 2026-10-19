@@ -211,6 +211,29 @@ def _where(conditions: dict[str, object]) -> tuple[str, list[object]]:
     return (" WHERE " + " AND ".join(parts)) if parts else "", params
 
 
+# The columns the list can be sorted by (RecordSort). A key is looked up here, never
+# put into the SQL as text.
+_SORT_SQL = {
+    "created_at": "r.created_at",
+    "received_date": "r.received_date",
+    "last_name": "r.last_name",
+    "first_name": "r.first_name",
+    "national_id": "r.national_id",
+    "commitment_number": "r.commitment_number",
+    "sender": "r.sender",
+    "form_type": "r.form_type",
+    "status": "r.status",
+}
+_DEFAULT_ORDER = "r.created_at DESC, p.page_number, r.commitment_idx, r.id"
+
+
+def _order_by(sort: str) -> str:
+    """ORDER BY for a RecordSort key: empty values last, ties in the default order."""
+    column = _SORT_SQL[sort.removeprefix("-")]  # unknown keys never get past the API
+    direction = "DESC" if sort.startswith("-") else "ASC"
+    return f" ORDER BY {column} {direction} NULLS LAST, {_DEFAULT_ORDER}"
+
+
 async def list_records(
     conn: AsyncConnection,
     *,
@@ -221,6 +244,7 @@ async def list_records(
     form_type: str | None,
     date_from: date | None,
     date_to: date | None,
+    sort: str,
     limit: int,
     offset: int,
 ) -> tuple[list[dict], int, dict]:
@@ -244,8 +268,7 @@ async def list_records(
             " r.first_name, r.last_name, r.national_id, r.commitment_number,"
             " r.central_values, r.sender, r.form_type, r.received_date,"
             " r.created_at, r.approved_at, p.source_filename, p.page_number"
-            f" FROM record r JOIN page p ON p.id = r.page_id{where}"
-            " ORDER BY r.created_at DESC, p.page_number, r.commitment_idx, r.id"
+            f" FROM record r JOIN page p ON p.id = r.page_id{where}{_order_by(sort)}"
             " LIMIT %s OFFSET %s",
             (*params, limit, offset),
         )
@@ -273,6 +296,7 @@ async def export_records(
     form_type: str | None,
     date_from: date | None,
     date_to: date | None,
+    sort: str,
     limit: int,
 ) -> list[dict]:
     """Full rows for the file: the list's filters and order, without paging."""
@@ -289,8 +313,7 @@ async def export_records(
     )
     async with conn.cursor(row_factory=dict_row) as cur:
         await cur.execute(
-            f"{_RECORD_SELECT}{where}"
-            " ORDER BY r.created_at DESC, p.page_number, r.commitment_idx, r.id LIMIT %s",
+            f"{_RECORD_SELECT}{where}{_order_by(sort)} LIMIT %s",
             (*params, limit),
         )
         return await cur.fetchall()

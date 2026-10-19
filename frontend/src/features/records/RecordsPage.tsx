@@ -60,7 +60,7 @@ export function RecordsPage() {
       )}
       {data && data.items.length > 0 && (
         <>
-          <RecordsTable items={data.items} />
+          <RecordsTable items={data.items} sort={filters.sort} onSort={(sort) => change({ sort })} />
           <Pagination total={data.total} page={filters.page} onPage={(page) => change({ page })} />
         </>
       )}

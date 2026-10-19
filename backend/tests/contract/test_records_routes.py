@@ -54,6 +54,7 @@ def test_list_takes_every_filter_of_the_screen():
         "form_type",
         "date_from",
         "date_to",
+        "sort",
         "limit",
         "offset",
     } == set(list_params())
@@ -67,6 +68,22 @@ def test_list_filters_by_any_form_type(form_type):
 
 def test_list_rejects_an_unknown_form_type():
     assert client.get("/api/v1/records", params={"form_type": "clalit"}).status_code == 422
+
+
+@pytest.mark.parametrize("sort", get_args(api.RecordSort))
+def test_list_sorts_by_any_column_either_way(sort):
+    with pytest.raises(Reached):
+        client.get("/api/v1/records", params={"sort": sort})
+
+
+@pytest.mark.parametrize("sort", ["id", "-search_text", "received_date; DROP TABLE record"])
+def test_list_rejects_any_other_sort(sort):
+    assert client.get("/api/v1/records", params={"sort": sort}).status_code == 422
+
+
+def test_every_sort_key_has_both_directions():
+    keys = get_args(api.RecordSort)
+    assert {k for k in keys if not k.startswith("-")} == {k[1:] for k in keys if k.startswith("-")}
 
 
 def test_approve_many_reaches_its_own_route():

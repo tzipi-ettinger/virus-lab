@@ -3,12 +3,20 @@
 
 from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
+from typing import get_args
 
 import pytest
 
 from app.extraction.provider import PageImage
 from app.rules.engine import apply_rules
-from app.schemas.api import ApproveRequest, BulkApproveItem, Form, RecordPatch, User
+from app.schemas.api import (
+    ApproveRequest,
+    BulkApproveItem,
+    Form,
+    RecordPatch,
+    RecordSort,
+    User,
+)
 from app.storage import repo, review
 from app.storage.review import RecordProblem
 from app.storage.service import save_extracted_page
@@ -138,6 +146,41 @@ def test_list_pages_keep_the_total(db):
     save(db, "multi_values")
     page = call(db, review.list_records, limit=1, offset=5)
     assert (page.items, page.total) == ([], 2)
+
+
+def test_list_sorts_by_a_column_with_empty_values_last(db):
+    save(db, "clean", file_id="f1", now=NOW)
+    save(db, "multi_values", file_id="f2", now=NOW + timedelta(minutes=1))
+    save(db, "no_commitment", file_id="f3", now=NOW + timedelta(minutes=2))
+
+    def numbers(sort):
+        return [r.commitment_number for r in call(db, review.list_records, sort=sort).items]
+
+    ascending, descending = numbers("commitment_number"), numbers("-commitment_number")
+    present = [n for n in ascending if n is not None]
+    assert present == sorted(present)
+    assert ascending[-1] is None and descending[-1] is None  # empty last, either way
+    assert [n for n in descending if n is not None] == sorted(present, reverse=True)
+
+
+def test_list_sort_ties_keep_the_default_order_so_pages_are_stable(db):
+    save(db, "clean", file_id="f1", now=NOW)
+    save(db, "multi_values", file_id="f2", now=NOW + timedelta(minutes=1))
+    everything = [r.record_id for r in call(db, review.list_records, sort="form_type").items]
+    pages = [
+        r.record_id
+        for offset in range(len(everything))
+        for r in call(db, review.list_records, sort="form_type", limit=1, offset=offset).items
+    ]
+    assert pages == everything
+    # Every record has the same form type, so the default order (newest first) decides.
+    assert everything == [r.record_id for r in call(db, review.list_records).items]
+
+
+def test_every_sort_key_runs(db):
+    save(db, "clean")
+    for sort in get_args(RecordSort):
+        assert call(db, review.list_records, sort=sort).total == 1
 
 
 # --- Patch
@@ -351,6 +394,15 @@ def test_export_takes_the_list_filters_and_no_status_means_every_record(db):
     assert len(export(db, status="pending", needs_review=True)) == 1
     assert len(export(db, q="948070")) == 1
     assert export(db, form_type="lab_report") == []
+
+
+def test_export_is_in_the_lists_sort_order(db):
+    save(db, "clean", file_id="f1", now=NOW)
+    save(db, "multi_values", file_id="f2", now=NOW + timedelta(minutes=1))
+    save(db, "no_commitment", file_id="f3", now=NOW + timedelta(minutes=2))
+
+    listed = [r.record_id for r in call(db, review.list_records, sort="commitment_number").items]
+    assert [r.record_id for r in export(db, sort="commitment_number")] == listed
 
 
 def test_every_export_is_logged_without_values(db):

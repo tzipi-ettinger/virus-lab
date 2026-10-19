@@ -249,3 +249,23 @@
 .records-export-none {
   color: var(--color-text-muted, #52606d);
 }
+
+/* A sortable column header: the whole title is the button. */
+.records .records-sort {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0;
+  font: inherit;
+  font-weight: 600;
+  color: inherit;
+  background: none;
+  border: 0;
+  cursor: pointer;
+}
+
+.records-sort-arrow {
+  min-inline-size: 1ch;
+  color: var(--color-accent, #0b6e79);
+  font-size: 0.75rem;
+}

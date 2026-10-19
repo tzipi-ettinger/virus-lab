@@ -271,7 +271,7 @@
     "/api/v1/records": {
       "get": {
         "summary": "List Records",
-        "description": "Newest first, then page number, then commitment order.\n\n`status=approved` is also the hand-off point for the lab's system (D6).",
+        "description": "In the `sort` order (newest first by default), then page number, then\ncommitment order.\n\n`status=approved` is also the hand-off point for the lab's system (D6).",
         "operationId": "list_records_api_v1_records_get",
         "parameters": [
           {
@@ -431,6 +431,38 @@
               "title": "Date To"
             },
             "description": "received_date, inclusive"
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "created_at",
+                "-created_at",
+                "received_date",
+                "-received_date",
+                "last_name",
+                "-last_name",
+                "first_name",
+                "-first_name",
+                "national_id",
+                "-national_id",
+                "commitment_number",
+                "-commitment_number",
+                "sender",
+                "-sender",
+                "form_type",
+                "-form_type",
+                "status",
+                "-status"
+              ],
+              "type": "string",
+              "description": "A column, ascending; \"-\" in front for descending. Empty values last.",
+              "default": "-created_at",
+              "title": "Sort"
+            },
+            "description": "A column, ascending; \"-\" in front for descending. Empty values last."
           }
         ],
         "responses": {
@@ -669,6 +701,38 @@
               "title": "Date To"
             },
             "description": "received_date, inclusive"
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "created_at",
+                "-created_at",
+                "received_date",
+                "-received_date",
+                "last_name",
+                "-last_name",
+                "first_name",
+                "-first_name",
+                "national_id",
+                "-national_id",
+                "commitment_number",
+                "-commitment_number",
+                "sender",
+                "-sender",
+                "form_type",
+                "-form_type",
+                "status",
+                "-status"
+              ],
+              "type": "string",
+              "description": "A column, ascending; \"-\" in front for descending. Empty values last.",
+              "default": "-created_at",
+              "title": "Sort"
+            },
+            "description": "A column, ascending; \"-\" in front for descending. Empty values last."
           }
         ],
         "responses": {

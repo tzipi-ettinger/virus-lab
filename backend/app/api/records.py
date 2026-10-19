@@ -30,6 +30,7 @@ from app.schemas.api import (
     RecordList,
     RecordPatch,
     RecordPatchResponse,
+    RecordSort,
     RecordStatus,
     User,
 )
@@ -73,6 +74,12 @@ class RecordFilters:
     form_type: FormType | None = None
     date_from: Annotated[date | None, Query(description="received_date, inclusive")] = None
     date_to: Annotated[date | None, Query(description="received_date, inclusive")] = None
+    # Not a filter, but the list and the export take it alike, so the file is in the
+    # order the screen shows.
+    sort: Annotated[
+        RecordSort,
+        Query(description='A column, ascending; "-" in front for descending. Empty values last.'),
+    ] = "-created_at"
 
 
 FiltersDep = Annotated[RecordFilters, Depends()]
@@ -86,7 +93,8 @@ async def list_records(
     limit: Annotated[int, Query(ge=1, le=200)] = 50,
     offset: Annotated[int, Query(ge=0)] = 0,
 ) -> RecordList:
-    """Newest first, then page number, then commitment order.
+    """In the `sort` order (newest first by default), then page number, then
+    commitment order.
 
     `status=approved` is also the hand-off point for the lab's system (D6).
     """
