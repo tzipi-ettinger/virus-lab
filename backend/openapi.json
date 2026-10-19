@@ -22,6 +22,9 @@
                       },
                       {
                         "type": "boolean"
+                      },
+                      {
+                        "type": "integer"
                       }
                     ]
                   },
@@ -212,6 +215,26 @@
               }
             }
           },
+          "401": {
+            "description": "Not signed in (\"unauthenticated\"). Nothing was read, so the file can be sent again",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The request did not come from our own page (\"origin_not_allowed\")",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
           "413": {
             "description": "Request over MAX_REQUEST_MB (\"request_too_large\") or over MAX_PAGES_PER_REQUEST (\"too_many_pages\")",
             "content": {
@@ -233,7 +256,7 @@
             }
           },
           "503": {
-            "description": "The daily Gemini quota ran out before any page was saved (\"quota_exhausted\"): nothing was saved, so the file can be sent again",
+            "description": "The daily Gemini quota ran out before any page was saved (\"quota_exhausted\"): nothing was saved, so the file can be sent again. Also when the database is not reachable (\"database_unavailable\")",
             "content": {
               "application/json": {
                 "schema": {
@@ -251,6 +274,29 @@
         "description": "Newest first, then page number, then commitment order.\n\n`status=approved` is also the hand-off point for the lab's system (D6).",
         "operationId": "list_records_api_v1_records_get",
         "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Offset"
+            }
+          },
           {
             "name": "q",
             "in": "query",
@@ -290,6 +336,22 @@
             }
           },
           {
+            "name": "needs_review",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Needs Review"
+            }
+          },
+          {
             "name": "sender",
             "in": "query",
             "required": false,
@@ -302,7 +364,34 @@
                   "type": "null"
                 }
               ],
+              "description": "A name from GET /senders",
               "title": "Sender"
+            },
+            "description": "A name from GET /senders"
+          },
+          {
+            "name": "form_type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "hmo_form",
+                    "hospital_form",
+                    "hospital_system_screenshot",
+                    "lab_report",
+                    "private_lab",
+                    "government",
+                    "unknown"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Form Type"
             }
           },
           {
@@ -342,45 +431,6 @@
               "title": "Date To"
             },
             "description": "received_date, inclusive"
-          },
-          {
-            "name": "needs_review",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "boolean"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Needs Review"
-            }
-          },
-          {
-            "name": "limit",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "integer",
-              "maximum": 200,
-              "minimum": 1,
-              "default": 50,
-              "title": "Limit"
-            }
-          },
-          {
-            "name": "offset",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "integer",
-              "minimum": 0,
-              "default": 0,
-              "title": "Offset"
-            }
           }
         ],
         "responses": {
@@ -410,6 +460,241 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/records/approve": {
+      "post": {
+        "summary": "Approve Many",
+        "description": "Approve all ready (D20): each record is checked and saved on its own.\n\nAlways 200. A record with a field still flagged, a stale version or one already\napproved is listed in `skipped` with the reason, and the others are approved.",
+        "operationId": "approve_many_api_v1_records_approve_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BulkApproveRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BulkApproveResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid session (\"unauthenticated\")",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/records/export": {
+      "get": {
+        "summary": "Export Records",
+        "description": "Every record that matches the screen's filters, without paging (D19).\n\nThe same filters as GET /records: with no status, every record. Sent with\nCache-Control: no-store, and logged in export_log without values.",
+        "operationId": "export_records_api_v1_records_export_get",
+        "parameters": [
+          {
+            "name": "format",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "enum": [
+                "csv",
+                "json"
+              ],
+              "type": "string",
+              "title": "Format"
+            }
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Free text: name, national ID, central or commitment number",
+              "title": "Q"
+            },
+            "description": "Free text: name, national ID, central or commitment number"
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "pending",
+                    "approved"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            }
+          },
+          {
+            "name": "needs_review",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Needs Review"
+            }
+          },
+          {
+            "name": "sender",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "A name from GET /senders",
+              "title": "Sender"
+            },
+            "description": "A name from GET /senders"
+          },
+          {
+            "name": "form_type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "hmo_form",
+                    "hospital_form",
+                    "hospital_system_screenshot",
+                    "lab_report",
+                    "private_lab",
+                    "government",
+                    "unknown"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Form Type"
+            }
+          },
+          {
+            "name": "date_from",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "received_date, inclusive",
+              "title": "Date From"
+            },
+            "description": "received_date, inclusive"
+          },
+          {
+            "name": "date_to",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "received_date, inclusive",
+              "title": "Date To"
+            },
+            "description": "received_date, inclusive"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A file to download (Content-Disposition: attachment): CSV in UTF-8 with BOM (SPEC 10), or JSON as a list of Record.",
+            "content": {
+              "text/csv": {},
+              "application/json": {}
+            }
+          },
+          "401": {
+            "description": "No valid session (\"unauthenticated\")",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "More than 5,000 records match (\"export_too_large\")",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
                 }
               }
             }
@@ -477,7 +762,7 @@
       },
       "patch": {
         "summary": "Patch Record",
-        "description": "Correct or confirm fields, rerun apply_rules (SPEC 7.4) and save.\n\nApproved records are read-only (A6).",
+        "description": "Correct or confirm fields, rerun apply_rules (SPEC 7.4) and save.\n\nA shared field (names, ID, date, sender, central numbers) changes in the form's\nother records too, returned in `siblings` (A3). Approved records are read-only (A6).",
         "operationId": "patch_record_api_v1_records__record_id__patch",
         "parameters": [
           {
@@ -532,7 +817,68 @@
             }
           },
           "409": {
-            "description": "Stale version (type \"version_conflict\")",
+            "description": "Stale version (\"version_conflict\"), an approved record (\"record_approved\"), or a shared field while another record of the form is approved (\"sibling_approved\")",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "No central number at that idx (\"validation\")",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "summary": "Delete Record",
+        "description": "Delete a pending record (A5). The form's pages go too once no record needs them.",
+        "operationId": "delete_record_api_v1_records__record_id__delete",
+        "parameters": [
+          {
+            "name": "record_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Record Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "401": {
+            "description": "No valid session (\"unauthenticated\")",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such record",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Approved records stay (\"record_approved\")",
             "content": {
               "application/json": {
                 "schema": {
@@ -634,6 +980,39 @@
         }
       }
     },
+    "/api/v1/senders": {
+      "get": {
+        "summary": "Senders",
+        "description": "The closed list of senders (SPEC 5.5), for the dropdown and the filter.",
+        "operationId": "senders_api_v1_senders_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array",
+                  "title": "Response Senders Api V1 Senders Get"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid session (\"unauthenticated\")",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/pages/{page_id}/image": {
       "get": {
         "summary": "Page Image",
@@ -705,6 +1084,67 @@
           "version"
         ],
         "title": "ApproveRequest"
+      },
+      "BulkApproveItem": {
+        "properties": {
+          "record_id": {
+            "type": "string",
+            "title": "Record Id"
+          },
+          "version": {
+            "type": "integer",
+            "title": "Version"
+          }
+        },
+        "type": "object",
+        "required": [
+          "record_id",
+          "version"
+        ],
+        "title": "BulkApproveItem"
+      },
+      "BulkApproveRequest": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/BulkApproveItem"
+            },
+            "type": "array",
+            "maxItems": 500,
+            "minItems": 1,
+            "title": "Items"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "title": "BulkApproveRequest"
+      },
+      "BulkApproveResponse": {
+        "properties": {
+          "approved": {
+            "items": {
+              "$ref": "#/components/schemas/Record"
+            },
+            "type": "array",
+            "title": "Approved"
+          },
+          "skipped": {
+            "items": {
+              "$ref": "#/components/schemas/SkippedRecord"
+            },
+            "type": "array",
+            "title": "Skipped"
+          }
+        },
+        "type": "object",
+        "required": [
+          "approved",
+          "skipped"
+        ],
+        "title": "BulkApproveResponse",
+        "description": "Each record is checked on its own: one that is skipped doesn't stop the others."
       },
       "ErrorInfo": {
         "properties": {
@@ -1226,6 +1666,30 @@
               }
             ],
             "title": "Approved At"
+          },
+          "approved_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Approved By",
+            "description": "Username; null until approved."
+          },
+          "updated_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated By",
+            "description": "Username of the last edit; null if never edited."
           }
         },
         "type": "object",
@@ -1247,6 +1711,31 @@
           "approved_at"
         ],
         "title": "Record"
+      },
+      "RecordCounts": {
+        "properties": {
+          "pending": {
+            "type": "integer",
+            "title": "Pending"
+          },
+          "approved": {
+            "type": "integer",
+            "title": "Approved"
+          },
+          "needs_review": {
+            "type": "integer",
+            "title": "Needs Review",
+            "description": "Pending records with a field still flagged."
+          }
+        },
+        "type": "object",
+        "required": [
+          "pending",
+          "approved",
+          "needs_review"
+        ],
+        "title": "RecordCounts",
+        "description": "The counters on the records screen.\n\nCounted over the other filters (q, sender, form_type, dates) but not status or\nneeds_review, so they stay put while the user switches between them."
       },
       "RecordFields": {
         "properties": {
@@ -1367,6 +1856,9 @@
           "offset": {
             "type": "integer",
             "title": "Offset"
+          },
+          "counts": {
+            "$ref": "#/components/schemas/RecordCounts"
           }
         },
         "type": "object",
@@ -1374,7 +1866,8 @@
           "items",
           "total",
           "limit",
-          "offset"
+          "offset",
+          "counts"
         ],
         "title": "RecordList"
       },
@@ -1597,6 +2090,46 @@
         ],
         "title": "RecordSummary",
         "description": "A row on the records screen: effective values only, straight from the record table."
+      },
+      "SkippedRecord": {
+        "properties": {
+          "record_id": {
+            "type": "string",
+            "title": "Record Id"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "review_required",
+              "version_conflict",
+              "record_approved",
+              "not_found"
+            ],
+            "title": "Type",
+            "description": "The same type the single approve answers with."
+          },
+          "blocking_fields": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Blocking Fields",
+            "description": "type \"review_required\" only: the fields still flagged."
+          }
+        },
+        "type": "object",
+        "required": [
+          "record_id",
+          "type"
+        ],
+        "title": "SkippedRecord"
       },
       "User": {
         "properties": {

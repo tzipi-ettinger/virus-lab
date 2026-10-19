@@ -44,13 +44,11 @@
 /frontend/src/features/upload/           @tzipi-ettinger
 /frontend/src/features/preview/          @tzipi-ettinger
 
-# --- B: rules, storage, records, review, export ---
+# --- B: rules, storage, records, review, export, deployment ---
 /backend/app/rules/                      @esterrroz
 /backend/app/storage/                    @esterrroz
 /backend/app/export/                     @esterrroz
 /backend/app/api/records.py              @esterrroz
-/backend/app/api/validate.py             @esterrroz
-/backend/app/api/export.py               @esterrroz
 /backend/eval/run_eval.py                @esterrroz
 /backend/tests/fixtures/rules/           @esterrroz
 /backend/tests/unit/rules/               @esterrroz
@@ -58,5 +56,16 @@
 /backend/tests/unit/export/              @esterrroz
 /frontend/src/features/review/           @esterrroz
 /frontend/src/features/records/          @esterrroz
-/frontend/src/features/export/           @esterrroz
 /frontend/src/shared/ui/StatusBadge.tsx  @esterrroz
+/Dockerfile                              @esterrroz
+/.dockerignore                           @esterrroz
+/render.yaml                             @esterrroz
+/backend/app/spa.py                      @esterrroz
+/backend/tests/unit/test_spa.py          @esterrroz
+/backend/app/security.py                 @esterrroz
+/backend/app/keep_alive.py               @esterrroz
+/backend/tests/unit/test_security.py     @esterrroz
+/backend/tests/unit/test_keep_alive.py   @esterrroz
+/frontend/src/features/auth/             @esterrroz
+/frontend/src/shared/layout/             @esterrroz
+/frontend/src/shared/ui/ErrorBoundary.tsx @esterrroz

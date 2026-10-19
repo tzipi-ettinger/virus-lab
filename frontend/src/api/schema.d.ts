@@ -131,6 +131,52 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/records/approve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Approve Many
+         * @description Approve all ready (D20): each record is checked and saved on its own.
+         *
+         *     Always 200. A record with a field still flagged, a stale version or one already
+         *     approved is listed in `skipped` with the reason, and the others are approved.
+         */
+        post: operations["approve_many_api_v1_records_approve_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/records/export": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Export Records
+         * @description Every record that matches the screen's filters, without paging (D19).
+         *
+         *     The same filters as GET /records: with no status, every record. Sent with
+         *     Cache-Control: no-store, and logged in export_log without values.
+         */
+        get: operations["export_records_api_v1_records_export_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/records/{record_id}": {
         parameters: {
             query?: never;
@@ -142,14 +188,19 @@ export interface paths {
         get: operations["get_record_api_v1_records__record_id__get"];
         put?: never;
         post?: never;
-        delete?: never;
+        /**
+         * Delete Record
+         * @description Delete a pending record (A5). The form's pages go too once no record needs them.
+         */
+        delete: operations["delete_record_api_v1_records__record_id__delete"];
         options?: never;
         head?: never;
         /**
          * Patch Record
          * @description Correct or confirm fields, rerun apply_rules (SPEC 7.4) and save.
          *
-         *     Approved records are read-only (A6).
+         *     A shared field (names, ID, date, sender, central numbers) changes in the form's
+         *     other records too, returned in `siblings` (A3). Approved records are read-only (A6).
          */
         patch: operations["patch_record_api_v1_records__record_id__patch"];
         trace?: never;
@@ -168,6 +219,26 @@ export interface paths {
          * @description Rerun the rules; approve only if no field still needs review (D3).
          */
         post: operations["approve_record_api_v1_records__record_id__approve_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/senders": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Senders
+         * @description The closed list of senders (SPEC 5.5), for the dropdown and the filter.
+         */
+        get: operations["senders_api_v1_senders_get"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -202,6 +273,28 @@ export interface components {
         ApproveRequest: {
             /** Version */
             version: number;
+        };
+        /** BulkApproveItem */
+        BulkApproveItem: {
+            /** Record Id */
+            record_id: string;
+            /** Version */
+            version: number;
+        };
+        /** BulkApproveRequest */
+        BulkApproveRequest: {
+            /** Items */
+            items: components["schemas"]["BulkApproveItem"][];
+        };
+        /**
+         * BulkApproveResponse
+         * @description Each record is checked on its own: one that is skipped doesn't stop the others.
+         */
+        BulkApproveResponse: {
+            /** Approved */
+            approved: components["schemas"]["Record"][];
+            /** Skipped */
+            skipped: components["schemas"]["SkippedRecord"][];
         };
         /** ErrorInfo */
         ErrorInfo: {
@@ -413,6 +506,34 @@ export interface components {
             updated_at: string;
             /** Approved At */
             approved_at: string | null;
+            /**
+             * Approved By
+             * @description Username; null until approved.
+             */
+            approved_by?: string | null;
+            /**
+             * Updated By
+             * @description Username of the last edit; null if never edited.
+             */
+            updated_by?: string | null;
+        };
+        /**
+         * RecordCounts
+         * @description The counters on the records screen.
+         *
+         *     Counted over the other filters (q, sender, form_type, dates) but not status or
+         *     needs_review, so they stay put while the user switches between them.
+         */
+        RecordCounts: {
+            /** Pending */
+            pending: number;
+            /** Approved */
+            approved: number;
+            /**
+             * Needs Review
+             * @description Pending records with a field still flagged.
+             */
+            needs_review: number;
         };
         /** RecordFields */
         RecordFields: {
@@ -445,6 +566,7 @@ export interface components {
             limit: number;
             /** Offset */
             offset: number;
+            counts: components["schemas"]["RecordCounts"];
         };
         /** RecordPatch */
         RecordPatch: {
@@ -515,6 +637,22 @@ export interface components {
             /** Approved At */
             approved_at: string | null;
         };
+        /** SkippedRecord */
+        SkippedRecord: {
+            /** Record Id */
+            record_id: string;
+            /**
+             * Type
+             * @description The same type the single approve answers with.
+             * @enum {string}
+             */
+            type: "review_required" | "version_conflict" | "record_approved" | "not_found";
+            /**
+             * Blocking Fields
+             * @description type "review_required" only: the fields still flagged.
+             */
+            blocking_fields?: string[] | null;
+        };
         /**
          * User
          * @description The signed-in user, as require_user gives it to the endpoints.
@@ -565,7 +703,7 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        [key: string]: string | boolean;
+                        [key: string]: string | boolean | number;
                     };
                 };
             };
@@ -721,6 +859,24 @@ export interface operations {
                     "application/json": components["schemas"]["Problem"];
                 };
             };
+            /** @description Not signed in ("unauthenticated"). Nothing was read, so the file can be sent again */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description The request did not come from our own page ("origin_not_allowed") */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
             /** @description Request over MAX_REQUEST_MB ("request_too_large") or over MAX_PAGES_PER_REQUEST ("too_many_pages") */
             413: {
                 headers: {
@@ -739,7 +895,7 @@ export interface operations {
                     "application/json": components["schemas"]["Problem"];
                 };
             };
-            /** @description The daily Gemini quota ran out before any page was saved ("quota_exhausted"): nothing was saved, so the file can be sent again */
+            /** @description The daily Gemini quota ran out before any page was saved ("quota_exhausted"): nothing was saved, so the file can be sent again. Also when the database is not reachable ("database_unavailable") */
             503: {
                 headers: {
                     [name: string]: unknown;
@@ -753,17 +909,19 @@ export interface operations {
     list_records_api_v1_records_get: {
         parameters: {
             query?: {
+                limit?: number;
+                offset?: number;
                 /** @description Free text: name, national ID, central or commitment number */
                 q?: string | null;
                 status?: ("pending" | "approved") | null;
+                needs_review?: boolean | null;
+                /** @description A name from GET /senders */
                 sender?: string | null;
+                form_type?: ("hmo_form" | "hospital_form" | "hospital_system_screenshot" | "lab_report" | "private_lab" | "government" | "unknown") | null;
                 /** @description received_date, inclusive */
                 date_from?: string | null;
                 /** @description received_date, inclusive */
                 date_to?: string | null;
-                needs_review?: boolean | null;
-                limit?: number;
-                offset?: number;
             };
             header?: never;
             path?: never;
@@ -800,6 +958,100 @@ export interface operations {
             };
         };
     };
+    approve_many_api_v1_records_approve_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BulkApproveRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BulkApproveResponse"];
+                };
+            };
+            /** @description No valid session ("unauthenticated") */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    export_records_api_v1_records_export_get: {
+        parameters: {
+            query: {
+                format: "csv" | "json";
+                /** @description Free text: name, national ID, central or commitment number */
+                q?: string | null;
+                status?: ("pending" | "approved") | null;
+                needs_review?: boolean | null;
+                /** @description A name from GET /senders */
+                sender?: string | null;
+                form_type?: ("hmo_form" | "hospital_form" | "hospital_system_screenshot" | "lab_report" | "private_lab" | "government" | "unknown") | null;
+                /** @description received_date, inclusive */
+                date_from?: string | null;
+                /** @description received_date, inclusive */
+                date_to?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description A file to download (Content-Disposition: attachment): CSV in UTF-8 with BOM (SPEC 10), or JSON as a list of Record. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/csv": unknown;
+                    "application/json": unknown;
+                };
+            };
+            /** @description No valid session ("unauthenticated") */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description More than 5,000 records match ("export_too_large") */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
     get_record_api_v1_records__record_id__get: {
         parameters: {
             query?: never;
@@ -831,6 +1083,62 @@ export interface operations {
             };
             /** @description No such record */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_record_api_v1_records__record_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                record_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No valid session ("unauthenticated") */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description No such record */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Approved records stay ("record_approved") */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -891,7 +1199,7 @@ export interface operations {
                     "application/json": components["schemas"]["Problem"];
                 };
             };
-            /** @description Stale version (type "version_conflict") */
+            /** @description Stale version ("version_conflict"), an approved record ("record_approved"), or a shared field while another record of the form is approved ("sibling_approved") */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -900,13 +1208,13 @@ export interface operations {
                     "application/json": components["schemas"]["Problem"];
                 };
             };
-            /** @description Validation Error */
+            /** @description No central number at that idx ("validation") */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/json": components["schemas"]["Problem"];
                 };
             };
         };
@@ -969,6 +1277,35 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    senders_api_v1_senders_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": string[];
+                };
+            };
+            /** @description No valid session ("unauthenticated") */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
                 };
             };
         };

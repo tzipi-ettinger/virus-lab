@@ -87,6 +87,23 @@ jobs:
       - name: schema.d.ts is up to date
         run: git diff --exit-code -- frontend/src/api/schema.d.ts || (echo "Run 'npm run gen:api' in frontend/ and commit." && exit 1)
 
+  # The image Render deploys (Dockerfile at the root) builds, starts without a DB,
+  # and serves both the API and the page. Not a required check.
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker build -t virus-lab .
+      - name: The image serves the API and the page
+        run: |
+          docker run -d --name app -p 8000:8000 -e FRONTEND_ORIGIN=http://localhost:8000 virus-lab
+          for i in $(seq 1 30); do curl -fsS localhost:8000/api/health && break; sleep 1; done
+          curl -fsS localhost:8000/api/health
+          curl -fsS localhost:8000/records/x | grep -q 'id="root"'
+          test "$(curl -s -o /dev/null -w '%{http_code}' localhost:8000/api/nope)" = 404
+      - if: always()
+        run: docker logs app || true
+
   # No API key, token or private key in any commit. Scans the full history,
   # so a secret added and then deleted in a later commit still fails.
   secrets:

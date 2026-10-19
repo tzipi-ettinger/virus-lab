@@ -1,0 +1,50 @@
+# Render Blueprint (Dev-B plan 2.7, B0.4): the app as one Docker web service and
+# a managed Postgres, both on the free plan and in Frankfurt. Render deploys main
+# on every merge.
+#
+# No secret is in this file. Values marked `sync: false` are asked for once, when
+# the Blueprint is first applied in Render's dashboard.
+#
+# Owner: B
+
+services:
+  - type: web
+    name: virus-lab
+    runtime: docker
+    plan: free
+    region: frankfurt
+    branch: main
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    healthCheckPath: /api/health
+    # Keep-alive needs no variable here: Render sets RENDER_EXTERNAL_URL itself, and
+    # the app pings {RENDER_EXTERNAL_URL}/api/health every 10 minutes (app/keep_alive.py).
+    envVars:
+      # HSTS on, /docs and /openapi.json off.
+      - key: ENV
+        value: production
+      # The internal URL: the server reaches the DB over Render's private network.
+      - key: DATABASE_URL
+        fromDatabase:
+          name: virus-lab-db
+          property: connectionString
+      - key: EXTRACTION_PROVIDER
+        value: gemini
+      - key: GEMINI_MODEL
+        value: gemini-3.8-flash
+      # Comma-separated, one key per Google project.
+      - key: GEMINI_API_KEYS
+        sync: false
+      # The public address, e.g. https://virus-lab.onrender.com. The CSRF check
+      # refuses a change whose Origin is anything else.
+      - key: FRONTEND_ORIGIN
+        sync: false
+
+databases:
+  # The free database expires 30 days after it is created (D2).
+  - name: virus-lab-db
+    plan: free
+    region: frankfurt
+    postgresMajorVersion: "17"
+    databaseName: virus_lab
+    user: virus_lab

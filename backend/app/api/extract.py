@@ -9,36 +9,35 @@ Owner: A
 """
 
 import logging
-import secrets
 import sys
 from collections.abc import AsyncIterator
-from datetime import UTC, datetime
 from functools import lru_cache
 from typing import Annotated, assert_never
-from uuid import uuid4
 
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import JSONResponse
 from google import genai
+from psycopg_pool import AsyncConnectionPool
+from pydantic import SecretStr
 from python_multipart.multipart import parse_options_header
 from starlette.datastructures import UploadFile
 from starlette.formparsers import MultiPartException, MultiPartParser
 
+from app.auth.deps import get_pool, require_user
 from app.clock import israel_today
 from app.extraction.cached_provider import CachedProvider
 from app.extraction.fake_provider import FakeProvider
 from app.extraction.gemini_provider import GeminiProvider
 from app.extraction.provider import ExtractionProvider
 from app.pipeline.service import (
-    ExtractedForm,
     SaveForm,
     TooManyPages,
     UploadedFile,
     extract_files,
 )
-from app.rules.records import build_records
-from app.schemas.api import ExtractResponse, Problem, Record
+from app.schemas.api import ExtractResponse, Problem, User
 from app.settings import Settings, get_settings
+from app.storage.service import form_saver
 
 logger = logging.getLogger(__name__)
 
@@ -70,11 +69,14 @@ _PROBLEMS = {
     for status, description in {
         400: 'No files ("no_files"), more than MAX_FILES_PER_REQUEST ("too_many_files"), '
         'or an upload that is cut off or broken ("invalid_upload")',
+        401: 'Not signed in ("unauthenticated"). Nothing was read, so the file can be sent again',
+        403: 'The request did not come from our own page ("origin_not_allowed")',
         413: 'Request over MAX_REQUEST_MB ("request_too_large") or over '
         'MAX_PAGES_PER_REQUEST ("too_many_pages")',
         415: 'Not multipart/form-data ("unsupported_media_type")',
         503: 'The daily Gemini quota ran out before any page was saved ("quota_exhausted"): '
-        "nothing was saved, so the file can be sent again",
+        "nothing was saved, so the file can be sent again. Also when the database is "
+        'not reachable ("database_unavailable")',
     }.items()
 }
 
@@ -129,11 +131,12 @@ def _fake_provider() -> FakeProvider:
 
 @lru_cache
 def _gemini_provider(
-    api_key: str, model: str, max_concurrency: int, timeout_s: int
+    api_keys: tuple[SecretStr, ...], model: str, max_concurrency: int, timeout_s: int
 ) -> GeminiProvider:
     # One provider per configuration, so its semaphore limits the whole server.
+    # The keys stay SecretStr up to here: a traceback through the cache shows ******.
     return GeminiProvider(
-        genai.Client(api_key=api_key),
+        [genai.Client(api_key=key.get_secret_value()) for key in api_keys],
         model,
         max_concurrency=max_concurrency,
         timeout_s=timeout_s,
@@ -152,7 +155,7 @@ def get_provider(settings: SettingsDep) -> ExtractionProvider:
             return _fake_provider()  # no quota to save: the cache is never in front of it
         case "gemini":
             gemini = _gemini_provider(
-                settings.gemini_api_key.get_secret_value(),
+                settings.gemini_keys(),
                 settings.gemini_model,
                 settings.max_concurrency,
                 settings.provider_timeout_s,
@@ -162,42 +165,12 @@ def get_provider(settings: SettingsDep) -> ExtractionProvider:
             assert_never(unknown)
 
 
-async def records_without_saving(extracted: ExtractedForm) -> list[Record]:
-    """Stand-in for B's save_extracted_page until storage is on main (A2).
-
-    The same records build_records makes, with ids and timestamps, but NOT saved:
-    the records API can't find them yet. It lets the review screen be built
-    against real responses now. Replaced by one line in get_save_form.
-    """
-    now = datetime.now(UTC)
-    form = extracted.form
-    page_id = f"p_{secrets.token_hex(8)}"
-    return [
-        Record(
-            record_id=str(uuid4()),
-            page_id=page_id,
-            source_file=form.source_file,
-            page_number=form.page_number,
-            continuation_pages=form.continuation_pages,
-            commitment_index=draft.commitment_index,
-            status="pending",
-            version=1,
-            form_type=form.form_type,
-            fields=draft.fields,
-            central_numbers=draft.central_numbers,
-            issues=draft.issues,
-            needs_review=draft.needs_review,
-            created_at=now,
-            updated_at=now,
-            approved_at=None,
-        )
-        for draft in build_records(form)
-    ]
-
-
-def get_save_form() -> SaveForm:
-    # TODO(A2): B's save_extracted_page, once storage is on main.
-    return records_without_saving
+def get_save_form(
+    pool: Annotated[AsyncConnectionPool, Depends(get_pool)],
+    user: Annotated[User, Depends(require_user)],
+) -> SaveForm:
+    """Each form is saved as pending records as soon as it is read (B's form_saver)."""
+    return form_saver(pool, user)
 
 
 @router.post(
@@ -205,6 +178,9 @@ def get_save_form() -> SaveForm:
     response_model=ExtractResponse,
     responses=_PROBLEMS,
     openapi_extra=_UPLOAD_BODY,
+    # Here and not only in get_save_form, so a test that overrides the saver can't
+    # turn sign-in off. FastAPI runs require_user once per request either way.
+    dependencies=[Depends(require_user)],
 )
 async def extract(
     request: Request,

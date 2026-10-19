@@ -44,7 +44,8 @@ from app.schemas.api import ErrorCode, ErrorInfo, FailedPage, FileResult, Form, 
 logger = logging.getLogger(__name__)
 
 UNEXPECTED_ERROR = "שגיאה לא צפויה בעיבוד העמוד. אפשר לנסות שוב"
-SAVE_FAILED = "העמוד נקרא, אבל השמירה נכשלה. אפשר לנסות שוב"
+# Not "send the file again": the file's other forms are saved, and would be saved twice.
+SAVE_FAILED = "העמוד נקרא, אבל לא נשמר. כדי לשמור אותו, אפשר להעלות שוב רק את העמוד הזה"
 
 
 @dataclass(frozen=True)

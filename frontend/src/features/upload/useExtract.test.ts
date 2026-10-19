@@ -64,6 +64,14 @@ describe("classify", () => {
     });
   });
 
+  test("503 database_unavailable can be sent again: nothing was read", () => {
+    expect(classify(503, { type: "database_unavailable", title: "מסד הנתונים לא זמין כרגע", status: 503 })).toEqual({
+      kind: "failed",
+      message: "מסד הנתונים לא זמין כרגע",
+      canRetry: true,
+    });
+  });
+
   test("400 invalid_upload can be sent again: the server saved nothing", () => {
     const body = { type: "invalid_upload", title: "לא ניתן לקרוא את ההעלאה", status: 400, detail: "ייתכן שהיא פגומה. אפשר לשלוח שוב" };
     expect(classify(400, body)).toEqual({
