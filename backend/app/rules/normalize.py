@@ -16,6 +16,8 @@ from app.schemas.api import Issue
 _DMY = re.compile(r"(\d{1,2})\s*[-./]\s*(\d{1,2})\s*[-./]\s*(\d{4}|\d{2})")
 # What the date input on the review screen sends.
 _ISO = re.compile(r"(\d{4})-(\d{2})-(\d{2})")
+# A time before or after the date (18/06/2026 10:30): read the date, drop the time.
+_TIME_AT_EDGE = re.compile(r"^\d{1,2}:\d{2}(?::\d{2})?\s+|\s+\d{1,2}:\d{2}(?::\d{2})?$")
 # "606/50364186": a 3-digit prefix before a long number (organizers' clarification).
 _COMMITMENT_PREFIX = re.compile(r"\d{3}/(\d{6,})")
 
@@ -53,10 +55,11 @@ def normalize_national_id(raw: str | None) -> tuple[str | None, list[Issue]]:
 def normalize_date(raw: str | None) -> tuple[str | None, list[Issue]]:
     """Day-month-year with -, / or . (a 2-digit year means 20YY), or ISO -> ISO YYYY-MM-DD.
 
-    A date that can't be read, or doesn't exist (31/02), gives no value and
-    DATE_INVALID: an empty flagged field beats a guessed one.
+    A time before or after the date is ignored. A date that can't be read, or
+    doesn't exist (31/02), gives no value and DATE_INVALID: an empty flagged
+    field beats a guessed one.
     """
-    text = (raw or "").strip()
+    text = _TIME_AT_EDGE.sub("", (raw or "").strip())
     if not text:
         return None, []
     if match := _ISO.fullmatch(text):

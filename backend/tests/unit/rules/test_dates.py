@@ -30,7 +30,32 @@ def test_normalize_date_formats(raw, value):
     assert normalize_date(raw) == (value, [])
 
 
-@pytest.mark.parametrize("raw", ["31/02/2026", "18/13/2026", "18.06", "abc", "2026-02-30"])
+@pytest.mark.parametrize(
+    ("raw", "value"),
+    [
+        ("18/06/2026 10:30", "2026-06-18"),
+        ("18-06-2026  9:05:30", "2026-06-18"),
+        ("10:30 16/6/26", "2026-06-16"),
+        ("2026-06-18 10:30", "2026-06-18"),
+    ],
+)
+def test_time_next_to_the_date_is_ignored(raw, value):
+    assert normalize_date(raw) == (value, [])
+
+
+@pytest.mark.parametrize(
+    "raw",
+    [
+        "31/02/2026",
+        "18/13/2026",
+        "18.06",
+        "abc",
+        "2026-02-30",
+        "31/02/2026 10:30",  # the time is dropped, the impossible date is still flagged
+        "10:30",
+        "18/06 10:30 2026",  # a time inside the date is not dropped
+    ],
+)
 def test_unreadable_or_impossible_date_is_empty_and_flagged(raw):
     value, issues = normalize_date(raw)
     assert (value, codes(issues)) == (None, ["DATE_INVALID"])
