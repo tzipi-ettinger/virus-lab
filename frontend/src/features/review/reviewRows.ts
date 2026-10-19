@@ -18,6 +18,13 @@ export function mergeRecords(current: ApiRecord[], incoming: ApiRecord[]): ApiRe
   return [...merged, ...incoming.filter((r) => !known.has(r.record_id))];
 }
 
+// After a change the server sends the record and its siblings back. Only rows
+// already in the table are replaced: a sibling from an earlier upload stays out.
+export function replaceRecords(current: ApiRecord[], incoming: ApiRecord[]): ApiRecord[] {
+  const byId = new Map(incoming.map((r) => [r.record_id, r]));
+  return current.map((r) => byId.get(r.record_id) ?? r);
+}
+
 export function findRecord(records: ApiRecord[], id: string | null): ApiRecord | null {
   return records.find((r) => r.record_id === id) ?? null;
 }

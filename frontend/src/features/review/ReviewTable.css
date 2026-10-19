@@ -117,6 +117,43 @@
   font-weight: 600;
 }
 
+/* The whole cell opens the editor: a button, so the keyboard reaches it too. */
+.review-cell-value {
+  display: block;
+  inline-size: 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: start;
+  cursor: text;
+}
+
+.review-cell-value:focus-visible,
+.review-cell-input:focus-visible {
+  outline: 3px solid var(--color-focus, #1d4ed8);
+  outline-offset: 2px;
+}
+
+.review-cell-input {
+  inline-size: 100%;
+  min-inline-size: 8ch;
+  padding: 4px 6px;
+  font: inherit;
+  border: 1px solid var(--color-accent, #0b6e79);
+  border-radius: var(--radius-md, 8px);
+}
+
+.review-cell-error {
+  display: block;
+  max-inline-size: 28ch;
+  margin-block-start: 4px;
+  color: var(--color-danger, #a12222);
+  font-size: 0.75rem;
+  white-space: normal;
+}
+
 .review-confidence.is-corrected,
 .review-confidence.is-confirmed {
   color: var(--color-success, #1e6b3a);
