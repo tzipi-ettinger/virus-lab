@@ -9,7 +9,7 @@ export type ApiRecord = components["schemas"]["Record"];
 
 export interface PreviewPage {
   pageNumber: number;
-  // null: the page belongs to the form, but its image can't be asked for yet.
+  // null: the page belongs to the form, but the record doesn't say where its image is.
   imageUrl: string | null;
 }
 
@@ -19,13 +19,16 @@ export function pageImageUrl(pageId: string): string {
 }
 
 // The form's first page, then its continuation pages in order (A1 in #15).
-// A Record has the continuation page numbers but not their page ids yet, so only
-// the first page has an image until continuation_page_ids is in the contract
-// (asked in #15); then this is the only place that changes.
+// continuation_page_ids is in the same order as continuation_pages. A page without
+// an id (an answer from before the field existed) still shows, without an image.
 export function previewPages(record: ApiRecord): PreviewPage[] {
+  const ids = record.continuation_page_ids ?? [];
   return [
     { pageNumber: record.page_number, imageUrl: pageImageUrl(record.page_id) },
-    ...(record.continuation_pages ?? []).map((pageNumber) => ({ pageNumber, imageUrl: null })),
+    ...(record.continuation_pages ?? []).map((pageNumber, i) => ({
+      pageNumber,
+      imageUrl: ids[i] ? pageImageUrl(ids[i]) : null,
+    })),
   ];
 }
 

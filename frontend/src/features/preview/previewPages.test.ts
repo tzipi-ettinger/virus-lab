@@ -13,11 +13,20 @@ describe("previewPages", () => {
     expect(previewPages(record())).toEqual([{ pageNumber: 3, imageUrl: "/api/v1/pages/p_1/image" }]);
   });
 
-  test("continuation pages follow the first page, without an image until their ids are in the contract", () => {
-    expect(previewPages(record({ continuation_pages: [4, 5] }))).toEqual([
+  test("continuation pages follow the first page, each with its own image", () => {
+    const form = record({ continuation_pages: [4, 5], continuation_page_ids: ["p_4", "p_5"] });
+    expect(previewPages(form)).toEqual([
+      { pageNumber: 3, imageUrl: "/api/v1/pages/p_1/image" },
+      { pageNumber: 4, imageUrl: "/api/v1/pages/p_4/image" },
+      { pageNumber: 5, imageUrl: "/api/v1/pages/p_5/image" },
+    ]);
+  });
+
+  test("a continuation page without an id still shows, without an image", () => {
+    // An answer from before continuation_page_ids existed.
+    expect(previewPages(record({ continuation_pages: [4] }))).toEqual([
       { pageNumber: 3, imageUrl: "/api/v1/pages/p_1/image" },
       { pageNumber: 4, imageUrl: null },
-      { pageNumber: 5, imageUrl: null },
     ]);
   });
 

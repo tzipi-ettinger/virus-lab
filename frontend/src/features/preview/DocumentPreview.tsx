@@ -90,7 +90,7 @@ function Pages({ record }: { record: ApiRecord }) {
 
       <div className="preview-frame" role="region" tabIndex={0} aria-label="תמונת העמוד. אפשר לגלול עם החיצים">
         {page.imageUrl === null ? (
-          <p className="preview-message">התמונה של עמוד ההמשך עוד לא זמינה כאן. העמוד שייך לטופס הזה</p>
+          <p className="preview-message">התמונה של העמוד הזה לא זמינה. העמוד שייך לטופס הזה</p>
         ) : failed === page.imageUrl ? (
           <p className="preview-message" role="alert">לא ניתן להציג את תמונת העמוד</p>
         ) : (
