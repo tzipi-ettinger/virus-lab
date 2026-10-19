@@ -316,3 +316,58 @@ def test_an_approved_record_is_not_deleted(db):
     [record] = save(db)
     approve(db, record)
     assert problem(db, review.delete_record, record.record_id).type == "record_approved"
+
+
+# --- Export
+
+
+def export(db, export_format="csv", **filters):
+    return call(db, review.export_records, USER, export_format=export_format, now=NOW, **filters)
+
+
+def export_log(db):
+    with db.connect() as conn:
+        return conn.execute("SELECT user_id, format, record_count FROM export_log").fetchall()
+
+
+def test_export_has_the_full_records_of_the_list_without_paging(db):
+    save(db, "clean", file_id="f1", now=NOW)
+    save(db, "multi_values", file_id="f2", now=NOW + timedelta(minutes=1))
+    listed = call(db, review.list_records, limit=1)
+
+    exported = export(db)
+    assert [r.record_id for r in exported][:1] == [listed.items[0].record_id]  # same order
+    assert len(exported) == listed.total == 3
+    assert exported[0] == call(db, review.get_record, exported[0].record_id)
+
+
+def test_export_takes_the_list_filters_and_no_status_means_every_record(db):
+    [ready] = save(db, "clean", file_id="f1")
+    save(db, "no_commitment", file_id="f2")
+    approve(db, ready)
+
+    assert len(export(db)) == 2
+    assert [r.record_id for r in export(db, status="approved")] == [ready.record_id]
+    assert len(export(db, status="pending", needs_review=True)) == 1
+    assert len(export(db, q="948070")) == 1
+    assert export(db, form_type="lab_report") == []
+
+
+def test_every_export_is_logged_without_values(db):
+    save(db, "multi_values")
+    export(db, "csv")
+    export(db, "json", status="approved")
+
+    assert export_log(db) == [
+        {"user_id": USER.id, "format": "csv", "record_count": 2},
+        {"user_id": USER.id, "format": "json", "record_count": 0},
+    ]
+
+
+def test_too_many_records_is_refused_and_not_logged(db, monkeypatch):
+    monkeypatch.setattr(review, "MAX_EXPORT", 1)
+    save(db, "multi_values")
+
+    refused = problem(db, review.export_records, USER, export_format="csv", now=NOW)
+    assert (refused.status, refused.type) == (422, "export_too_large")
+    assert export_log(db) == []

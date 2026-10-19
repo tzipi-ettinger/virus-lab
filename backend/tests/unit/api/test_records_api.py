@@ -2,6 +2,7 @@
 (Dev-B plan B1.5). The logic itself is tested in tests/unit/storage/test_review.py."""
 
 import asyncio
+import codecs
 from datetime import UTC, date, datetime
 from pathlib import Path
 
@@ -9,6 +10,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app.auth.passwords import hash_password
+from app.clock import israel_today
 from app.extraction.provider import PageImage
 from app.main import create_app
 from app.rules.engine import apply_rules
@@ -133,11 +135,43 @@ def test_delete_answers_no_content(signed_in, records):
     assert signed_in.get(url).status_code == 404
 
 
+def test_export_csv_is_a_download_of_the_filtered_records(signed_in, records):
+    response = signed_in.get(
+        "/api/v1/records/export", params={"format": "csv", "needs_review": "false"}
+    )
+
+    assert response.status_code == 200
+    assert response.headers["content-type"] == "text/csv; charset=utf-8"
+    assert response.headers["content-disposition"] == (
+        f'attachment; filename="records-{israel_today().isoformat()}.csv"'
+    )
+    assert response.headers["cache-control"] == "no-store"
+    assert response.content.startswith(codecs.BOM_UTF8)
+    lines = response.content.decode("utf-8-sig").splitlines()
+    assert len(lines) == 2  # the header and the one ready record
+    assert "011223344" in lines[1]
+
+
+def test_export_json_is_the_list_of_records(signed_in, records):
+    response = signed_in.get("/api/v1/records/export", params={"format": "json"})
+
+    assert response.status_code == 200
+    assert response.headers["content-type"] == "application/json"
+    assert response.headers["content-disposition"].endswith(f'{israel_today().isoformat()}.json"')
+    assert {r["record_id"] for r in response.json()} == {r.record_id for r in records.values()}
+
+
+def test_export_needs_a_known_format(signed_in):
+    response = signed_in.get("/api/v1/records/export", params={"format": "xlsx"})
+    assert response.status_code == 422
+
+
 @pytest.mark.parametrize(
     ("method", "path"),
     [
         ("get", "/api/v1/records"),
         ("get", "/api/v1/records/r1"),
+        ("get", "/api/v1/records/export?format=csv"),
         ("patch", "/api/v1/records/r1"),
         ("post", "/api/v1/records/r1/approve"),
         ("post", "/api/v1/records/approve"),

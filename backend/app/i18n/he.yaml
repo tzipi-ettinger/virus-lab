@@ -22,3 +22,28 @@ issues:
   PAGE_GROUPING_UNCERTAIN: עמוד בלי מספר מרכזי שלא תואם לטופס הקודם — יש לבדוק
   EXTRACTION_FAILED: הקריאה נכשלה — נסי שוב
   INVALID_FILE: לא ניתן לקרוא את הקובץ
+
+# The records file (SPEC 10, export/records_export.py).
+export:
+  # The header row, in the order of the guidelines.
+  columns:
+    first_name: שם פרטי
+    last_name: שם משפחה
+    national_id: מספר תעודת זהות
+    central_numbers: מספר מרכזי
+    received_date: תאריך קבלת הדגימה
+    sender: גורם שולח
+    commitment_number: מספר התחייבות
+    review: לבדיקה
+    touched: תוקן / אושר ידנית
+    source_file: קובץ מקור
+    page_number: עמוד
+  # A field's name inside a cell: "ת״ז: מספר ת״ז לא תקין".
+  fields:
+    first_name: שם פרטי
+    last_name: שם משפחה
+    national_id: ת״ז
+    central_numbers: מספר מרכזי
+    received_date: תאריך קבלה
+    sender: גורם שולח
+    commitment_number: מספר התחייבות
