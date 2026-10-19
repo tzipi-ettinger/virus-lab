@@ -186,6 +186,12 @@ function finish(items: UploadItem[], key: string, outcome: Outcome): UploadItem[
   });
 }
 
+// Files still waiting or being sent. Closing or reloading the page now would drop
+// the ones waiting without a word: only the file already sent is finished by the server.
+export function hasUnsentFiles(items: UploadItem[]): boolean {
+  return items.some((i) => i.status === "queued" || i.status === "sending");
+}
+
 // Every 200 answer goes to onResult as soon as it arrives, so the review table
 // fills in while the other files are still being read.
 export function useExtract(onResult: (result: ExtractResponse) => void) {
@@ -209,6 +215,18 @@ export function useExtract(onResult: (result: ExtractResponse) => void) {
       if ("result" in outcome && outcome.result) onResultRef.current(outcome.result);
     });
   }, [items]);
+
+  // The browser's own "leave this page?" dialog, only while there is something to lose.
+  const busy = hasUnsentFiles(items);
+  useEffect(() => {
+    if (!busy) return;
+    const warn = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = ""; // older browsers show the dialog only when this is set
+    };
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, [busy]);
 
   return {
     items,
