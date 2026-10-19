@@ -116,3 +116,22 @@ def test_the_app_puts_the_filter_on_uvicorns_access_log_once():
 
     filters = logging.getLogger("uvicorn.access").filters
     assert sum(isinstance(f, DropQueryString) for f in filters) == 1
+
+
+def test_an_unexpected_error_answers_500_and_logs_no_values(caplog):
+    app = create_app(Settings(_env_file=None, database_url=""))
+
+    @app.get("/api/boom")
+    def boom():
+        raise ValueError("Key (national_id)=(011223344) for ישראל ישראלי")
+
+    with caplog.at_level(logging.DEBUG):
+        response = TestClient(app).get("/api/boom")
+
+    assert response.status_code == 500
+    assert response.headers["content-type"] == "application/problem+json"
+    assert response.json()["type"] == "internal_error"
+    assert response.headers["x-content-type-options"] == "nosniff"
+    assert "011223344" not in caplog.text
+    assert "ישראלי" not in caplog.text
+    assert "unexpected ValueError on GET /api/boom" in caplog.text

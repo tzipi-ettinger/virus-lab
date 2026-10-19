@@ -12,6 +12,11 @@ import logging
 from starlette.datastructures import MutableHeaders
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
+from app.api.errors import problem_response
+from app.schemas.api import Problem
+
+logger = logging.getLogger(__name__)
+
 # Everything from our own origin. blob: and data: for the page images the preview
 # draws. No framing (clickjacking), no plugins, no other site as a form target.
 CSP = (
@@ -57,6 +62,41 @@ class SecurityHeaders:
             await send(message)
 
         await self.app(scope, receive, send_with_headers)
+
+
+class HideUnexpectedErrors:
+    """An error nobody handled answers a plain 500 and logs its type and path only.
+
+    Left alone, uvicorn would log the traceback and the error's text, and a database
+    or validation error can quote the values it choked on (a national ID, a name).
+    """
+
+    def __init__(self, app: ASGIApp) -> None:
+        self.app = app
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+        started = False
+
+        async def track(message: Message) -> None:
+            nonlocal started
+            if message["type"] == "http.response.start":
+                started = True
+            await send(message)
+
+        try:
+            await self.app(scope, receive, track)
+        except Exception as exc:
+            logger.error(
+                "unexpected %s on %s %s", type(exc).__name__, scope["method"], scope["path"]
+            )
+            if not started:  # otherwise the client already has part of an answer
+                problem = Problem(
+                    type="internal_error", title="משהו השתבש בשרת. אפשר לנסות שוב", status=500
+                )
+                await problem_response(problem)(scope, receive, send)
 
 
 class DropQueryString(logging.Filter):
