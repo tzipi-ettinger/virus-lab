@@ -2,10 +2,14 @@
 
 Every call counts against the free tier's 20 requests a day, failed ones too, so
 retries are few and deliberate:
-- the daily quota is used up -> QuotaExhausted at once, never retried (the batch stops);
+- the daily quota is used up -> the same page goes to the next key (GEMINI_API_KEYS,
+  one per project: the quota is per project), and the used-up key is skipped until
+  the quota resets; once every key is used up, QuotaExhausted (the batch stops);
+- the key itself is refused (invalid, revoked, API off) -> the next key too, and
+  the refused key is skipped for an hour;
 - too many requests this minute (429) -> one retry after the delay Gemini asks for,
-  if it is short; 500 / 502 / 503 / 504, or no connection at all -> one retry after
-  a pause;
+  if it is short, else the next key;
+- 500 / 502 / 503 / 504, or no connection at all -> one retry after a pause;
 - anything else (a bad request, a timeout, an answer that doesn't fit the schema,
   any other error from the client) -> ProviderError, no retry.
 The client's own retries are off (google-genai's default), so a call is never
@@ -24,8 +28,10 @@ import asyncio
 import json
 import logging
 import re
-from collections.abc import Awaitable, Callable
+from collections.abc import Awaitable, Callable, Sequence
+from datetime import UTC, datetime, time, timedelta
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 import httpx  # comes with google-genai, which raises its transport errors as is
 from google import genai
@@ -41,8 +47,13 @@ logger = logging.getLogger(__name__)
 PROMPT_FILE = Path(__file__).with_name("prompts") / "v4.md"
 MAX_ATTEMPTS = 2
 SERVER_ERROR_WAIT_S = 5.0
-MAX_RATE_WAIT_S = 30.0  # if Gemini asks for a longer wait, fail the page instead
+MAX_RATE_WAIT_S = 30.0  # if Gemini asks for a longer wait, try the next key instead
 _RETRYABLE = {429, 500, 502, 503, 504}
+# The daily quota resets at midnight Pacific time (Gemini API rate-limit docs).
+QUOTA_RESET_ZONE = ZoneInfo("America/Los_Angeles")
+# A refused key may be fixed in Google's console (API turned on, say): ask it again
+# after this, rather than only after a restart.
+REFUSED_KEY_REST = timedelta(hours=1)
 
 QUOTA_MESSAGE = "המכסה היומית של Gemini נגמרה. אפשר לנסות שוב מחר"
 RATE_MESSAGE = "יותר מדי בקשות ל־Gemini בדקה האחרונה. אפשר לנסות שוב בעוד דקה"
@@ -50,6 +61,8 @@ UNAVAILABLE_MESSAGE = "שירות Gemini לא זמין כרגע. אפשר לנס
 TIMEOUT_MESSAGE = "Gemini לא ענה בזמן. אפשר לנסות שוב"
 BAD_ANSWER_MESSAGE = "התשובה של Gemini לא הייתה תקינה. אפשר לנסות שוב"
 FAILED_MESSAGE = "הפנייה ל־Gemini נכשלה"
+# Every key refused: nothing the user can do but tell whoever runs the server.
+KEYS_REFUSED_MESSAGE = "Gemini דחה את מפתחות ה־API של השרת. יש לפנות למי שמנהל את השרת"
 
 
 def load_prompt(path: Path = PROMPT_FILE) -> str:
@@ -61,15 +74,24 @@ def load_prompt(path: Path = PROMPT_FILE) -> str:
 class GeminiProvider:
     def __init__(
         self,
-        client: genai.Client,
+        clients: Sequence[genai.Client],
         model: str,
         *,
         max_concurrency: int,
         timeout_s: float,
         prompt: str | None = None,
         sleep: Callable[[float], Awaitable[None]] = asyncio.sleep,
+        now: Callable[[], datetime] = lambda: datetime.now(UTC),
     ) -> None:
-        self._client = client
+        if not clients:
+            raise ValueError("GeminiProvider needs at least one client")
+        self._clients = list(clients)  # one per key, in the order of GEMINI_API_KEYS
+        self._current = 0  # the key in use, shared by every upload on the server
+        # Keys skipped until a time, with what they failed with: out of daily quota
+        # until it resets, refused for a while. Once every key is out, a page then
+        # fails at once instead of spending one request per key.
+        self._resting: dict[int, tuple[datetime, _KeyFailure]] = {}
+        self._now = now  # tests pass a fake clock
         self._model = model
         self._timeout_s = timeout_s
         self._prompt = prompt if prompt is not None else load_prompt()
@@ -95,32 +117,61 @@ class GeminiProvider:
     async def extract(self, page: PageImage) -> RawExtraction:
         contents = [types.Part.from_bytes(data=page.jpeg, mime_type="image/jpeg"), self._prompt]
         async with self._semaphore:
-            for attempt in range(1, MAX_ATTEMPTS + 1):
+            # Every key once, starting from the one in use. The order is fixed here,
+            # not read again from _current, which other pages move meanwhile. Wrapping
+            # around means a key that ran out yesterday is found again once it's back.
+            count = len(self._clients)
+            start = self._current
+            failures: list[_KeyFailure] = []
+            for key in [(start + step) % count for step in range(count)]:
+                resting = self._resting.get(key)
+                if resting is not None and self._now() < resting[0]:
+                    failures.append(resting[1])  # known to fail: don't spend a request on it
+                    continue
                 try:
-                    return await self._call(contents)
-                except errors.APIError as exc:
-                    wait = self._retry_wait(exc, attempt)
-                    if wait is None:
-                        raise _provider_error(exc) from None
-                    reason = f"{exc.code} {exc.status}"
-                except httpx.TransportError as exc:  # no answer at all: refused, reset, DNS
-                    if attempt == MAX_ATTEMPTS:
-                        logger.warning("gemini unreachable: %s", type(exc).__name__)
-                        raise ProviderError(UNAVAILABLE_MESSAGE) from None
-                    wait, reason = SERVER_ERROR_WAIT_S, type(exc).__name__
-                except ProviderError:  # from _call: already a message for the user
-                    raise
-                except Exception as exc:  # keep the contract: a provider raises only these two
-                    logger.error("gemini call failed unexpectedly: %s", type(exc).__name__)
-                    raise ProviderError(FAILED_MESSAGE) from None
-                logger.warning("gemini %s, retrying in %.0fs", reason, wait)
-                await self._sleep(wait)
+                    result = await self._extract_with(self._clients[key], contents)
+                except _KEY_FAILURES as exc:  # this key only: try the next
+                    logger.warning("gemini key %d of %d %s", key + 1, count, _why(exc))
+                    failures.append(exc)
+                    if (until := _rest_until(exc, self._now())) is not None:
+                        self._resting[key] = (until, exc)
+                    # So pages starting now skip it; unless another page moved on already.
+                    if self._current == key:
+                        self._current = (key + 1) % count
+                    continue
+                self._current = key  # a key that answers: later pages start here
+                return result
+        if count > 1:
+            logger.warning("gemini: none of the %d keys could be used", count)
+        raise _no_key_left(failures)
+
+    async def _extract_with(self, client: genai.Client, contents: list) -> RawExtraction:
+        for attempt in range(1, MAX_ATTEMPTS + 1):
+            try:
+                return await self._call(client, contents)
+            except errors.APIError as exc:
+                wait = self._retry_wait(exc, attempt)
+                if wait is None:
+                    raise _provider_error(exc) from None
+                reason = f"{exc.code} {exc.status}"
+            except httpx.TransportError as exc:  # no answer at all: refused, reset, DNS
+                if attempt == MAX_ATTEMPTS:
+                    logger.warning("gemini unreachable: %s", type(exc).__name__)
+                    raise ProviderError(UNAVAILABLE_MESSAGE) from None
+                wait, reason = SERVER_ERROR_WAIT_S, type(exc).__name__
+            except ProviderError:  # from _call: already a message for the user
+                raise
+            except Exception as exc:  # keep the contract: a provider raises only these two
+                logger.error("gemini call failed unexpectedly: %s", type(exc).__name__)
+                raise ProviderError(FAILED_MESSAGE) from None
+            logger.warning("gemini %s, retrying in %.0fs", reason, wait)
+            await self._sleep(wait)
         raise AssertionError("unreachable: the last attempt returns or raises")
 
-    async def _call(self, contents: list) -> RawExtraction:
+    async def _call(self, client: genai.Client, contents: list) -> RawExtraction:
         try:
             async with asyncio.timeout(self._timeout_s):
-                response = await self._client.aio.models.generate_content(
+                response = await client.aio.models.generate_content(
                     model=self._model, contents=contents, config=self._config
                 )
         except TimeoutError:
@@ -148,12 +199,62 @@ class GeminiProvider:
         return SERVER_ERROR_WAIT_S
 
 
+class _KeyRejected(ProviderError):
+    """The key itself was refused (revoked, invalid, API off): another key may work.
+
+    A ProviderError, so if it ever got out of extract() it would still fail just the page.
+    """
+
+
+class _RateLimited(ProviderError):
+    """Over this key's per-minute limit, and the wait is too long: another key's
+    project has its own limit."""
+
+
+_KeyFailure = QuotaExhausted | _KeyRejected | _RateLimited
+_KEY_FAILURES = (QuotaExhausted, _KeyRejected, _RateLimited)
+
+
+def _why(failure: _KeyFailure) -> str:
+    if isinstance(failure, QuotaExhausted):
+        return "is out of daily quota"
+    if isinstance(failure, _RateLimited):
+        return "is over its per-minute limit"
+    return "was refused"
+
+
+def _rest_until(failure: _KeyFailure, now: datetime) -> datetime | None:
+    """Until when not to ask this key again, or None to ask it on the next page."""
+    if isinstance(failure, QuotaExhausted):
+        return next_quota_reset(now)
+    if isinstance(failure, _KeyRejected):
+        return now + REFUSED_KEY_REST
+    return None  # over its minute: passes before a skip would help
+
+
+def next_quota_reset(now: datetime) -> datetime:
+    """The next midnight in Pacific time, after `now` (timezone-aware)."""
+    tomorrow = now.astimezone(QUOTA_RESET_ZONE).date() + timedelta(days=1)
+    return datetime.combine(tomorrow, time(), QUOTA_RESET_ZONE)
+
+
+def _no_key_left(failures: list[_KeyFailure]) -> ProviderError | QuotaExhausted:
+    """What the page fails with once every key failed: the soonest to pass wins."""
+    if any(isinstance(failure, _RateLimited) for failure in failures):
+        return ProviderError(RATE_MESSAGE)  # a minute away: the batch goes on
+    if any(isinstance(failure, QuotaExhausted) for failure in failures):
+        return QuotaExhausted(QUOTA_MESSAGE)  # no key will do until tomorrow: stop the batch
+    return ProviderError(KEYS_REFUSED_MESSAGE)
+
+
 def _provider_error(exc: errors.APIError) -> ProviderError | QuotaExhausted:
     logger.warning("gemini failed: %s %s", exc.code, exc.status)
     if exc.code == 429 and _is_daily_quota(exc):
         return QuotaExhausted(QUOTA_MESSAGE)
+    if _is_bad_key(exc):
+        return _KeyRejected(KEYS_REFUSED_MESSAGE)
     if exc.code == 429:
-        return ProviderError(RATE_MESSAGE)
+        return _RateLimited(RATE_MESSAGE)
     if exc.code in _RETRYABLE:
         return ProviderError(UNAVAILABLE_MESSAGE)
     return ProviderError(FAILED_MESSAGE)
@@ -163,6 +264,13 @@ def _is_daily_quota(exc: errors.APIError) -> bool:
     # The violated quota's id names the period, e.g.
     # "GenerateRequestsPerDayPerProjectPerModel-FreeTier" (seen in the spike).
     return "PerDay" in str(exc.details)
+
+
+def _is_bad_key(exc: errors.APIError) -> bool:
+    # A wrong key is a 400 whose ErrorInfo reason is API_KEY_INVALID; a revoked or
+    # leaked key, or a project with the API off, is a 403. Any other 400 is about
+    # the page, and would fail on every key.
+    return exc.code in (401, 403) or (exc.code == 400 and "API_KEY_INVALID" in str(exc.details))
 
 
 def _retry_delay(exc: errors.APIError) -> float | None:

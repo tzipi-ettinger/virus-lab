@@ -111,7 +111,7 @@ docker compose up -d db         # מהשורש: Postgres 17 מקומי, ועוד
 cd backend
 py -3.13 -m venv .venv
 .\.venv\Scripts\python.exe -m pip install -r requirements.txt
-copy .env.example .env          # ואז להדביק את המפתח ב־GEMINI_API_KEY
+copy .env.example .env          # ואז להדביק את המפתחות ב־GEMINI_API_KEYS
 .\.venv\Scripts\python.exe -m uvicorn app.main:app --reload --port 8000
 ```
 
@@ -168,7 +168,8 @@ EXTRACTION_PROVIDER=fake
 
 | משתנה | ברירת מחדל | תיאור |
 |---|---|---|
-| `GEMINI_API_KEY` | — | **חובה** כש־`EXTRACTION_PROVIDER=gemini`. לא נכנס ל־Git |
+| `GEMINI_API_KEYS` | — | **חובה** כש־`EXTRACTION_PROVIDER=gemini`. מפתח אחד לכל פרויקט ב־Google, מופרדים בפסיקים. כשהמכסה היומית של מפתח נגמרת, עוברים למפתח הבא. לא נכנס ל־Git |
+| `GEMINI_API_KEY` | — | השם הישן למפתח יחיד. עדיין נקרא, ונוסף אחרי `GEMINI_API_KEYS` |
 | `GEMINI_MODEL` | `gemini-3.8-flash` | החלפת מודל בלי שינוי קוד |
 | `GEMINI_THINKING` | `low` | `low` / `medium` / `high` |
 | `EXTRACTION_PROVIDER` | `gemini` | `gemini` / `fake` 🚧 |

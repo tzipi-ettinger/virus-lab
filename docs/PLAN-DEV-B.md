@@ -302,7 +302,7 @@ INDEX: record(status, received_date), record(national_id), record(commitment_num
   3. FastAPI מגיש את `dist` עם fallback לנתיבי ה־SPA.
 
   כך ה־frontend וה־API יושבים באותו origin, ובפרודקשן אין CORS.
-- **Render:** Web Service מסוג Docker עם deploy אוטומטי מ־`main`. הסודות (`DATABASE_URL`, `GEMINI_API_KEY`, `SESSION_SECRET` אם יידרש) נשמרים רק ב־Environment של Render.
+- **Render:** Web Service מסוג Docker עם deploy אוטומטי מ־`main`. הסודות (`DATABASE_URL`, `GEMINI_API_KEYS`, `SESSION_SECRET` אם יידרש) נשמרים רק ב־Environment של Render.
 - **Postgres של Render:** באותו אזור כמו השרת (Frankfurt). מסד חינמי אחד לכל workspace (החלטה D2).
 - **כותרות אבטחה:**
   - `Content-Security-Policy: default-src 'self'; img-src 'self' blob: data:; frame-ancestors 'none'`

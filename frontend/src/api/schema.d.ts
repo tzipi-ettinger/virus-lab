@@ -565,7 +565,7 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        [key: string]: string | boolean;
+                        [key: string]: string | boolean | number;
                     };
                 };
             };

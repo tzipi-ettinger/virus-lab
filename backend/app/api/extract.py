@@ -20,6 +20,7 @@ from uuid import uuid4
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import JSONResponse
 from google import genai
+from pydantic import SecretStr
 from python_multipart.multipart import parse_options_header
 from starlette.datastructures import UploadFile
 from starlette.formparsers import MultiPartException, MultiPartParser
@@ -129,11 +130,12 @@ def _fake_provider() -> FakeProvider:
 
 @lru_cache
 def _gemini_provider(
-    api_key: str, model: str, max_concurrency: int, timeout_s: int
+    api_keys: tuple[SecretStr, ...], model: str, max_concurrency: int, timeout_s: int
 ) -> GeminiProvider:
     # One provider per configuration, so its semaphore limits the whole server.
+    # The keys stay SecretStr up to here: a traceback through the cache shows ******.
     return GeminiProvider(
-        genai.Client(api_key=api_key),
+        [genai.Client(api_key=key.get_secret_value()) for key in api_keys],
         model,
         max_concurrency=max_concurrency,
         timeout_s=timeout_s,
@@ -152,7 +154,7 @@ def get_provider(settings: SettingsDep) -> ExtractionProvider:
             return _fake_provider()  # no quota to save: the cache is never in front of it
         case "gemini":
             gemini = _gemini_provider(
-                settings.gemini_api_key.get_secret_value(),
+                settings.gemini_keys(),
                 settings.gemini_model,
                 settings.max_concurrency,
                 settings.provider_timeout_s,

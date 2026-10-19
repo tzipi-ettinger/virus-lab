@@ -18,6 +18,7 @@ def test_health_returns_ok_and_the_provider():
         "status": "ok",
         "extraction_provider": "fake",
         "extraction_cache": False,
+        "gemini_keys": 0,
     }
 
 
@@ -28,6 +29,15 @@ def test_health_shows_when_the_server_reads_with_gemini():
 
     assert response.json()["extraction_provider"] == "gemini"
     assert "k" not in response.json().values()  # never the key
+
+
+def test_health_counts_the_keys_but_never_shows_them():
+    response = client(
+        extraction_provider="gemini", gemini_api_keys="key-a,key-b,key-c", gemini_model="m"
+    ).get("/api/health")
+
+    assert response.json()["gemini_keys"] == 3
+    assert "key-a" not in response.text
 
 
 def test_health_shows_when_the_dev_cache_is_on():
