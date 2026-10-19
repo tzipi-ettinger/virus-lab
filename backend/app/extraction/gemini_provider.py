@@ -3,9 +3,10 @@
 Every call counts against the free tier's 20 requests a day, failed ones too, so
 retries are few and deliberate:
 - the daily quota is used up -> the same page goes to the next key (GEMINI_API_KEYS,
-  one per project: the quota is per project); once every key is used up,
-  QuotaExhausted (the batch stops);
-- the key itself is refused (invalid, revoked, API off) -> the next key too;
+  one per project: the quota is per project), and the used-up key is skipped until
+  the quota resets; once every key is used up, QuotaExhausted (the batch stops);
+- the key itself is refused (invalid, revoked, API off) -> the next key too, and
+  the refused key is skipped for an hour;
 - too many requests this minute (429) -> one retry after the delay Gemini asks for,
   if it is short, else the next key;
 - 500 / 502 / 503 / 504, or no connection at all -> one retry after a pause;
@@ -27,7 +28,9 @@ import asyncio
 import logging
 import re
 from collections.abc import Awaitable, Callable, Sequence
+from datetime import UTC, datetime, time, timedelta
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 import httpx  # comes with google-genai, which raises its transport errors as is
 from google import genai
@@ -45,6 +48,11 @@ MAX_ATTEMPTS = 2
 SERVER_ERROR_WAIT_S = 5.0
 MAX_RATE_WAIT_S = 30.0  # if Gemini asks for a longer wait, try the next key instead
 _RETRYABLE = {429, 500, 502, 503, 504}
+# The daily quota resets at midnight Pacific time (Gemini API rate-limit docs).
+QUOTA_RESET_ZONE = ZoneInfo("America/Los_Angeles")
+# A refused key may be fixed in Google's console (API turned on, say): ask it again
+# after this, rather than only after a restart.
+REFUSED_KEY_REST = timedelta(hours=1)
 
 QUOTA_MESSAGE = "המכסה היומית של Gemini נגמרה. אפשר לנסות שוב מחר"
 RATE_MESSAGE = "יותר מדי בקשות ל־Gemini בדקה האחרונה. אפשר לנסות שוב בעוד דקה"
@@ -70,11 +78,17 @@ class GeminiProvider:
         timeout_s: float,
         prompt: str | None = None,
         sleep: Callable[[float], Awaitable[None]] = asyncio.sleep,
+        now: Callable[[], datetime] = lambda: datetime.now(UTC),
     ) -> None:
         if not clients:
             raise ValueError("GeminiProvider needs at least one client")
         self._clients = list(clients)  # one per key, in the order of GEMINI_API_KEYS
         self._current = 0  # the key in use, shared by every upload on the server
+        # Keys skipped until a time, with what they failed with: out of daily quota
+        # until it resets, refused for a while. Once every key is out, a page then
+        # fails at once instead of spending one request per key.
+        self._resting: dict[int, tuple[datetime, _KeyFailure]] = {}
+        self._now = now  # tests pass a fake clock
         self._model = model
         self._timeout_s = timeout_s
         self._prompt = prompt if prompt is not None else load_prompt()
@@ -99,11 +113,17 @@ class GeminiProvider:
             start = self._current
             failures: list[_KeyFailure] = []
             for key in [(start + step) % count for step in range(count)]:
+                resting = self._resting.get(key)
+                if resting is not None and self._now() < resting[0]:
+                    failures.append(resting[1])  # known to fail: don't spend a request on it
+                    continue
                 try:
                     result = await self._extract_with(self._clients[key], contents)
                 except _KEY_FAILURES as exc:  # this key only: try the next
                     logger.warning("gemini key %d of %d %s", key + 1, count, _why(exc))
                     failures.append(exc)
+                    if (until := _rest_until(exc, self._now())) is not None:
+                        self._resting[key] = (until, exc)
                     # So pages starting now skip it; unless another page moved on already.
                     if self._current == key:
                         self._current = (key + 1) % count
@@ -190,6 +210,21 @@ def _why(failure: _KeyFailure) -> str:
     if isinstance(failure, _RateLimited):
         return "is over its per-minute limit"
     return "was refused"
+
+
+def _rest_until(failure: _KeyFailure, now: datetime) -> datetime | None:
+    """Until when not to ask this key again, or None to ask it on the next page."""
+    if isinstance(failure, QuotaExhausted):
+        return next_quota_reset(now)
+    if isinstance(failure, _KeyRejected):
+        return now + REFUSED_KEY_REST
+    return None  # over its minute: passes before a skip would help
+
+
+def next_quota_reset(now: datetime) -> datetime:
+    """The next midnight in Pacific time, after `now` (timezone-aware)."""
+    tomorrow = now.astimezone(QUOTA_RESET_ZONE).date() + timedelta(days=1)
+    return datetime.combine(tomorrow, time(), QUOTA_RESET_ZONE)
 
 
 def _no_key_left(failures: list[_KeyFailure]) -> ProviderError | QuotaExhausted:

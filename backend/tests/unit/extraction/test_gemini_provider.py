@@ -1,5 +1,6 @@
 import asyncio
 import logging
+from datetime import UTC, datetime, timedelta
 
 import httpx
 import pytest
@@ -75,6 +76,18 @@ class FakeClient:
             return Response(step)
         finally:
             self.in_flight -= 1
+
+
+class Clock:
+    def __init__(self, now: datetime) -> None:
+        self.now = now
+
+    def __call__(self) -> datetime:
+        return self.now
+
+
+# 10:00 in California (UTC-7 in summer): the daily quota resets in 14 hours.
+MORNING = datetime(2026, 10, 19, 17, 0, tzinfo=UTC)
 
 
 class Sleeps:
@@ -169,12 +182,13 @@ def test_every_key_used_up_stops_the_batch():
 
 
 def test_the_keys_wrap_around_so_a_renewed_quota_is_found_again():
-    # Both keys run out on one page; by the next page key 1 has its quota back (a new day).
-    first, second = FakeClient(DAILY, ANSWER), FakeClient(DAILY)
-    shared = provider([first, second])
+    # Both keys run out on one page; after midnight Pacific key 1 has its quota back.
+    first, second, clock = FakeClient(DAILY, ANSWER), FakeClient(DAILY), Clock(MORNING)
+    shared = provider([first, second], now=clock)
 
     with pytest.raises(QuotaExhausted):
         run(shared.extract(PAGE))
+    clock.now += timedelta(hours=14)
     result = run(shared.extract(PAGE))
 
     assert isinstance(result, RawExtraction)
@@ -184,7 +198,8 @@ def test_the_keys_wrap_around_so_a_renewed_quota_is_found_again():
 def test_pages_at_once_each_try_every_key_exactly_once():
     # Seen in review: the loop read the shared key again on each pass. Page A runs
     # through keys 1, 2, 3 and wraps the shared key back to 1 while page B, slow on
-    # key 1, is on key 3: B then asked key 1 again and never asked key 2.
+    # key 1, is on key 3: B then asked key 1 again and never asked key 2. Now B
+    # skips key 2, which A found used up, and asks key 3 once.
     unit = 0.1  # wide enough for Windows' 15ms timer
     clients = [
         FakeClient(DAILY, delay=[unit, 2.5 * unit]),
@@ -201,7 +216,7 @@ def test_pages_at_once_each_try_every_key_exactly_once():
     results = run(two_pages())
 
     assert all(isinstance(result, QuotaExhausted) for result in results)
-    assert [len(client.calls) for client in clients] == [2, 2, 2]
+    assert [len(client.calls) for client in clients] == [2, 1, 2]
 
 
 def test_the_log_does_not_promise_a_next_key_that_is_not_there(caplog):
@@ -211,6 +226,46 @@ def test_the_log_does_not_promise_a_next_key_that_is_not_there(caplog):
 
     assert "moving" not in caplog.text
     assert "none of the 2 keys could be used" in caplog.text
+
+
+def test_once_every_key_is_used_up_later_pages_fail_without_asking():
+    clients = [FakeClient(DAILY), FakeClient(DAILY)]
+    shared = provider(clients, now=Clock(MORNING))
+
+    for _ in range(3):
+        with pytest.raises(QuotaExhausted):
+            run(shared.extract(PAGE))
+
+    assert [len(client.calls) for client in clients] == [1, 1]
+
+
+def test_a_used_up_key_is_asked_again_only_after_midnight_pacific():
+    used_up, other, clock = FakeClient(DAILY, ANSWER), FakeClient(ANSWER), Clock(MORNING)
+    shared = provider([used_up, other], now=clock)
+    run(shared.extract(PAGE))  # key 1 runs out, key 2 answers
+
+    other.script = [DAILY]  # key 2 runs out too, a minute before midnight
+    clock.now += timedelta(hours=13, minutes=59)
+    with pytest.raises(QuotaExhausted):
+        run(shared.extract(PAGE))
+    assert len(used_up.calls) == 1  # still resting
+
+    clock.now += timedelta(minutes=1)
+    assert isinstance(run(shared.extract(PAGE)), RawExtraction)
+    assert len(used_up.calls) == 2
+
+
+@pytest.mark.parametrize(
+    "now, reset",
+    [
+        # 10:00 PDT -> midnight PDT (07:00 UTC)
+        (MORNING, datetime(2026, 10, 20, 7, 0, tzinfo=UTC)),
+        # 23:30 PST on the day the clocks go back -> midnight PST (08:00 UTC)
+        (datetime(2026, 11, 2, 7, 30, tzinfo=UTC), datetime(2026, 11, 2, 8, 0, tzinfo=UTC)),
+    ],
+)
+def test_the_quota_resets_at_the_next_midnight_pacific(now, reset):
+    assert gemini_provider.next_quota_reset(now) == reset
 
 
 REVOKED = api_error(403, "PERMISSION_DENIED")
@@ -231,6 +286,24 @@ def test_a_refused_key_hands_the_page_to_the_next_key(refused):
     run(shared.extract(PAGE))
 
     assert len(bad.calls) == 1 and len(good.calls) == 2
+
+
+def test_a_refused_key_is_asked_again_after_an_hour():
+    # It may be fixed in Google's console meanwhile, with no restart.
+    bad, good, clock = FakeClient(REVOKED, ANSWER), FakeClient(ANSWER), Clock(MORNING)
+    shared = provider([bad, good], now=clock)
+    run(shared.extract(PAGE))
+
+    def next_page_from_key_1():  # as if another page had just moved back to key 1
+        shared._current = 0
+        run(shared.extract(PAGE))
+
+    next_page_from_key_1()
+    assert len(bad.calls) == 1  # resting: skipped
+
+    clock.now += gemini_provider.REFUSED_KEY_REST
+    next_page_from_key_1()
+    assert len(bad.calls) == 2
 
 
 def test_a_bad_request_about_the_page_does_not_try_the_other_keys():
