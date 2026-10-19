@@ -5,6 +5,7 @@ retries are few and deliberate:
 - the daily quota is used up -> the same page goes to the next key (GEMINI_API_KEYS,
   one per project: the quota is per project); once every key is used up,
   QuotaExhausted (the batch stops);
+- the key itself is refused (invalid, revoked, API off) -> the next key too;
 - too many requests this minute (429) -> one retry after the delay Gemini asks for,
   if it is short; 500 / 502 / 503 / 504, or no connection at all -> one retry after
   a pause;
@@ -96,11 +97,18 @@ class GeminiProvider:
             # around means a key that ran out yesterday is found again once it's back.
             count = len(self._clients)
             start = self._current
+            failures: list[QuotaExhausted | _KeyRejected] = []
             for key in [(start + step) % count for step in range(count)]:
                 try:
                     result = await self._extract_with(self._clients[key], contents)
-                except QuotaExhausted:
-                    logger.warning("gemini key %d of %d is out of daily quota", key + 1, count)
+                except (QuotaExhausted, _KeyRejected) as exc:  # this key only: try the next
+                    why = (
+                        "is out of daily quota"
+                        if isinstance(exc, QuotaExhausted)
+                        else "was refused"
+                    )
+                    logger.warning("gemini key %d of %d %s", key + 1, count, why)
+                    failures.append(exc)
                     # So pages starting now skip it; unless another page moved on already.
                     if self._current == key:
                         self._current = (key + 1) % count
@@ -108,8 +116,10 @@ class GeminiProvider:
                 self._current = key  # a key that answers: later pages start here
                 return result
         if count > 1:
-            logger.warning("gemini: all %d keys are out of daily quota", count)
-        raise QuotaExhausted(QUOTA_MESSAGE)
+            logger.warning("gemini: none of the %d keys could be used", count)
+        if any(isinstance(failure, QuotaExhausted) for failure in failures):
+            raise QuotaExhausted(QUOTA_MESSAGE)  # stop the batch: no key will do until tomorrow
+        raise ProviderError(FAILED_MESSAGE)
 
     async def _extract_with(self, client: genai.Client, contents: list) -> RawExtraction:
         for attempt in range(1, MAX_ATTEMPTS + 1):
@@ -165,10 +175,19 @@ class GeminiProvider:
         return SERVER_ERROR_WAIT_S
 
 
+class _KeyRejected(ProviderError):
+    """The key itself was refused (revoked, invalid, API off): another key may work.
+
+    A ProviderError, so if it ever got out of extract() it would still fail just the page.
+    """
+
+
 def _provider_error(exc: errors.APIError) -> ProviderError | QuotaExhausted:
     logger.warning("gemini failed: %s %s", exc.code, exc.status)
     if exc.code == 429 and _is_daily_quota(exc):
         return QuotaExhausted(QUOTA_MESSAGE)
+    if _is_bad_key(exc):
+        return _KeyRejected(FAILED_MESSAGE)
     if exc.code == 429:
         return ProviderError(RATE_MESSAGE)
     if exc.code in _RETRYABLE:
@@ -180,6 +199,13 @@ def _is_daily_quota(exc: errors.APIError) -> bool:
     # The violated quota's id names the period, e.g.
     # "GenerateRequestsPerDayPerProjectPerModel-FreeTier" (seen in the spike).
     return "PerDay" in str(exc.details)
+
+
+def _is_bad_key(exc: errors.APIError) -> bool:
+    # A wrong key is a 400 whose ErrorInfo reason is API_KEY_INVALID; a revoked or
+    # leaked key, or a project with the API off, is a 403. Any other 400 is about
+    # the page, and would fail on every key.
+    return exc.code in (401, 403) or (exc.code == 400 and "API_KEY_INVALID" in str(exc.details))
 
 
 def _retry_delay(exc: errors.APIError) -> float | None:

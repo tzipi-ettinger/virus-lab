@@ -210,7 +210,52 @@ def test_the_log_does_not_promise_a_next_key_that_is_not_there(caplog):
             run(provider([FakeClient(DAILY), FakeClient(DAILY)]).extract(PAGE))
 
     assert "moving" not in caplog.text
-    assert "all 2 keys are out of daily quota" in caplog.text
+    assert "none of the 2 keys could be used" in caplog.text
+
+
+REVOKED = api_error(403, "PERMISSION_DENIED")
+INVALID_KEY = api_error(
+    400,
+    "INVALID_ARGUMENT",
+    {"@type": "type.googleapis.com/google.rpc.ErrorInfo", "reason": "API_KEY_INVALID"},
+)
+
+
+@pytest.mark.parametrize("refused", [REVOKED, INVALID_KEY], ids=["revoked", "invalid"])
+def test_a_refused_key_hands_the_page_to_the_next_key(refused):
+    # Seen in review: a bad key failed every page and the server never left it.
+    bad, good = FakeClient(refused), FakeClient(ANSWER)
+    shared = provider([bad, good])
+
+    run(shared.extract(PAGE))
+    run(shared.extract(PAGE))
+
+    assert len(bad.calls) == 1 and len(good.calls) == 2
+
+
+def test_a_bad_request_about_the_page_does_not_try_the_other_keys():
+    # Any other 400 is about the page: every key would refuse it, and each try costs.
+    first, second = FakeClient(api_error(400, "INVALID_ARGUMENT")), FakeClient(ANSWER)
+
+    with pytest.raises(ProviderError) as error:
+        run(provider([first, second]).extract(PAGE))
+
+    assert error.value.message == gemini_provider.FAILED_MESSAGE
+    assert second.calls == []
+
+
+def test_every_key_refused_fails_the_page_but_not_the_batch():
+    with pytest.raises(ProviderError) as error:
+        run(provider([FakeClient(REVOKED), FakeClient(INVALID_KEY)]).extract(PAGE))
+
+    assert not isinstance(error.value, QuotaExhausted)
+    assert type(error.value) is ProviderError  # the private _KeyRejected stays inside
+    assert error.value.message == gemini_provider.FAILED_MESSAGE
+
+
+def test_used_up_and_refused_keys_together_stop_the_batch():
+    with pytest.raises(QuotaExhausted):
+        run(provider([FakeClient(DAILY), FakeClient(REVOKED)]).extract(PAGE))
 
 
 def test_a_per_minute_limit_does_not_switch_keys():
