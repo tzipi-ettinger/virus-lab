@@ -14,6 +14,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.api import auth, extract, health, records
 from app.api.errors import add_problem_handler
 from app.keep_alive import start_keep_alive, stop_keep_alive
+from app.security import SecurityHeaders
 from app.settings import Settings, get_settings
 from app.spa import mount_spa
 from app.storage.db import open_pool
@@ -58,6 +59,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
+    # Added last, so it wraps everything: errors and CORS answers get the headers too.
+    app.add_middleware(SecurityHeaders, production=settings.production)
     add_problem_handler(app)
     app.include_router(health.router)
     app.include_router(auth.router)

@@ -28,6 +28,8 @@ class Settings(BaseSettings):
     gemini_api_key: SecretStr = SecretStr("")
     gemini_model: str = ""
     frontend_origin: str = "http://localhost:5173"
+    # production on the live server (render.yaml): HSTS, and no /docs (app/security.py).
+    env: Literal["development", "production"] = "development"
     # Postgres (Dev-B plan B0.3): docker compose locally, Render's internal URL on the
     # live server. SecretStr, since the URL holds the password.
     database_url: SecretStr = SecretStr("")
@@ -81,6 +83,10 @@ class Settings(BaseSettings):
         raw = f"{self.gemini_api_keys.get_secret_value()},{self.gemini_api_key.get_secret_value()}"
         keys = dict.fromkeys(key.strip() for key in raw.split(",") if key.strip())
         return tuple(SecretStr(key) for key in keys)
+
+    @property
+    def production(self) -> bool:
+        return self.env == "production"
 
     @property
     def keep_alive_base_url(self) -> str:
