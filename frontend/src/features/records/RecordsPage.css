@@ -49,6 +49,40 @@
   outline-offset: 2px;
 }
 
+.records-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 12px;
+}
+
+.records-filters label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.9rem;
+  color: var(--color-text-muted, #52606d);
+}
+
+.records-filters .records-check {
+  flex-direction: row;
+  align-items: center;
+  padding-block-end: 8px;
+}
+
+.records-filters input,
+.records-filters select {
+  padding: 6px 8px;
+  font: inherit;
+  color: var(--color-text, #0f1b2a);
+  border: 1px solid var(--color-border-strong, #9fb3c8);
+  border-radius: var(--radius-md, 8px);
+}
+
+.records-search input {
+  min-inline-size: 260px;
+}
+
 .records-banner {
   display: flex;
   align-items: center;

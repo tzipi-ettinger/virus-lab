@@ -1,10 +1,12 @@
-// The records screen (PLAN-DEV-B 3.1): counts, the list and paging, all driven by
-// the filters in the URL.
+// The records screen (PLAN-DEV-B 3.1): counts, search and filters, the list and
+// paging, all driven by the filters in the URL.
 // Owner: B
 
+import { useCallback } from "react";
 import { useSearchParams } from "react-router";
 import type { components } from "../../api/schema";
 import { NO_FILTERS, PAGE_SIZE, hasFilters, parseFilters, toParams, withChange, type RecordFilters } from "./filters";
+import { RecordsFilters } from "./RecordsFilters";
 import { RecordsTable } from "./RecordsTable";
 import { useRecordsQuery } from "./useRecordsQuery";
 import "./RecordsPage.css";
@@ -15,7 +17,13 @@ export function RecordsPage() {
   const [params, setParams] = useSearchParams();
   const filters = parseFilters(params);
   const { query, reload } = useRecordsQuery(filters);
-  const change = (patch: Partial<RecordFilters>) => setParams(toParams(withChange(filters, patch)));
+  // useCallback: the search box waits on it, and a new function each render would
+  // restart its timer.
+  const change = useCallback(
+    (patch: Partial<RecordFilters>) =>
+      setParams((current) => toParams(withChange(parseFilters(current), patch))),
+    [setParams],
+  );
   const data = query.data;
 
   return (
@@ -24,6 +32,7 @@ export function RecordsPage() {
         רשומות
       </h1>
       {data && <Counts counts={data.counts} filters={filters} onPick={change} />}
+      <RecordsFilters filters={filters} onChange={change} />
       {query.status === "error" && (
         <div className="records-banner" role="alert">
           ⚠ {query.message}
