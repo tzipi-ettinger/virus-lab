@@ -53,11 +53,12 @@ class Response:
 class FakeClient:
     """client.aio.models.generate_content, answering from a script: text or an exception."""
 
-    def __init__(self, *script, delay: float | list[float] = 0.0) -> None:
-        """`delay`: seconds for every call, or one per call (the last one repeats)."""
+    def __init__(self, *script, delay: float = 0.0, gates: list | None = None) -> None:
+        """`gates`: one asyncio.Event per call, which the call waits for instead of `delay`."""
         self.script = list(script)
         self.calls: list[dict] = []
         self.delay = delay
+        self.gates = gates
         self.in_flight = 0
         self.max_in_flight = 0
         self.aio = self
@@ -68,8 +69,10 @@ class FakeClient:
         self.in_flight += 1
         self.max_in_flight = max(self.max_in_flight, self.in_flight)
         try:
-            delays = self.delay if isinstance(self.delay, list) else [self.delay]
-            await asyncio.sleep(delays[min(len(self.calls), len(delays)) - 1])
+            if self.gates is not None:
+                await self.gates[min(len(self.calls), len(self.gates)) - 1].wait()
+            else:
+                await asyncio.sleep(self.delay)
             step = self.script[min(len(self.calls), len(self.script)) - 1]
             if isinstance(step, BaseException):
                 raise step
@@ -200,23 +203,33 @@ def test_pages_at_once_each_try_every_key_exactly_once():
     # through keys 1, 2, 3 and wraps the shared key back to 1 while page B, slow on
     # key 1, is on key 3: B then asked key 1 again and never asked key 2. Now B
     # skips key 2, which A found used up, and asks key 3 once.
-    unit = 0.1  # wide enough for Windows' 15ms timer
-    clients = [
-        FakeClient(DAILY, delay=[unit, 2.5 * unit]),
-        FakeClient(DAILY, delay=unit),
-        FakeClient(DAILY, delay=unit),
-    ]
-    shared = provider(clients)
+    # Each call waits for its gate, so the order is set here and not by timers.
 
-    async def two_pages():
-        return await asyncio.gather(
-            shared.extract(PAGE), shared.extract(PAGE), return_exceptions=True
-        )
+    async def scenario():
+        key1 = [asyncio.Event(), asyncio.Event()]  # A's call, then B's
+        key2 = [asyncio.Event()]  # A's only: B skips it
+        key3 = [asyncio.Event(), asyncio.Event()]  # A's call, then B's
+        clients = [FakeClient(DAILY, gates=gates) for gates in (key1, key2, key3)]
+        shared = provider(clients)
 
-    results = run(two_pages())
+        async def settle():  # let both pages run up to their next gate
+            for _ in range(20):
+                await asyncio.sleep(0)
+
+        page_a = asyncio.create_task(shared.extract(PAGE))
+        await settle()
+        page_b = asyncio.create_task(shared.extract(PAGE))
+        await settle()
+        for gate in (key1[0], key2[0], key1[1], key3[0], key3[1]):
+            gate.set()
+            await settle()
+        results = await asyncio.gather(page_a, page_b, return_exceptions=True)
+        return results, [len(client.calls) for client in clients]
+
+    results, calls = run(scenario())
 
     assert all(isinstance(result, QuotaExhausted) for result in results)
-    assert [len(client.calls) for client in clients] == [2, 1, 2]
+    assert calls == [2, 1, 2]
 
 
 def test_the_log_does_not_promise_a_next_key_that_is_not_there(caplog):
