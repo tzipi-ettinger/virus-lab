@@ -160,6 +160,36 @@ EXTRACTION_PROVIDER=fake
 
 השרת מחזיר תוצאות שמורות מ־`tests/fixtures/` — מתאים לפיתוח הממשק ולבדיקות.
 
+### פריסה (Render)
+
+השרת החי הוא image אחד של Docker ([Dockerfile](Dockerfile)): Node בונה את `frontend/dist`, ו־FastAPI מגיש גם את ה־API וגם את הדף מאותה כתובת, כך שאין CORS והעוגייה של הסשן עובדת. [render.yaml](render.yaml) מגדיר את השרת ואת ה־Postgres, שניהם בתוכנית החינמית ובפרנקפורט. כל מיזוג ל־`main` נפרס אוטומטית.
+
+**פעם ראשונה:**
+
+1. ב־Render: **New → Blueprint**, ובוחרים את הריפו. ל־Render צריכה להיות גישה לריפו דרך ה־GitHub App שלו, ואת זה מאשרת בעלת הריפו.
+2. Render מבקש את הערכים שלא נמצאים בריפו:
+   - `GEMINI_API_KEYS`: המפתחות, מופרדים בפסיקים.
+   - `FRONTEND_ORIGIN`: הכתובת הציבורית, למשל `https://virus-lab.onrender.com`. בקשה שמשנה נתונים ומגיעה מכתובת אחרת נדחית (CSRF).
+3. אחרי שהשרת עלה (הוא יוצר את הטבלאות), יוצרים משתמשים מהמחשב, מול ה־**External Database URL** מעמוד ה־DB ב־Render:
+
+   ```powershell
+   # backend/
+   $env:DATABASE_URL = "<External Database URL>?sslmode=require"
+   .\.venv\Scripts\python.exe -m scripts.create_user dana --name "דנה"
+   Remove-Item Env:DATABASE_URL
+   ```
+
+4. בדיקה: `https://<הכתובת>/api/health` מחזיר `"status": "ok"` ו־`"extraction_provider": "gemini"`.
+
+**בדיקה מקומית של ה־image:**
+
+```powershell
+docker build -t virus-lab .
+docker run --rm -p 8000:8000 -e EXTRACTION_PROVIDER=fake -e FRONTEND_ORIGIN=http://localhost:8000 virus-lab
+```
+
+ה־CI בונה את ה־image ובודק שהוא מגיש את ה־API ואת הדף (job `docker`).
+
 ---
 
 ## משתני סביבה
@@ -174,7 +204,9 @@ EXTRACTION_PROVIDER=fake
 | `GEMINI_THINKING` | `low` | `low` / `medium` / `high` |
 | `EXTRACTION_PROVIDER` | `gemini` | `gemini` / `fake` 🚧 |
 | `EXTRACTION_CACHE` | `false` | מטמון לפיתוח בלבד, על קובצי דוגמה בלבד: עמוד ש־Gemini כבר קרא (אותו מודל ואותו prompt) נלקח מ־`backend/.cache/` בלי פנייה חדשה. לא בשרת החי |
-| `FRONTEND_ORIGIN` | `http://localhost:5173` | CORS |
+| `FRONTEND_ORIGIN` | `http://localhost:5173` | הכתובת של הדף: CORS בפיתוח, ובדיקת ה־`Origin` (CSRF) על בקשה שמשנה נתונים. בשרת החי: הכתובת הציבורית |
+| `DATABASE_URL` | — | Postgres. מקומית: מ־`docker compose`, כמו ב־`.env.example`. בשרת החי: ה־Internal URL של Render, שמגיע מ־`render.yaml`. בלעדיו השרת עולה, אבל כניסה ורשומות מחזירות `503` |
+| `STATIC_DIR` | ריק | תיקיית ה־frontend הבנוי, ש־FastAPI מגיש. מוגדר רק ב־image של Docker. בפיתוח Vite מגיש את הדף |
 | `MAX_FILE_MB` | `20` | גודל קובץ מקסימלי 🚧 |
 | `MAX_CONCURRENCY` | `4` | עמודים שמעובדים במקביל 🚧 |
 

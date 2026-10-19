@@ -1,4 +1,4 @@
-"""create_app: routes, CORS, error handlers, and the DB pool.
+"""create_app: routes, CORS, error handlers, the DB pool, and the built frontend.
 
 Owner: A
 """
@@ -6,6 +6,7 @@ Owner: A
 import logging
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -13,6 +14,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.api import auth, extract, health, records
 from app.api.errors import add_problem_handler
 from app.settings import Settings, get_settings
+from app.spa import mount_spa
 from app.storage.db import open_pool
 
 logger = logging.getLogger(__name__)
@@ -58,6 +60,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(auth.router)
     app.include_router(extract.router)
     app.include_router(records.router)
+    if settings.static_dir:
+        mount_spa(app, Path(settings.static_dir))  # last: it catches every other path
     return app
 
 
