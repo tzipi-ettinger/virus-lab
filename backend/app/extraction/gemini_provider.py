@@ -7,8 +7,8 @@ retries are few and deliberate:
   QuotaExhausted (the batch stops);
 - the key itself is refused (invalid, revoked, API off) -> the next key too;
 - too many requests this minute (429) -> one retry after the delay Gemini asks for,
-  if it is short; 500 / 502 / 503 / 504, or no connection at all -> one retry after
-  a pause;
+  if it is short, else the next key;
+- 500 / 502 / 503 / 504, or no connection at all -> one retry after a pause;
 - anything else (a bad request, a timeout, an answer that doesn't fit the schema,
   any other error from the client) -> ProviderError, no retry.
 The client's own retries are off (google-genai's default), so a call is never
@@ -43,7 +43,7 @@ logger = logging.getLogger(__name__)
 PROMPT_FILE = Path(__file__).with_name("prompts") / "v4.md"
 MAX_ATTEMPTS = 2
 SERVER_ERROR_WAIT_S = 5.0
-MAX_RATE_WAIT_S = 30.0  # if Gemini asks for a longer wait, fail the page instead
+MAX_RATE_WAIT_S = 30.0  # if Gemini asks for a longer wait, try the next key instead
 _RETRYABLE = {429, 500, 502, 503, 504}
 
 QUOTA_MESSAGE = "המכסה היומית של Gemini נגמרה. אפשר לנסות שוב מחר"
@@ -97,17 +97,12 @@ class GeminiProvider:
             # around means a key that ran out yesterday is found again once it's back.
             count = len(self._clients)
             start = self._current
-            failures: list[QuotaExhausted | _KeyRejected] = []
+            failures: list[_KeyFailure] = []
             for key in [(start + step) % count for step in range(count)]:
                 try:
                     result = await self._extract_with(self._clients[key], contents)
-                except (QuotaExhausted, _KeyRejected) as exc:  # this key only: try the next
-                    why = (
-                        "is out of daily quota"
-                        if isinstance(exc, QuotaExhausted)
-                        else "was refused"
-                    )
-                    logger.warning("gemini key %d of %d %s", key + 1, count, why)
+                except _KEY_FAILURES as exc:  # this key only: try the next
+                    logger.warning("gemini key %d of %d %s", key + 1, count, _why(exc))
                     failures.append(exc)
                     # So pages starting now skip it; unless another page moved on already.
                     if self._current == key:
@@ -117,9 +112,7 @@ class GeminiProvider:
                 return result
         if count > 1:
             logger.warning("gemini: none of the %d keys could be used", count)
-        if any(isinstance(failure, QuotaExhausted) for failure in failures):
-            raise QuotaExhausted(QUOTA_MESSAGE)  # stop the batch: no key will do until tomorrow
-        raise ProviderError(FAILED_MESSAGE)
+        raise _no_key_left(failures)
 
     async def _extract_with(self, client: genai.Client, contents: list) -> RawExtraction:
         for attempt in range(1, MAX_ATTEMPTS + 1):
@@ -182,6 +175,32 @@ class _KeyRejected(ProviderError):
     """
 
 
+class _RateLimited(ProviderError):
+    """Over this key's per-minute limit, and the wait is too long: another key's
+    project has its own limit."""
+
+
+_KeyFailure = QuotaExhausted | _KeyRejected | _RateLimited
+_KEY_FAILURES = (QuotaExhausted, _KeyRejected, _RateLimited)
+
+
+def _why(failure: _KeyFailure) -> str:
+    if isinstance(failure, QuotaExhausted):
+        return "is out of daily quota"
+    if isinstance(failure, _RateLimited):
+        return "is over its per-minute limit"
+    return "was refused"
+
+
+def _no_key_left(failures: list[_KeyFailure]) -> ProviderError | QuotaExhausted:
+    """What the page fails with once every key failed: the soonest to pass wins."""
+    if any(isinstance(failure, _RateLimited) for failure in failures):
+        return ProviderError(RATE_MESSAGE)  # a minute away: the batch goes on
+    if any(isinstance(failure, QuotaExhausted) for failure in failures):
+        return QuotaExhausted(QUOTA_MESSAGE)  # no key will do until tomorrow: stop the batch
+    return ProviderError(FAILED_MESSAGE)
+
+
 def _provider_error(exc: errors.APIError) -> ProviderError | QuotaExhausted:
     logger.warning("gemini failed: %s %s", exc.code, exc.status)
     if exc.code == 429 and _is_daily_quota(exc):
@@ -189,7 +208,7 @@ def _provider_error(exc: errors.APIError) -> ProviderError | QuotaExhausted:
     if _is_bad_key(exc):
         return _KeyRejected(FAILED_MESSAGE)
     if exc.code == 429:
-        return ProviderError(RATE_MESSAGE)
+        return _RateLimited(RATE_MESSAGE)
     if exc.code in _RETRYABLE:
         return ProviderError(UNAVAILABLE_MESSAGE)
     return ProviderError(FAILED_MESSAGE)

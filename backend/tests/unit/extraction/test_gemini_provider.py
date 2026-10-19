@@ -258,7 +258,25 @@ def test_used_up_and_refused_keys_together_stop_the_batch():
         run(provider([FakeClient(DAILY), FakeClient(REVOKED)]).extract(PAGE))
 
 
-def test_a_per_minute_limit_does_not_switch_keys():
+def test_a_long_per_minute_wait_hands_the_page_to_the_next_key():
+    # Another project has its own per-minute limit: no reason to fail the page.
+    first, second, sleeps = FakeClient(per_minute("45s")), FakeClient(ANSWER), Sleeps()
+
+    result = run(provider([first, second], sleeps).extract(PAGE))
+
+    assert isinstance(result, RawExtraction)
+    assert sleeps.waits == []
+
+
+def test_a_key_over_its_minute_and_one_out_for_the_day_fail_the_page_not_the_batch():
+    # The per-minute limit passes within a minute, so stopping the whole batch is wrong.
+    with pytest.raises(ProviderError) as error:
+        run(provider([FakeClient(per_minute("45s")), FakeClient(DAILY)]).extract(PAGE))
+
+    assert error.value.message == gemini_provider.RATE_MESSAGE
+
+
+def test_a_short_per_minute_wait_still_stays_on_the_key():
     first, second, sleeps = FakeClient(per_minute("7s"), ANSWER), FakeClient(ANSWER), Sleeps()
 
     run(provider([first, second], sleeps).extract(PAGE))
