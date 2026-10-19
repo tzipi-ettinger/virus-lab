@@ -117,6 +117,12 @@ copy .env.example .env          # ואז להדביק את המפתח ב־GEMINI
 
 בדיקה: `http://localhost:8000/api/health` מחזיר `{"status": "ok", ...}`. תיעוד ה־API: `http://localhost:8000/docs`.
 
+**משתמש:** אין הרשמה. אחרי שהשרת עלה פעם אחת (הוא יוצר את הטבלאות), יוצרים משתמש. הסיסמה נקלטת מ־prompt, לפחות 12 תווים:
+
+```powershell
+.\.venv\Scripts\python.exe -m scripts.create_user dana --name "דנה"
+```
+
 ב־Windows צריך להשאיר את `--reload`: בלעדיו uvicorn רץ על event loop ש־psycopg לא תומך בו במצב async. `docker compose down -v` מוחק את כל הנתונים המקומיים.
 
 ### Frontend 🚧
