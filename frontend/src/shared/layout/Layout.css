@@ -1,0 +1,62 @@
+/* The top bar of every signed-in screen. Logical properties only (RTL). Owner: B */
+
+.layout-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 24px;
+  padding-block: 12px;
+  border-block-end: 1px solid var(--color-border, #dde3e9);
+}
+
+.layout-title {
+  font-weight: 700;
+}
+
+.layout-nav {
+  display: flex;
+  gap: 4px;
+}
+
+.layout-nav a {
+  padding: 6px 12px;
+  color: var(--color-text, #0f1b2a);
+  text-decoration: none;
+  border-radius: var(--radius-md, 8px);
+}
+
+.layout-nav a.active {
+  color: var(--color-accent-strong, #08515a);
+  background: var(--color-accent-soft, #e5f1f2);
+  font-weight: 600;
+}
+
+.layout-user {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-inline-start: auto;
+  color: var(--color-text-muted, #52606d);
+}
+
+.layout-user button,
+.app-status button {
+  padding: 4px 12px;
+  font: inherit;
+  background: none;
+  border: 1px solid var(--color-border-strong, #9fb3c8);
+  border-radius: var(--radius-md, 8px);
+  cursor: pointer;
+}
+
+.layout-nav a:focus-visible,
+.layout-user button:focus-visible,
+.app-status button:focus-visible {
+  outline: 2px solid var(--color-focus, #1d4ed8);
+  outline-offset: 2px;
+}
+
+.app-status {
+  padding: 24px;
+  text-align: center;
+}
