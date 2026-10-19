@@ -14,7 +14,11 @@ def test_health_returns_ok_and_the_provider():
     response = client().get("/api/health")
 
     assert response.status_code == 200
-    assert response.json() == {"status": "ok", "extraction_provider": "fake"}
+    assert response.json() == {
+        "status": "ok",
+        "extraction_provider": "fake",
+        "extraction_cache": False,
+    }
 
 
 def test_health_shows_when_the_server_reads_with_gemini():
@@ -24,3 +28,15 @@ def test_health_shows_when_the_server_reads_with_gemini():
 
     assert response.json()["extraction_provider"] == "gemini"
     assert "k" not in response.json().values()  # never the key
+
+
+def test_health_shows_when_the_dev_cache_is_on():
+    gemini = {"extraction_provider": "gemini", "gemini_api_key": "k", "gemini_model": "m"}
+
+    assert client(**gemini, extraction_cache=True).get("/api/health").json()["extraction_cache"]
+    assert not client(**gemini).get("/api/health").json()["extraction_cache"]
+
+
+def test_health_says_the_cache_is_off_in_front_of_fake():
+    # The setting is ignored for fake (get_provider never wraps it): say what happens.
+    assert not client(extraction_cache=True).get("/api/health").json()["extraction_cache"]
