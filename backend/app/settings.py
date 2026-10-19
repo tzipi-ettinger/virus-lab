@@ -31,6 +31,9 @@ class Settings(BaseSettings):
     # Postgres (Dev-B plan B0.3): docker compose locally, Render's internal URL on the
     # live server. SecretStr, since the URL holds the password.
     database_url: SecretStr = SecretStr("")
+    # The built frontend (frontend/dist), served by FastAPI on the live server. Set
+    # only in the Docker image; in development Vite serves the page (app/spa.py).
+    static_dir: str = ""
 
     # "fake" serves tests/fixtures: no key, no quota, no real data. "gemini" sends
     # each page to GEMINI_MODEL and needs GEMINI_API_KEYS (checked at startup).
