@@ -13,7 +13,7 @@
 - **פריסה:** אושר **Docker על Render**.
 - **התחברות:** משתמשים מוגדרים מראש, בלי תפקידים.
 - **התאמה להנחיות:** ב־18.10 עברנו על ה־PDF של ההנחיות סעיף אחרי סעיף. הפערים שנמצאו והתיקונים שלהם מסוכמים בסעיף 5.0.
-- **תשובות צפי:** ⏳ **עוד לא ענתה** על A1–A9 ([GUIDELINES-V2-CHANGES.md](GUIDELINES-V2-CHANGES.md) §9). התוכנית בנויה לפי ההצעות שבמסמך, וכל מה שנשען עליהן מסומן ⏳. מה כל תשובה משנה מפורט בסעיף 5.1א.
+- **תשובות צפי:** ✅ **ענתה על הכול** ב־[#15](https://github.com/tzipi-ettinger/virus-lab/issues/15) (18–19.10): A1–A8 אושרו, חלקן עם תוספת, ו־D10, D11, D16, D17 ו־D18 נסגרו. מה שהשתנה בעקבות התשובות מסוכם בסעיף 5.1א. שתי תוספות שלה משנות את התוכנית: **עמודי המשך** (טופס שנמשך על כמה עמודים נשמר כטופס אחד), ו**הרשומות האחיות הן של אותו טופס**, לא של אותו עמוד.
 
 מצב הקוד היום: כמעט כל הקבצים הם שלד ריק. הקבצים הקיימים:
 
@@ -49,15 +49,15 @@
 - **תמונת העמוד:** יצירת התמונה הדחוסה (JPEG)
 - **endpoint החילוץ:** `POST /api/v1/extract`
 
-**נקודות המגע עם A (לפי ההצעות ב־A1–A9, ⏳ ממתינות לתשובת צפי):**
+**נקודות המגע עם A (אושרו ב־#15):**
 
-1. **שמירת החילוץ (A2 ⏳):** A קוראת לפונקציה אחת של B בסוף כל עמוד: `save_extracted_page(...)`.
-2. **תצוגת המקור (A1 ⏳):** `DocumentPreview` טוען את התמונה מ־URL של העמוד.
+1. **שמירת החילוץ (A2):** A קוראת לפונקציה אחת של B בסוף כל **טופס**, עם הטופס ועם התמונות של כל העמודים שלו: `save_extracted_page(conn, form, images, user)` (2.5).
+2. **תצוגת המקור (A1):** `DocumentPreview` טוען את התמונה מ־URL של העמוד. בטופס עם עמודי המשך הוא מציג את כל העמודים, לפי `continuation_page_ids` ב־`Record`.
 3. **החוזה:** `schemas/api.py` משתנה רק ב־PR משותף.
-4. **סוג הטופס (D17 ⏳):** A מזהה את סוג הטופס ומחזירה אותו ב־`Form.form_type`. B שומרת אותו, מציגה אותו ומסננת לפיו.
-5. **רשימת השולחים במודל (D18 ⏳):** B מספקת את `sender_names()` מ־`rules/senders.py`, ו־A מעבירה את הרשימה ל־prompt או לסכמה, כדי שהמודל יבחר מתוכה ולא ינחש. אחרי זה B עדיין ממפה ומסמנת, כרשת ביטחון.
+4. **סוג הטופס (D17):** A מזהה את משפחת הטופס ומחזירה אותה ב־`Form.form_type`, אחד מ־7 ערכים: `hmo_form`, `hospital_form`, `hospital_system_screenshot`, `lab_report`, `private_lab`, `government`, `unknown`. הארגון עצמו כבר נמצא ב־`sender`. B שומרת את הסוג, מציגה אותו עם תווית בעברית ומסננת לפיו.
+5. **רשימת השולחים במודל (D18):** B מספקת את `sender_names()` מ־`rules/senders.py`, ו־A מעבירה את הרשימה **ל־prompt, לא כ־enum בסכמה** (enum מכריח את המודל לבחור גם כשהוא לא בטוח), כדי שהמודל יבחר מתוכה ולא ינחש. אחרי זה B עדיין ממפה ומסמנת, כרשת ביטחון.
 
-**קבצים משותפים ש־B צריכה לגעת בהם (A8 ⏳, רק אחרי אישור של צפי):**
+**קבצים משותפים ש־B צריכה לגעת בהם (A8 אושר. כל שינוי עדיין עובר ב־PR שצפי רואה):**
 
 - `main.py`
 - `settings.py`
@@ -115,14 +115,14 @@ Dockerfile, .dockerignore, docker-compose.yml   # בשורש הריפו (חדש�
 | `GET` | `/api/v1/auth/me` | — | `{username, display_name}`, או `401` |
 | `GET` | `/api/v1/records` | `q, status, needs_review, sender, form_type, date_from, date_to, limit (ברירת מחדל 50, מקסימום 200), offset` | `RecordList {items: RecordSummary[], total, limit, offset}`. נוסיף `counts: {pending, approved, needs_review}` (B0.2) |
 | `GET` | `/api/v1/records/{id}` | — | `Record` מלא |
-| `PATCH` | `/api/v1/records/{id}` | `RecordPatch {version, fields?: {name: {value?, confirmed?}}, central_numbers?: [{idx?, value?, confirmed?}]}` | מריץ את הכללים מחדש לפי SPEC 7.4, שומר ומחזיר `RecordPatchResponse {record, siblings}`. שדה משותף מתעדכן גם ברשומות האחיות מאותו עמוד (A3 ⏳). `409 version_conflict` אם הגרסה ישנה. `409 record_approved` אם הרשומה מאושרת (A6 ⏳) |
+| `PATCH` | `/api/v1/records/{id}` | `RecordPatch {version, fields?: {name: {value?, confirmed?}}, central_numbers?: [{idx?, value?, confirmed?}]}` | מריץ את הכללים מחדש לפי SPEC 7.4, שומר ומחזיר `RecordPatchResponse {record, siblings}`. שדה משותף מתעדכן גם ברשומות האחיות מאותו טופס (A3). `409 version_conflict` אם הגרסה ישנה. `409 record_approved` אם הרשומה מאושרת (A6) |
 | `POST` | `/api/v1/records/{id}/approve` | `{version}` | מריץ את הכללים מחדש. אם נשאר שדה מסומן: `409` מסוג `review_required` עם `blocking_fields: [...]`. אחרת `status=approved` ו־`approved_by` |
 | `POST` | `/api/v1/records/approve` | `{items: [{record_id, version}]}` | **אישור מרובה** (D20): כל רשומה נבדקת בנפרד, ומאושרת רק אם אין בה שדה מסומן. תמיד מחזיר `200` עם `{approved: Record[], skipped: [{record_id, type, blocking_fields}]}`. `type` הוא `review_required`, `version_conflict` או `record_approved` |
 | `GET` | `/api/v1/records/export` | `format=csv\|json`, ואותם מסננים כמו `GET /records` (ברירת מחדל `status=approved`), בלי `limit` (עד 5,000 רשומות) | **ייצוא** הרשומות שמסוננות במסך, כקובץ להורדה (`Content-Disposition: attachment`, `Cache-Control: no-store`). ה־CSV וה־JSON מפורטים ב־2.5. כל ייצוא נרשם ב־`export_log` |
-| `DELETE` | `/api/v1/records/{id}` | — | רק לרשומה ממתינה (A5 ⏳). מאושרת: `409` |
+| `DELETE` | `/api/v1/records/{id}` | — | רק לרשומה ממתינה (A5). מאושרת: `409` |
 | `GET` | `/api/v1/pages/{page_id}/image` | — | JPEG, עם `Cache-Control: no-store` |
 | `GET` | `/api/v1/senders` | — | הרשימה הסגורה (שמות קנוניים), לרשימה הנפתחת ולסינון |
-| `POST` | `/api/v1/extract` | (A) קובץ אחד בכל בקשה | `{files, records, failed_pages, quota_exhausted}` (A1 ⏳). דורש סשן (D10 ⏳). **המכסה נגמרה אחרי שנשמר עמוד:** `200` עם `quota_exhausted: true`, והעמודים שלא נקראו ב־`failed_pages` עם `QUOTA_EXHAUSTED`. **המכסה נגמרה לפני שנשמר עמוד:** `503 quota_exhausted` |
+| `POST` | `/api/v1/extract` | (A) קובץ אחד בכל בקשה | `{files, records, failed_pages, quota_exhausted}` (A1). דורש סשן (D10, `require_user`). **המכסה נגמרה אחרי שנשמר עמוד:** `200` עם `quota_exhausted: true`, והעמודים שלא נקראו ב־`failed_pages` עם `QUOTA_EXHAUSTED`. **המכסה נגמרה לפני שנשמר עמוד:** `503 quota_exhausted` |
 
 > **סדר ה־routes:** את `/records/export` ואת `/records/approve` מגדירים **לפני** `/records/{record_id}`, אחרת FastAPI יפרש את `export` כמזהה של רשומה.
 
@@ -140,7 +140,7 @@ Dockerfile, .dockerignore, docker-compose.yml   # בשורש הריפו (חדש�
 
 ### 2.3 מודלים בחוזה (`schemas/api.py`, PR משותף)
 
-**כבר מוזג כטיוטה (PR #4, A1 ⏳ עד שצפי מאשרת):**
+**כבר מוזג (PR #4, וצפי אישרה ב־A1):**
 
 - **`FormField`:** המבנה של SPEC 9.2: `raw`, `value`, `model_status`, `evidence`, `issues`, `needs_review`, `corrected`, `confirmed`.
 - **`Form`:** המבנה הפנימי בין `assemble` ל־`apply_rules`. לא נשלח ב־HTTP.
@@ -152,12 +152,14 @@ Dockerfile, .dockerignore, docker-compose.yml   # בשורש הריפו (חדש�
 - **התחברות:** `LoginRequest`, `Me`.
 - **`Record`:** `approved_by`, `updated_by` (שם משתמש).
 - **`RecordList`:** `counts`.
-- **סוג טופס (D17 ⏳):** `form_type: str | None` ב־`Form`, ב־`Record` וב־`RecordSummary`.
+- **סוג טופס (D17):** `form_type: str | None` ב־`Form`, ב־`Record` וב־`RecordSummary`.
 - **אישור מרובה:** `BulkApproveRequest`, `BulkApproveResponse`, `SkippedRecord`.
-- **endpoints חדשים:** `POST /records/approve`, `GET /records/export`, `DELETE /records/{id}` (A5 ⏳) ו־`GET /senders`.
+- **endpoints חדשים:** `POST /records/approve`, `GET /records/export`, `DELETE /records/{id}` (A5) ו־`GET /senders`.
 - **מחיקה:** קבצי האקסל (`excel.py`, `rows.py`, `api/export.py`, `api/validate.py`, `ExportButton` הישן, `useValidate`).
 
-**PR של צפי (⏳, סוכם ב־19.10):** `quota_exhausted: bool = False` ב־`ExtractResponse`, ו־`QUOTA_EXHAUSTED` ב־`ErrorCode`, כדי שעמוד שלא נקרא יוצג עם הסיבה הנכונה.
+**PR של צפי (✅ מוזג, #27):** `quota_exhausted: bool = False` ב־`ExtractResponse`, ו־`QUOTA_EXHAUSTED` ב־`ErrorCode`, כדי שעמוד שלא נקרא יוצג עם הסיבה הנכונה.
+
+**עמודי המשך (✅ מוזג, #28 ו־#31, לפי ההצעה של צפי ב־A1):** `continuation_pages: list[int]` ב־`Form` וב־`Record`, ו־issue חדש `PAGE_GROUPING_UNCERTAIN` (warning) לעמוד בלי מרכזי שאולי ממשיך את הטופס שלפניו, אבל לא בטוח. **בדרך (#47):** `continuation_page_ids` ב־`Record`, באותו סדר כמו `continuation_pages`, כדי ש־`DocumentPreview` יטען את התמונות של עמודי ההמשך, ו־`User`.
 
 ### 2.4 מסד נתונים (Postgres)
 
@@ -247,20 +249,20 @@ INDEX: record(status, received_date), record(national_id), record(commitment_num
 
 מחזירה את ה־`list[Record]` של הטופס, עם `continuation_page_ids`.
 
-עמוד שנכשל **לא נשמר** (A7 ⏳).
+עמוד שנכשל **לא נשמר** (A7).
 
 **`service.patch_record(...)`:**
 
 - מעדכן עם `UPDATE … WHERE version=?`.
 - מריץ את הכללים מחדש ומעדכן את העמודות לחיפוש ואת `search_text`.
-- שדה משותף מתעדכן גם ברשומות האחיות שממתינות (A3 ⏳). אם יש אחות מאושרת: `409 sibling_approved` (החלטה D5).
+- שדה משותף מתעדכן גם ברשומות האחיות שממתינות, כלומר הרשומות האחרות של אותו **טופס**, גם כשהוא נמשך על כמה עמודים (A3). אם יש אחות מאושרת: `409 sibling_approved` (החלטה D5).
 - כל שינוי נרשם ב־`record_event`.
 
 **`service.approve_record(...)`:**
 
 - מריץ את הכללים מחדש.
 - חוסם אם יש שדה עם `needs_review`, או issue ברמת הרשומה. שדה ריק שאושר (`confirmed`) נחשב מטופל.
-- אין ביטול אישור (A6 ⏳).
+- אין ביטול אישור (A6).
 
 **`service.approve_many(items, user)`** (D20):
 
@@ -470,7 +472,7 @@ B2.3 (מדידה) אחרי B2.1, במקביל ל-B2.2
 | B0.1 | ~~סגירת PR #3~~ (מוזג). נשאר: PR לענף `chore/ground-truth-per-commitment` (עמודת `commitment_number`, ו־`.claude/` ב־`.gitignore`) | PR ממוזג | CI ירוק, ו־`main` כולל את הכותרת המעודכנת | — |
 | B0.0 | **לקבל מצפי תשובות ל־A1–A9, בעיקר A1, A2, A8 ו־A9** (סעיף 5.1א), ובאותה הודעה גם D10 ו־D11 | תשובה בכתב (תגובה ב־PR או הודעה), שמתועדת ב־GUIDELINES §9 | כל שורה ב־5.1א מסומנת "אושר" או "שונה ל־…". מה ששונה מעודכן בתוכנית הזו | — |
 | B0.2 | השלמת החוזה (הטיוטה מ־PR #4 כבר מוזגה): מה שנשאר לפי 2.3, כולל `form_type` ואישור מרובה. מחיקת קבצי האקסל. SPEC 0.3 לפי GUIDELINES §6, כולל הכינוי "דגימה" בלאומית ב־SPEC 5.6 וייצוא CSV/JSON במקום אקסל. עדכון CODEOWNERS (בלי חובת אישור) | `schemas/api.py`, `openapi.json`, `schema.d.ts`, `docs/SPEC.md` | בדיקת `contract` ירוקה, צפי מיזגה, ו־`/docs` מציג את כל ה־endpoints מסעיף 2.2 | B0.0 (A1, A8, A9). אפשר לפתוח טיוטה לפני התשובה |
-| B0.3 | מעבר ל־Postgres: `docker-compose.yml` (db), `schema.sql` ו־`db.py` לפי 2.4, `DATABASE_URL` ב־`settings.py` וב־`.env.example`, כתיבה מחדש של `test_db.py`, ו־service של Postgres ב־job `backend` ב־`ci.yml` | שכבת DB עובדת מקומית וב־CI | `pytest` ירוק מקומית וב־CI מול Postgres אמיתי. אפס מוביל נשמר. השרת מסרב לעלות על גרסת סכמה שגויה ומסביר מה לעשות | הקבצים שלי: בלי תלות. `settings.py` ו־`ci.yml`: A8 ⏳ ו־D11 ⏳ |
+| B0.3 | מעבר ל־Postgres: `docker-compose.yml` (db), `schema.sql` ו־`db.py` לפי 2.4, `DATABASE_URL` ב־`settings.py` וב־`.env.example`, כתיבה מחדש של `test_db.py`, ו־service של Postgres ב־job `backend` ב־`ci.yml` | שכבת DB עובדת מקומית וב־CI | `pytest` ירוק מקומית וב־CI מול Postgres אמיתי. אפס מוביל נשמר. השרת מסרב לעלות על גרסת סכמה שגויה ומסביר מה לעשות | הקבצים שלי: בלי תלות. `settings.py` ו־`ci.yml`: A8 ו־D11 (אושרו) |
 | B0.4 | פריסה ראשונה: Dockerfile, `.dockerignore`, הגשת `dist` מ־FastAPI, Render עם Postgres מנוהל, משתני סביבה, keep-alive (2.7) | URL ציבורי עם HTTPS | `https://<domain>/api/health` מחזיר ok. דף הבית נטען. deploy אוטומטי ממיזוג ל־`main` עובד. `docker build` עובר מקומית. בלוגים של Render יש פנייה עצמית כל 10 דקות | B0.3 (לחיבור ל־DB) |
 | B0.5 | **עיצוב הממשק ב־Claude Design** (סעיף 3.0): 4 המסכים וכל המצבים שלהם, ב־RTL ועם נתונים מומצאים. מוגבל ל־2–3 שעות | פרויקט Design ב־Claude Design (קישור), ורשימת tokens | את מאשרת את העיצוב, וצפי ראתה את החלקים שלה (`UploadPanel`, `DocumentPreview`). כל מצב מטבלה 3.0 מופיע בעיצוב. ה־tokens (צבעים, טיפוגרפיה, ריווח) רשומים | — (במקביל ל־backend) |
 | B1.1 | כללים: `normalize`, `validators`, `review_policy`, `engine.apply_rules`, `rules/records.build_records`, ו־`senders.yaml` עם הרשימה הסגורה והכינויים. **סטטוס:** נרמול וולידציה ב־PR #7, השולחים ב־PR #8, והמנוע בעבודה | מודולים טהורים ובדיקות | כל קוד issue מ־SPEC 8 נבדק. ארבעת ה־fixtures עוברים. 2 התחייבויות ו־3 מרכזיים נותנים 2 רשומות. `apply_rules(apply_rules(f)) == apply_rules(f)` | — |
@@ -492,7 +494,7 @@ B2.3 (מדידה) אחרי B2.1, במקביל ל-B2.2
 
 | # | משימה | תוצר | Definition of Done | תלוי ב |
 |---|---|---|---|---|
-| B2.1 | אינטגרציה עם A: `extract` קורא ל־`save_extracted_page`. התרחיש המלא על קובצי הדוגמה **בדומיין החי** | מסלול מקצה לקצה | העלאת PDF ותמונה, ואז רשומות בטבלת הבדיקה, תיקון בתוך הטבלה, ו"אשרי את כל המוכנות". הרשומות מופיעות כ"מאושרות" במסך הרשומות, וסוג הטופס מוצג. היא נשארת שם גם אחרי יציאה וכניסה. עמוד שנכשל מוצג ולא נשמר | B1.5, B1.7, B1.8, A (A2 ⏳: מי כותבת את הקריאה) |
+| B2.1 | אינטגרציה עם A: `extract` קורא ל־`save_extracted_page`. התרחיש המלא על קובצי הדוגמה **בדומיין החי** | מסלול מקצה לקצה | העלאת PDF ותמונה, ואז רשומות בטבלת הבדיקה, תיקון בתוך הטבלה, ו"אשרי את כל המוכנות". הרשומות מופיעות כ"מאושרות" במסך הרשומות, וסוג הטופס מוצג. היא נשארת שם גם אחרי יציאה וכניסה. עמוד שנכשל מוצג ולא נשמר | B1.5, B1.7, B1.8, A (A2: צפי מחברת את הקריאה ב־`get_save_form`) |
 | B2.2 | הקשחה: `security.py` עם הכותרות, `/docs` כבוי בפרודקשן, בדיקה שאין מידע אישי בלוגים, `seed_demo.py` ופקודת מחיקה, משתמש הדגמה לשופטים | רשימת בדיקת אבטחה ב־README | `curl -I` מראה את כל הכותרות. `/docs` בפרודקשן מחזיר `404`. הלוגים של Render נקיים מת״ז ושמות. משתמש ההדגמה עובד | B0.4, B2.1 |
 | B2.3 | מדידה: `run_eval.py` מול `ground_truth.csv` (10–15 טפסים, ממלאות יחד). מדדים: דיוק לפי שדה, כיסוי, **שגיאות שלא סומנו**, מספר רשומות מול הצפוי, אפסים מובילים, זמן לעמוד. רץ על הפלט אחרי הכללים ולפני תיקון אנושי, עם `CachedProvider` כדי לא לבזבז מכסה | דוח Markdown עם מספרים אמיתיים | הדוח רץ מפקודה אחת, והתוצאות נכנסות ל־README בלי עיגול לטובה | B1.1, B1.3, A (cache) |
 | B2.4 | הקפאה: רק תיקוני באגים. עדכון PLAN.md | גרסה מועמדת | הרצה נקייה בדומיין עוברת | הכול |
@@ -536,23 +538,29 @@ B2.3 (מדידה) אחרי B2.1, במקביל ל-B2.2
 
 **מה שאנחנו מוסיפות מעבר להנחיות, בלי לסתור אותן:** התחברות ודומיין חי.
 
-### 5.1א ממתין לצפי: A1–A9
+### 5.1א התשובות של צפי: A1–A9
 
-צפי עוד לא ענתה. התוכנית בנויה לפי ההצעה בכל שורה. אם היא משנה תשובה, העמודה האחרונה מראה מה צריך לעבוד מחדש.
+צפי ענתה ב־[#15](https://github.com/tzipi-ettinger/virus-lab/issues/15) ב־18.10, ושתינו סגרנו את הפרטים שם עד 19.10. כל השורות אושרו. כשהיא הוסיפה משהו להצעה, זה כתוב בעמודה "התשובה".
 
-| # | השאלה | מה התוכנית מניחה (ההצעה) | חוסם את | אם צפי משנה |
+| # | השאלה | ההצעה | התשובה | איפה זה בתוכנית |
 |---|---|---|---|---|
-| A1 | חוזה `Record`, `records` במקום `forms`, בלי `preview_image` | כמו שהוצע. **הטיוטה כבר מוזגה (PR #4)** | B0.2 ואחריה כל ה־FE וה־API | עדכון `schemas/api.py` והטיפוסים. הכללים ושכבת ה־DB לא משתנים |
-| A2 | מי כותבת את הקריאה לשמירה בסוף `extract` | A קוראת ל־`save_extracted_page`, ו־B מספקת אותה ואת הבדיקות | B2.1 | B כותבת את הקריאה בקובץ של A, באישורה |
-| A3 | תיקון שדה משותף מתעדכן ברשומות האחיות | כן, חוץ מ־`commitment_number` | B1.3 | מוחקים את העדכון ברשומות האחיות. פחות קוד |
-| A4 | התחייבות כפולה | לא חוסמים, `DUPLICATE_RECORD` (warning) | B1.3 | ממילא ברשימת הוויתורים (4.2) |
-| A5 | מחיקת רשומה | כן, רק כשהיא ממתינה | B1.5 | מוותרים על `DELETE`. ממילא ראשון ברשימת הוויתורים |
-| A6 | ביטול אישור | לא | B1.3, D5, D6 | endpoint `unapprove` ומחיקת `409 record_approved`: בערך חצי יום |
-| A7 | עמוד שנכשל לא נשמר | לא שומרים, מחזירים ב־`failed_pages` | B1.3, B2.1 | טבלה או סטטוס לעמודים שנכשלו |
-| A8 | שינויים בקבצים של A (`main.py`, `settings.py`, `extract.py`/`service.py`, `client.ts`, `DocumentPreview.tsx`, `App.tsx`) | מאושר | B0.3, B1.5, B1.6, B1.7 | בלי אישור B לא נוגעת בקבצים האלה, ו־A מבצעת את השינויים לפי מפרט מ־B |
-| A9 | ויתור על ייצוא לקובץ | **השתנה (החלטה של B מ־18.10): לא מוותרים.** ייצוא CSV + JSON של מה שמסונן במסך (B1.9). אקסל נשאר בחוץ | — | — (כבר לא תלוי בצפי. היא רק צריכה לדעת) |
+| A1 | חוזה `Record`, `records` במקום `forms`, בלי `preview_image` | כמו שהוצע. **הטיוטה כבר מוזגה (PR #4)** | ✅ אושר, ועם תוספת: **עמודי המשך.** עמוד בלי מרכזי שבא אחרי טופס ממשיך אותו, ולא הופך לרשומה חדשה (`continuation_pages`). כשלא בטוח, הוא נשמר כטופס נפרד עם `PAGE_GROUPING_UNCERTAIN`, כדי שלא נצרף עמוד של מטופל אחר | 2.3, 2.4 (`first_page_id`), 2.5 |
+| A2 | מי כותבת את הקריאה לשמירה בסוף `extract` | A קוראת ל־`save_extracted_page`, ו־B מספקת אותה ואת הבדיקות | ✅ אושר. הקריאה היא לכל טופס, עם רשימת תמונות (`images`), ולא לכל עמוד עם תמונה אחת | 2.5, B2.1 |
+| A3 | תיקון שדה משותף מתעדכן ברשומות האחיות | כן, חוץ מ־`commitment_number` | ✅ אושר, ועם תיקון בניסוח: האחיות הן הרשומות של אותו **טופס**, לא של אותו עמוד | 2.2, 2.5, B1.3 |
+| A4 | התחייבות כפולה | לא חוסמים, `DUPLICATE_RECORD` (warning) | ✅ אושר. כפילות בין שתי העלאות שרצות במקביל נתפסת בנעילה בתוך הטרנזקציה (`pg_advisory_xact_lock`) | 2.5, B1.3 |
+| A5 | מחיקת רשומה | כן, רק כשהיא ממתינה | ✅ אושר | 2.2, B1.5 |
+| A6 | ביטול אישור | לא | ✅ אושר | 2.5, D5, D6 |
+| A7 | עמוד שנכשל לא נשמר | לא שומרים, מחזירים ב־`failed_pages` | ✅ אושר. גם כשל בשמירה מוצג כעמוד שנכשל (`SAVE_FAILED`), לכל עמודי הטופס | 2.5, B2.1 |
+| A8 | שינויים בקבצים של A (`main.py`, `settings.py`, `extract.py`/`service.py`, `client.ts`, `DocumentPreview.tsx`, `App.tsx`) | מאושר | ✅ אושר | 1, B0.3, B1.5, B1.6, B1.7 |
+| A9 | ויתור על ייצוא לקובץ | **השתנה (החלטה של B מ־18.10): לא מוותרים.** ייצוא CSV + JSON של מה שמסונן במסך (B1.9). אקסל נשאר בחוץ | — לא נדרשה תשובה. צפי רק צריכה לדעת | B1.9 |
 
-**מה לא מחכה לצפי:** B1.1 (כללים), B1.4 (התחברות), ה־DB בקבצים שלי, B0.4 (Dockerfile), וטיוטה של B0.2.
+**ההחלטות שחיכו לצפי (D10–D18):**
+
+- **D10:** ✅ הכותרות והגשת ה־`dist` מ־FastAPI אושרו. `extract` מאחורי `require_user`, כי נשארנו עם התחברות ודומיין חי.
+- **D11:** ✅ צפי שאלה למה Postgres, כש־GUIDELINES §2.1 עוד דיבר על SQLite. הסברנו שדומיין חי צריך מסד שנשמר גם אחרי הפעלה מחדש, ו־#43 (Postgres ב־CI) מוזג.
+- **D16:** ✅ אושר. צפי מקבלת את הקישור לחלקים שלה.
+- **D17:** ✅ סוג הטופס הוא משפחה, 7 ערכים (סעיף 1). הארגון עצמו כבר נמצא ב־`sender`. התוויות בעברית בממשק, אצל B.
+- **D18:** ✅ הרשימה מועברת ב־prompt ולא כ־enum בסכמה. המיפוי של B ו־`SENDER_UNKNOWN` נשארים כרשת ביטחון.
 
 ### 5.1 החלטות שצריכות אישור (שלך, ושל צפי כשמסומן)
 
@@ -562,8 +570,8 @@ B2.3 (מדידה) אחרי B2.1, במקביל ל-B2.2
 | D2 | איפה Postgres | **Postgres של Render** (חינמי, Frankfurt) | הכול בפלטפורמה אחת: לוח בקרה אחד, רשת פנימית, ובלי חשבון נוסף. המגבלות: המסד החינמי פג 30 יום אחרי שנוצר. אם ייווצר ב־18–19.10, הוא יפוג בערך ב־17.11, אחרי ערב הגמר ב־28.10. אחרי שהוא פג יש 14 יום לשדרג לתוכנית בתשלום, ואחרי זה הוא נמחק. בנוסף: נפח של 1GB ואין גיבויים. החלופה היא Neon, שלא פג, אבל זה חשבון נוסף |
 | D3 | Render חינמי או בתשלום | ✅ **הוחלט:** חינמי, עם keep-alive בתוך האפליקציה כל 10 דקות (2.7). Starter (בערך 7$ לחודש) נשאר גיבוי, אם יתברר שהשרת בכל זאת נרדם | בגרסה החינמית השרת נרדם אחרי 15 דקות, והכניסה הראשונה לוקחת בערך דקה, מול השופטים |
 | D4 | דומיין | `*.onrender.com` מספיק, או דומיין משלנו? | צריך לברר אם זה עונה על "דומיין חי" |
-| D5 | תיקון שדה משותף כשרשומה אחות כבר אושרה | `409 sibling_approved`: חוסמים ומסבירים | תלוי ב־A3 ו־A6 ⏳: בלי ביטול אישור, אסור לשנות בשקט רשומה מאושרת |
-| D6 | עריכה של רשומה מאושרת | חסומה (`409 record_approved`) | נגזר מ־A6 ⏳ |
+| D5 | תיקון שדה משותף כשרשומה אחות כבר אושרה | `409 sibling_approved`: חוסמים ומסבירים | נגזר מ־A3 ו־A6 (אושרו): בלי ביטול אישור, אסור לשנות בשקט רשומה מאושרת |
+| D6 | עריכה של רשומה מאושרת | חסומה (`409 record_approved`) | נגזר מ־A6 (אושר) |
 | D7 | ספריית ניתוב ב־frontend | `react-router` (תלות אחת) | נתיב `/records/:id` לחזרה לרשומה. החלופה היא router ידני של כ־40 שורות |
 | D8 | מדיניות סשן ונעילה | 8 שעות של חוסר פעילות. 5 ניסיונות נועלים ל־15 דקות | |
 | D9 | משתמשים לדמו | 3 משתמשים: B, A ו־`judge-demo`. פרטי השופטים נמסרים בטופס ההגשה, לא ב־README | ה־README ציבורי |
@@ -723,7 +731,7 @@ npm run lint ; npm run build ; npm test
 | 4 | B0.2 | `docs/spec-v0.3` | Update SPEC to v0.3 for records | `Update SPEC sections 0–4 for records` · `List the Leumit sample label as a commitment alias in SPEC 5.6` · `Update SPEC sections 7–13 for records, auth, Postgres and CSV/JSON export` | — |
 | 5 | B0.3 | `chore/postgres-storage` | Move storage from SQLite to Postgres | `Add docker compose with Postgres for local development` · `Add psycopg and DATABASE_URL setting` · `Port records schema to Postgres` · `Replace SQLite connection with psycopg pool` · `Add Postgres test fixtures` · `Run backend tests against Postgres in CI` | `test_db.py`: init יוצר טבלאות, init שני לא משנה כלום, גרסה שגויה נכשלת עם הודעה, אפס מוביל נשמר, cascade מעמוד לשדות, `CHECK` על status |
 | 6 | B0.4 | `chore/docker-render-deploy` | Serve the app from one Docker image on Render | `Add multi-stage Dockerfile and dockerignore` · `Serve built frontend from FastAPI with SPA fallback` · `Add Render blueprint for web service and database` · `Document deployment and environment variables` | `test_spa.py`: `/records/x` מחזיר `index.html`, `/api/nope` מחזיר `404` JSON ולא HTML, קובץ סטטי מוגש. `docker build` מקומי. ידני: `/api/health` בדומיין |
-| 6א | B0.4 | `feature/keep-alive` | Keep the free Render instance awake | `Add keep-alive loop that pings the public health URL` · `Start keep-alive from app lifespan in production only` (main.py, A8 ⏳) · `Document KEEP_ALIVE_URL and interval` | `test_keep_alive.py`: עם פונקציית ping מדומה ומרווח קצר, ה־ping נקרא כמה פעמים. חריגה ב־ping לא עוצרת את הלולאה. כש־`KEEP_ALIVE_URL` ריק, לא נוצרת משימה. המשימה מבוטלת ב־shutdown. ידני: בלוגים של Render יש `200` כל 10 דקות |
+| 6א | B0.4 | `feature/keep-alive` | Keep the free Render instance awake | `Add keep-alive loop that pings the public health URL` · `Start keep-alive from app lifespan in production only` (main.py, A8) · `Document KEEP_ALIVE_URL and interval` | `test_keep_alive.py`: עם פונקציית ping מדומה ומרווח קצר, ה־ping נקרא כמה פעמים. חריגה ב־ping לא עוצרת את הלולאה. כש־`KEEP_ALIVE_URL` ריק, לא נוצרת משימה. המשימה מבוטלת ב־shutdown. ידני: בלוגים של Render יש `200` כל 10 דקות |
 | 7 | B1.1 | `feature/rules-normalize` (**PR #7**) | Add field normalization and validators | `Add issue catalog with codes and messages from SPEC 8` · `Normalize national ID and check its digit` · `Normalize received date and check its range` · `Normalize central and commitment numbers` | `test_issues.py` · `test_national_id.py` (כל שורה ב־SPEC 5.2) · `test_dates.py` (כל הפורמטים מ־5.4, שנה דו־ספרתית, 31/02, עתיד, לפני 2020) · `test_numbers.py` (הסרת כפילויות בלי לשנות סדר, `606/…` עם issue ו־`raw` נשמר) |
 | 7א | B1.1 | `feature/rules-senders` (**PR #8**, על #7) | Add closed senders list with aliases | `Pin PyYAML for the senders list` · `Add Hebrew text folding for matching and search` · `Add closed senders list with aliases` | `test_text.py` (ניקוד, גרשיים, מקף) · `test_senders.py` (4 הקופות, אין כינוי ששייך לשני שולחים, כינויים, לא מוכר, שני שולחים בטקסט אחד נחשבים לא מוכר) |
 | 8 | B1.1 | `feature/rules-engine` (על #8) | Add review policy, apply_rules and record builder | `Add review policy for unclear, missing and confirmed fields` · `Add apply_rules entry point` · `Apply user corrections and confirmations` · `Build one record per commitment number` | `test_review_policy.py` (info לא מסמן, `confirmed` מסיר את `needs_review` ומשאיר את ה־issue, גם על שדה ריק) · `test_engine.py` (ציפיות מפורשות לכל fixture, idempotent, `raw` לא משתנה, issues מהלקוח לא נלקחים בחשבון) · `test_build_records.py` (2×3 נותן 2, בלי התחייבות נותן 1 עם `REQUIRED_MISSING`, סדר) |
