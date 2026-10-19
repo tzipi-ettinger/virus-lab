@@ -185,16 +185,24 @@ async def extract_files(
                 open_group = group if same_file else None
                 after_failure = same_file and isinstance(previous, FailedPage)
                 placement = place(outcome, open_group, after_failure=after_failure)
+                joined = None
                 if placement == "join" and open_group is not None:
-                    group = join(open_group, outcome, today=today)
+                    joined = _join_or_none(open_group, outcome, today=today)
+                if joined is not None:
+                    group = joined
                 else:
                     await close(group)
-                    group = start(outcome, uncertain=placement == "uncertain", today=today)
+                    # A join that failed is a doubt like any other: flagged, not attached.
+                    uncertain = placement != "new"
+                    group = start(outcome, uncertain=uncertain, today=today)
             previous = outcome
         await close(group)
     finally:
-        for task in tasks:  # left over only if the loop itself broke: run() never raises
+        # Left over only if the loop itself broke (run() never raises): stop the
+        # pages still waiting, and wait for them so none outlives the request.
+        for task in tasks:
             task.cancel()
+        await asyncio.gather(*tasks, return_exceptions=True)
 
     return ExtractionResult(
         files=file_results,
@@ -247,6 +255,20 @@ def _failed(page: SourcePage, message: str, *, code: ErrorCode = "EXTRACTION_FAI
         page_number=page.page_number,
         error=ErrorInfo(code=code, message=message),
     )
+
+
+def _join_or_none(group: FormGroup, page: ReadPage, *, today: date) -> FormGroup | None:
+    """join(), or None if it raises: the rules on the merged form are new input.
+
+    Without this, a bug there would stop the upload after earlier forms were
+    saved, and the 500 would invite sending the file again (saving them twice).
+    """
+    try:
+        return join(group, page, today=today)
+    except Exception as exc:
+        # Not logger.exception: the traceback can hold the model's text.
+        logger.error("join failed: %s (%s)", page.form.form_id, type(exc).__name__)
+        return None
 
 
 def _failed_read(page: ReadPage, message: str) -> FailedPage:

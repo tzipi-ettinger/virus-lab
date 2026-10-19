@@ -422,3 +422,21 @@ def test_a_failed_save_fails_every_page_of_its_form():
         (1, SAVE_FAILED),
         (2, SAVE_FAILED),
     ]
+
+
+def test_a_join_that_fails_keeps_the_page_as_its_own_form_flagged(monkeypatch, caplog):
+    def broken_join(group, page, *, today):
+        raise KeyError("ישראל ישראלי")
+
+    monkeypatch.setattr(service, "join", broken_join)
+    provider = PageScript(readings={("forms.pdf", 2): BLANK})
+    saver = Saver()
+
+    with caplog.at_level(logging.INFO, logger="app.pipeline.service"):
+        result = run([upload(3)], provider, save_form=saver)
+
+    assert [f.form.page_number for f in result.forms] == [1, 2, 3]
+    assert [i.code for i in result.forms[1].form.issues] == ["PAGE_GROUPING_UNCERTAIN"]
+    assert saver.saved == [1, 2, 3]  # the upload went on
+    assert "KeyError" in caplog.text
+    assert "ישראל" not in caplog.text
