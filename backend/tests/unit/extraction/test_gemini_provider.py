@@ -52,7 +52,8 @@ class Response:
 class FakeClient:
     """client.aio.models.generate_content, answering from a script: text or an exception."""
 
-    def __init__(self, *script, delay: float = 0.0) -> None:
+    def __init__(self, *script, delay: float | list[float] = 0.0) -> None:
+        """`delay`: seconds for every call, or one per call (the last one repeats)."""
         self.script = list(script)
         self.calls: list[dict] = []
         self.delay = delay
@@ -66,7 +67,8 @@ class FakeClient:
         self.in_flight += 1
         self.max_in_flight = max(self.max_in_flight, self.in_flight)
         try:
-            await asyncio.sleep(self.delay)
+            delays = self.delay if isinstance(self.delay, list) else [self.delay]
+            await asyncio.sleep(delays[min(len(self.calls), len(delays)) - 1])
             step = self.script[min(len(self.calls), len(self.script)) - 1]
             if isinstance(step, BaseException):
                 raise step
@@ -177,6 +179,38 @@ def test_the_keys_wrap_around_so_a_renewed_quota_is_found_again():
 
     assert isinstance(result, RawExtraction)
     assert len(first.calls) == 2 and len(second.calls) == 1
+
+
+def test_pages_at_once_each_try_every_key_exactly_once():
+    # Seen in review: the loop read the shared key again on each pass. Page A runs
+    # through keys 1, 2, 3 and wraps the shared key back to 1 while page B, slow on
+    # key 1, is on key 3: B then asked key 1 again and never asked key 2.
+    unit = 0.1  # wide enough for Windows' 15ms timer
+    clients = [
+        FakeClient(DAILY, delay=[unit, 2.5 * unit]),
+        FakeClient(DAILY, delay=unit),
+        FakeClient(DAILY, delay=unit),
+    ]
+    shared = provider(clients)
+
+    async def two_pages():
+        return await asyncio.gather(
+            shared.extract(PAGE), shared.extract(PAGE), return_exceptions=True
+        )
+
+    results = run(two_pages())
+
+    assert all(isinstance(result, QuotaExhausted) for result in results)
+    assert [len(client.calls) for client in clients] == [2, 2, 2]
+
+
+def test_the_log_does_not_promise_a_next_key_that_is_not_there(caplog):
+    with caplog.at_level(logging.INFO, logger="app.extraction.gemini_provider"):
+        with pytest.raises(QuotaExhausted):
+            run(provider([FakeClient(DAILY), FakeClient(DAILY)]).extract(PAGE))
+
+    assert "moving" not in caplog.text
+    assert "all 2 keys are out of daily quota" in caplog.text
 
 
 def test_a_per_minute_limit_does_not_switch_keys():

@@ -91,22 +91,24 @@ class GeminiProvider:
     async def extract(self, page: PageImage) -> RawExtraction:
         contents = [types.Part.from_bytes(data=page.jpeg, mime_type="image/jpeg"), self._prompt]
         async with self._semaphore:
-            # Each key in turn, starting from the one in use. Wrapping around means a
-            # key that ran out yesterday is found again once its quota is back.
-            for _ in range(len(self._clients)):
-                key = self._current
+            # Every key once, starting from the one in use. The order is fixed here,
+            # not read again from _current, which other pages move meanwhile. Wrapping
+            # around means a key that ran out yesterday is found again once it's back.
+            count = len(self._clients)
+            start = self._current
+            for key in [(start + step) % count for step in range(count)]:
                 try:
-                    return await self._extract_with(self._clients[key], contents)
+                    result = await self._extract_with(self._clients[key], contents)
                 except QuotaExhausted:
-                    # Only the first page to hit it moves on; another page may have already.
+                    logger.warning("gemini key %d of %d is out of daily quota", key + 1, count)
+                    # So pages starting now skip it; unless another page moved on already.
                     if self._current == key:
-                        self._current = (key + 1) % len(self._clients)
-                    if len(self._clients) > 1:
-                        logger.warning(
-                            "gemini key %d of %d is out of daily quota, moving to the next",
-                            key + 1,
-                            len(self._clients),
-                        )
+                        self._current = (key + 1) % count
+                    continue
+                self._current = key  # a key that answers: later pages start here
+                return result
+        if count > 1:
+            logger.warning("gemini: all %d keys are out of daily quota", count)
         raise QuotaExhausted(QUOTA_MESSAGE)
 
     async def _extract_with(self, client: genai.Client, contents: list) -> RawExtraction:
