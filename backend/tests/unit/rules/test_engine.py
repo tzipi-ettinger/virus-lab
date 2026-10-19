@@ -44,10 +44,11 @@ def test_multi_values(load_form):
     ]
     assert got["commitment_numbers"] == [
         ("260005102611", [], False),
-        ("50364186", ["COMMITMENT_PREFIX"], True),
+        ("50364186", ["COMMITMENT_PREFIX_REMOVED"], False),
     ]
     assert form.commitment_numbers[1].raw == "606/50364186"
-    assert form.needs_review is True
+    # #18: a dropped lab prefix alone doesn't block approval.
+    assert form.needs_review is False
 
 
 def test_unclear(load_form):

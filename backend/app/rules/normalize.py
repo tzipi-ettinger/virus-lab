@@ -18,8 +18,9 @@ _DMY = re.compile(r"(\d{1,2})\s*[-./]\s*(\d{1,2})\s*[-./]\s*(\d{4}|\d{2})")
 _ISO = re.compile(r"(\d{4})-(\d{2})-(\d{2})")
 # A time before or after the date (18/06/2026 10:30): read the date, drop the time.
 _TIME_AT_EDGE = re.compile(r"^\d{1,2}:\d{2}(?::\d{2})?\s+|\s+\d{1,2}:\d{2}(?::\d{2})?$")
-# "606/50364186": a 3-digit prefix before a long number (organizers' clarification).
-_COMMITMENT_PREFIX = re.compile(r"\d{3}/(\d{6,})")
+# "606/50364186": the sending lab's 3-digit code before a long number. 606 is the
+# lab in Karmiel, not part of the number (the team lead, #18).
+_LAB_PREFIX = re.compile(r"\d{3}/(\d{6,})")
 
 
 def digits_only(text: str) -> str:
@@ -82,15 +83,16 @@ def normalize_central_number(raw: str | None) -> tuple[str | None, list[Issue]]:
 
 
 def normalize_commitment_number(raw: str | None) -> tuple[str | None, list[Issue]]:
-    """Copied as written (SPEC 5.6), except a 3-digit prefix like 606/ is dropped.
+    """Copied as written (SPEC 5.6), except a lab prefix like 606/ is dropped.
 
-    Both the dropped prefix and any other / are flagged, so a person checks them.
+    The dropped prefix is only shown (COMMITMENT_PREFIX_REMOVED, info). Any other /
+    is a warning (COMMITMENT_PREFIX), so a person checks it.
     """
     text = re.sub(r"\s*/\s*", "/", (raw or "").strip())
     if not text:
         return None, []
-    if match := _COMMITMENT_PREFIX.fullmatch(text):
-        return match[1], [make_issue("COMMITMENT_PREFIX")]
+    if match := _LAB_PREFIX.fullmatch(text):
+        return match[1], [make_issue("COMMITMENT_PREFIX_REMOVED")]
     if "/" in text:
         return text, [make_issue("COMMITMENT_PREFIX")]
     return text, []

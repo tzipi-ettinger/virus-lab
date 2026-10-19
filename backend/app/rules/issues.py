@@ -20,6 +20,8 @@ CATALOG: dict[IssueCode, Severity] = {
     "SENDER_UNKNOWN": "warning",
     "CENTRAL_FORMAT": "warning",
     "COMMITMENT_PREFIX": "warning",
+    # The sending lab's code (606/), not part of the number: shown, not blocking (#18).
+    "COMMITMENT_PREFIX_REMOVED": "info",
     "ROTATION_UNRESOLVED": "warning",
     "DUPLICATE_REMOVED": "info",
     "DUPLICATE_RECORD": "warning",

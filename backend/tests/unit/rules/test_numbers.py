@@ -35,8 +35,8 @@ def test_validate_central_number(value, issue_codes):
     [
         ("260005102611", "260005102611", []),
         (" 3317702 ", "3317702", []),
-        ("606/50364186", "50364186", ["COMMITMENT_PREFIX"]),
-        ("606 / 50364186", "50364186", ["COMMITMENT_PREFIX"]),
+        ("606/50364186", "50364186", ["COMMITMENT_PREFIX_REMOVED"]),
+        ("606 / 50364186", "50364186", ["COMMITMENT_PREFIX_REMOVED"]),
         ("12/3456", "12/3456", ["COMMITMENT_PREFIX"]),
         ("606/12345", "606/12345", ["COMMITMENT_PREFIX"]),
         ("", None, []),
