@@ -270,7 +270,8 @@ INDEX: record(status, received_date), record(national_id), record(commitment_num
 **`service.approve_record(...)`:**
 
 - מריץ את הכללים מחדש.
-- חוסם אם יש שדה עם `needs_review`, או issue ברמת הרשומה. שדה ריק שאושר (`confirmed`) נחשב מטופל.
+- חוסם רק אם יש שדה עם `needs_review`, והשדות מוחזרים ב־`blocking_fields`. שדה ריק שאושר (`confirmed`) נחשב מטופל.
+- issue ברמת הרשומה (`ROTATION_UNRESOLVED`, `PAGE_GROUPING_UNCERTAIN`) לא חוסם, כי בחוזה אין דרך לאשר אותו. הוא נשאר מוצג ומשאיר את `needs_review` של הרשומה, ולכן "אשרי את כל המוכנות" מדלג עליה ואדם מאשר אותה בנפרד (אושר ב־19.10, #57).
 - אין ביטול אישור (A6).
 
 **`service.approve_many(items, user)`** (D20):
