@@ -41,22 +41,27 @@ def test_keys_are_read_from_a_comma_separated_list(monkeypatch):
     monkeypatch.setenv("GEMINI_API_KEYS", "key-1, key-2,,key-3 ,")
     settings = Settings(_env_file=None)
 
-    assert settings.gemini_keys() == ("key-1", "key-2", "key-3")
+    assert keys(settings) == ["key-1", "key-2", "key-3"]
     assert "key-2" not in repr(settings)
+    assert "key-2" not in repr(settings.gemini_keys())
 
 
 def test_the_old_single_key_still_works_and_comes_last(monkeypatch):
     monkeypatch.setenv("GEMINI_API_KEYS", "key-1,key-2")
     monkeypatch.setenv("GEMINI_API_KEY", "old-key")
 
-    assert Settings(_env_file=None).gemini_keys() == ("key-1", "key-2", "old-key")
+    assert keys(Settings(_env_file=None)) == ["key-1", "key-2", "old-key"]
 
 
 def test_a_key_listed_twice_is_used_once(monkeypatch):
     monkeypatch.setenv("GEMINI_API_KEYS", "key-1,key-1")
     monkeypatch.setenv("GEMINI_API_KEY", "key-1")
 
-    assert Settings(_env_file=None).gemini_keys() == ("key-1",)
+    assert keys(Settings(_env_file=None)) == ["key-1"]
+
+
+def keys(settings: Settings) -> list[str]:
+    return [key.get_secret_value() for key in settings.gemini_keys()]
 
 
 def test_only_commas_counts_as_no_key():

@@ -19,8 +19,8 @@ ENV_FILE = Path(__file__).resolve().parents[1] / ".env"
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=ENV_FILE, extra="ignore")
 
-    # SecretStr keeps the keys out of repr, logs and tracebacks. Read them with
-    # gemini_keys() only where the Gemini clients are built.
+    # SecretStr keeps the keys out of repr, logs and tracebacks. Call
+    # .get_secret_value() only where the Gemini clients are built.
     # GEMINI_API_KEYS: comma-separated, one key per Google project. The free-tier
     # quota is per project, so the provider moves to the next key when one runs out.
     gemini_api_keys: SecretStr = SecretStr("")
@@ -61,10 +61,11 @@ class Settings(BaseSettings):
                 raise ValueError(f"EXTRACTION_PROVIDER=gemini needs {' and '.join(missing)}")
         return self
 
-    def gemini_keys(self) -> tuple[str, ...]:
+    def gemini_keys(self) -> tuple[SecretStr, ...]:
         """Every key in order, blanks and repeats left out: GEMINI_API_KEYS, then GEMINI_API_KEY."""
         raw = f"{self.gemini_api_keys.get_secret_value()},{self.gemini_api_key.get_secret_value()}"
-        return tuple(dict.fromkeys(key.strip() for key in raw.split(",") if key.strip()))
+        keys = dict.fromkeys(key.strip() for key in raw.split(",") if key.strip())
+        return tuple(SecretStr(key) for key in keys)
 
     @property
     def max_file_bytes(self) -> int:
