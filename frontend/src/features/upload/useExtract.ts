@@ -11,6 +11,8 @@ type Problem = components["schemas"]["Problem"];
 export const EXTRACT_URL = "/api/v1/extract";
 
 const ACCEPTED = /\.(pdf|jpe?g|png)$/i;
+// MAX_FILE_MB in backend/app/settings.py (decimal MB, like the server).
+export const MAX_FILE_BYTES = 20_000_000;
 
 export type FileStatus =
   | "queued"
@@ -28,6 +30,9 @@ export interface UploadItem {
   message?: string;
   canRetry: boolean;
   result?: ExtractResponse;
+  // Date.now() when the request went out. The server answers only at the end of
+  // the file, so the panel shows the time that passed instead of a percentage.
+  startedAt?: number;
 }
 
 // What one request for one file ended with. Sending again is offered only when
@@ -41,6 +46,12 @@ export type Outcome =
   | { kind: "interrupted" };
 
 export const QUOTA_MESSAGE = "המכסה היומית נגמרה";
+// Nothing from these files was saved, so sending them again is safe - once the quota is back.
+export const NOT_SENT_QUOTA = "המכסה היומית נגמרה. אפשר לשלוח שוב כשהמכסה מתחדשת";
+export const NOT_SENT_CONNECTION = "ההעלאה נעצרה כי החיבור נקטע";
+
+// 4xx types where the server says nothing was saved and sending again may work.
+const RETRYABLE_4XX = new Set(["invalid_upload"]);
 
 export function classify(status: number, body: unknown): Outcome {
   if (status === 200) {
@@ -59,11 +70,15 @@ export function classify(status: number, body: unknown): Outcome {
   }
   const problem = (body ?? {}) as Partial<Problem>;
   if (status === 503 && problem.type === "quota_exhausted") {
-    return { kind: "quota", message: problem.title || QUOTA_MESSAGE };
+    return { kind: "quota", message: NOT_SENT_QUOTA };
   }
   // Pages may already be saved when the server breaks or the connection drops.
   if (status >= 500) return { kind: "interrupted" };
-  return { kind: "failed", message: problem.title || "הקובץ לא התקבל", canRetry: false };
+  if (status === 401) return { kind: "failed", message: "צריך להתחבר מחדש", canRetry: false };
+  const parts = [problem.title || "הקובץ לא התקבל"];
+  if (problem.detail) parts.push(problem.detail);
+  if (problem.type === "too_many_pages") parts.push("אפשר לחלק את הקובץ לכמה קבצים");
+  return { kind: "failed", message: parts.join(". "), canRetry: RETRYABLE_4XX.has(problem.type ?? "") };
 }
 
 export async function sendFile(file: File, fetchImpl: typeof fetch = fetch): Promise<Outcome> {
@@ -86,7 +101,7 @@ export async function sendFile(file: File, fetchImpl: typeof fetch = fetch): Pro
 
 export type Action =
   | { type: "add"; files: File[] }
-  | { type: "start"; key: string }
+  | { type: "start"; key: string; at: number }
   | { type: "finish"; key: string; outcome: Outcome }
   | { type: "retry"; key: string };
 
@@ -99,13 +114,19 @@ export function uploadReducer(items: UploadItem[], action: Action): UploadItem[]
         ...items,
         ...action.files.map((file): UploadItem => {
           const key = `f${++nextKey}`;
-          return ACCEPTED.test(file.name)
-            ? { key, file, status: "queued", canRetry: false }
-            : { key, file, status: "failed", canRetry: false, message: "סוג קובץ לא נתמך. אפשר להעלות PDF, JPG או PNG" };
+          if (!ACCEPTED.test(file.name)) {
+            return { key, file, status: "failed", canRetry: false, message: "סוג קובץ לא נתמך. אפשר להעלות PDF, JPG או PNG" };
+          }
+          if (file.size > MAX_FILE_BYTES) {
+            return { key, file, status: "failed", canRetry: false, message: "הקובץ גדול מ־20MB. אפשר לחלק אותו" };
+          }
+          return { key, file, status: "queued", canRetry: false };
         }),
       ];
     case "start":
-      return items.map((i) => (i.key === action.key ? { ...i, status: "sending", message: undefined } : i));
+      return items.map((i) =>
+        i.key === action.key ? { ...i, status: "sending", message: undefined, startedAt: action.at } : i,
+      );
     case "retry":
       return items.map((i) =>
         i.key === action.key && i.canRetry ? { ...i, status: "queued", canRetry: false, message: undefined } : i,
@@ -130,11 +151,18 @@ function finish(items: UploadItem[], key: string, outcome: Outcome): UploadItem[
         return { ...i, status: "interrupted", canRetry: false };
     }
   };
-  // The quota is daily: once it runs out, the files still waiting are not sent.
-  const stop = outcome.kind === "partial" || outcome.kind === "quota";
+  // The quota is daily, and a dropped connection will most likely drop the next
+  // file too: the files still waiting are not sent. Nothing of theirs was saved,
+  // so they can be sent again.
+  const stopMessage =
+    outcome.kind === "partial" || outcome.kind === "quota"
+      ? NOT_SENT_QUOTA
+      : outcome.kind === "interrupted"
+        ? NOT_SENT_CONNECTION
+        : null;
   return items.map((i) => {
     if (i.key === key) return update(i);
-    if (stop && i.status === "queued") return { ...i, status: "not_sent", canRetry: true, message: QUOTA_MESSAGE };
+    if (stopMessage && i.status === "queued") return { ...i, status: "not_sent", canRetry: true, message: stopMessage };
     return i;
   });
 }
@@ -155,7 +183,7 @@ export function useExtract(onResult: (result: ExtractResponse) => void) {
     const next = items.find((i) => i.status === "queued");
     if (!next) return;
     sending.current = true;
-    dispatch({ type: "start", key: next.key });
+    dispatch({ type: "start", key: next.key, at: Date.now() });
     void sendFile(next.file).then((outcome) => {
       sending.current = false;
       dispatch({ type: "finish", key: next.key, outcome });

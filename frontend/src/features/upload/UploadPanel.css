@@ -2,6 +2,8 @@
    Logical properties only (RTL). Owner: A */
 
 .upload {
+  /* The panel may sit in a narrow column, so the file rows follow its own width, not the window's. */
+  container-type: inline-size;
   display: flex;
   flex-direction: column;
   gap: 16px;
@@ -133,6 +135,31 @@
 .upload-detail {
   color: var(--color-text-muted, #52606d);
   font-size: 0.875rem;
+}
+
+.upload-detail:empty {
+  display: none;
+}
+
+.upload-retry {
+  margin-inline-start: auto;
+}
+
+/* Wide panel: one row per file, in fixed columns, like a table. */
+@container (min-width: 640px) {
+  .upload-item {
+    display: grid;
+    grid-template-columns: 120px minmax(0, 1.2fr) minmax(0, 1fr) 96px;
+    gap: 16px;
+  }
+
+  .upload-detail:empty {
+    display: block;
+  }
+
+  .upload-retry {
+    margin-inline-start: 0;
+  }
 }
 
 .is-done .upload-status { color: var(--color-success, #1e6b3a); }

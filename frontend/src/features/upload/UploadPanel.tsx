@@ -1,7 +1,7 @@
 // Drag & drop, PDF + images, progress per file, failed pages (PLAN-DEV-B 3, upload table).
 // Owner: A
 
-import { useRef, useState, type DragEvent } from "react";
+import { useEffect, useRef, useState, type DragEvent } from "react";
 import { useExtract, type ExtractResponse, type FileStatus, type UploadItem } from "./useExtract";
 import "./UploadPanel.css";
 
@@ -52,9 +52,15 @@ function StatusIcon({ status }: { status: FileStatus }) {
   }
 }
 
-function detail(item: UploadItem) {
+function elapsed(ms: number) {
+  const s = Math.max(0, Math.floor(ms / 1000));
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+}
+
+function detail(item: UploadItem, now: number) {
   const r = item.result;
   const parts: string[] = [];
+  if (item.status === "sending" && item.startedAt) parts.push(elapsed(now - item.startedAt));
   if (r && (item.status === "done" || item.status === "partial")) {
     const pages = r.files[0]?.page_count;
     if (pages) parts.push(pages === 1 ? "עמוד אחד" : `${pages} עמודים`);
@@ -68,6 +74,15 @@ export function UploadPanel({ onResult }: UploadPanelProps) {
   const { items, add, retry } = useExtract(onResult);
   const input = useRef<HTMLInputElement>(null);
   const [dragging, setDragging] = useState(false);
+  const [now, setNow] = useState(() => Date.now());
+  const isSending = items.some((i) => i.status === "sending");
+
+  // A file can take minutes; the clock shows it is still being read.
+  useEffect(() => {
+    if (!isSending) return;
+    const id = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, [isSending]);
 
   const onDrop = (e: DragEvent) => {
     e.preventDefault();
@@ -135,8 +150,8 @@ export function UploadPanel({ onResult }: UploadPanelProps) {
                   <StatusIcon status={item.status} />
                   {STATUS_TEXT[item.status]}
                 </span>
-                <span className="upload-name" dir="auto">{item.file.name}</span>
-                <span className="upload-detail">{detail(item)}</span>
+                <span className="upload-name"><bdi>{item.file.name}</bdi></span>
+                <span className="upload-detail">{detail(item, now)}</span>
                 {item.canRetry && (
                   <button type="button" className="upload-retry" onClick={() => retry(item.key)}>
                     נסי שוב
@@ -156,7 +171,7 @@ export function UploadPanel({ onResult }: UploadPanelProps) {
           <ul>
             {failedPages.map((p) => (
               <li key={`${p.file_id}-${p.page_number}`}>
-                <span dir="auto">{p.source_file}</span>, עמוד {p.page_number}: {p.error.message}
+                <bdi>{p.source_file}</bdi>, עמוד {p.page_number}: {p.error.message}
               </li>
             ))}
           </ul>

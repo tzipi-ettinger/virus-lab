@@ -5,6 +5,9 @@
 import { describe, expect, test } from "vitest";
 import {
   EXTRACT_URL,
+  MAX_FILE_BYTES,
+  NOT_SENT_CONNECTION,
+  NOT_SENT_QUOTA,
   QUOTA_MESSAGE,
   classify,
   sendFile,
@@ -55,8 +58,23 @@ describe("classify", () => {
   test("503 quota_exhausted: nothing was saved", () => {
     expect(classify(503, { type: "quota_exhausted", title: "נגמרה המכסה", status: 503 })).toEqual({
       kind: "quota",
-      message: "נגמרה המכסה",
+      message: NOT_SENT_QUOTA,
     });
+  });
+
+  test("400 invalid_upload can be sent again: the server saved nothing", () => {
+    const body = { type: "invalid_upload", title: "לא ניתן לקרוא את ההעלאה", status: 400, detail: "ייתכן שהיא פגומה. אפשר לשלוח שוב" };
+    expect(classify(400, body)).toEqual({
+      kind: "failed",
+      message: "לא ניתן לקרוא את ההעלאה. ייתכן שהיא פגומה. אפשר לשלוח שוב",
+      canRetry: true,
+    });
+  });
+
+  test("413 too_many_pages suggests splitting the file", () => {
+    const outcome = classify(413, { type: "too_many_pages", title: "יותר מדי עמודים", status: 413 });
+    expect(outcome).toMatchObject({ kind: "failed", canRetry: false });
+    expect(outcome.kind === "failed" && outcome.message).toContain("לחלק");
   });
 
   test("any other 5xx is interrupted: pages may already be saved", () => {
@@ -64,12 +82,13 @@ describe("classify", () => {
     expect(classify(503, { type: "other", title: "x", status: 503 }).kind).toBe("interrupted");
   });
 
-  test("4xx shows the server's message, without sending again", () => {
-    expect(classify(413, { type: "too_many_pages", title: "יותר מדי עמודים", status: 413 })).toEqual({
+  test("other 4xx show the server's message, without sending again", () => {
+    expect(classify(413, { type: "request_too_large", title: "ההעלאה גדולה מ־60MB. אפשר לחלק אותה", status: 413 })).toEqual({
       kind: "failed",
-      message: "יותר מדי עמודים",
+      message: "ההעלאה גדולה מ־60MB. אפשר לחלק אותה",
       canRetry: false,
     });
+    expect(classify(415, { type: "unsupported_media_type", title: "x", status: 415 })).toMatchObject({ canRetry: false });
   });
 });
 
@@ -108,21 +127,44 @@ describe("uploadReducer", () => {
     expect(items[1].canRetry).toBe(false);
   });
 
+  test("files over 20MB fail at once and are never sent", () => {
+    const big = new File([new Uint8Array(MAX_FILE_BYTES + 1)], "big.pdf");
+    const [item] = uploadReducer([], { type: "add", files: [big] });
+    expect(item).toMatchObject({ status: "failed", canRetry: false });
+  });
+
+  test("start records when the request went out", () => {
+    let items = queued("a.pdf");
+    items = uploadReducer(items, { type: "start", key: items[0].key, at: 1000 });
+    expect(items[0]).toMatchObject({ status: "sending", startedAt: 1000 });
+  });
+
+  test("interrupted stops the queue: the waiting files are not sent and can be sent again", () => {
+    let items = queued("a.pdf", "b.pdf");
+    items = uploadReducer(items, { type: "finish", key: items[0].key, outcome: { kind: "interrupted" } });
+    expect(items.map((i) => [i.status, i.canRetry])).toEqual([
+      ["interrupted", false],
+      ["not_sent", true],
+    ]);
+    expect(items[1].message).toBe(NOT_SENT_CONNECTION);
+  });
+
   test("partial: the file is not offered again, and the files still waiting are not sent", () => {
     let items = queued("a.pdf", "b.pdf", "c.pdf");
-    items = uploadReducer(items, { type: "start", key: items[0].key });
+    items = uploadReducer(items, { type: "start", key: items[0].key, at: 0 });
     items = uploadReducer(items, { type: "finish", key: items[0].key, outcome: { kind: "partial", result: response({ quota_exhausted: true }) } });
     expect(items.map((i) => [i.status, i.canRetry])).toEqual([
       ["partial", false],
       ["not_sent", true],
       ["not_sent", true],
     ]);
-    expect(items[1].message).toBe(QUOTA_MESSAGE);
+    expect(items[0].message).toBe(QUOTA_MESSAGE);
+    expect(items[1].message).toBe(NOT_SENT_QUOTA);
   });
 
   test("503 quota: this file and the waiting ones can be sent again", () => {
     let items = queued("a.pdf", "b.pdf");
-    items = uploadReducer(items, { type: "start", key: items[0].key });
+    items = uploadReducer(items, { type: "start", key: items[0].key, at: 0 });
     items = uploadReducer(items, { type: "finish", key: items[0].key, outcome: { kind: "quota", message: "נגמרה המכסה" } });
     expect(items.map((i) => [i.status, i.canRetry])).toEqual([
       ["not_sent", true],
