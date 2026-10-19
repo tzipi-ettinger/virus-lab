@@ -8,6 +8,7 @@ import { ApiError } from "../../api/client";
 import { record } from "./testRecords";
 import {
   VERSION_CONFLICT,
+  centralsEdit,
   keepCentrals,
   mutationError,
   useRecordMutations,
@@ -97,7 +98,31 @@ describe("useRecordMutations", () => {
 describe("keepCentrals", () => {
   test("keeps every item by its position, with one change", () => {
     const r = record();
-    expect(keepCentrals(r, { 1: { confirmed: true } })).toEqual([{ idx: 0 }, { idx: 1, confirmed: true }]);
+    expect(keepCentrals(r.central_numbers, { 1: { confirmed: true } })).toEqual([
+      { idx: 0 },
+      { idx: 1, confirmed: true },
+    ]);
+  });
+});
+
+describe("centralsEdit", () => {
+  const items = [{ value: "948062" }, { value: "123456" }];
+
+  test("nothing changed sends nothing", () => {
+    expect(centralsEdit(items, [{ idx: 0, value: "948062" }, { idx: 1, value: " 123456 " }])).toBeNull();
+  });
+
+  test("a changed item keeps its position, a new one has none, an emptied one goes", () => {
+    const drafts = [
+      { idx: 0, value: "948063" },
+      { idx: 1, value: "" },
+      { idx: null, value: "555555" },
+    ];
+    expect(centralsEdit(items, drafts)).toEqual([{ idx: 0, value: "948063" }, { value: "555555" }]);
+  });
+
+  test("removing an item is a change", () => {
+    expect(centralsEdit(items, [{ idx: 1, value: "123456" }])).toEqual([{ idx: 1 }]);
   });
 });
 

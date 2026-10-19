@@ -42,8 +42,24 @@ export function centralsPatch(record: ApiRecord, items: ListItemEdit[]): RecordP
 }
 
 /** Every central number as it is ({idx} keeps an item), with one change applied. */
-export function keepCentrals(record: ApiRecord, change: Record<number, ListItemEdit> = {}): ListItemEdit[] {
-  return record.central_numbers.map((_, idx) => ({ idx, ...change[idx] }));
+export function keepCentrals(items: unknown[], change: Record<number, ListItemEdit> = {}): ListItemEdit[] {
+  return items.map((_, idx) => ({ idx, ...change[idx] }));
+}
+
+/** One input in the central numbers editor: an item already saved (idx) or a new one. */
+export type ListDraft = { idx: number | null; value: string };
+
+/** The list to send, or null when nothing changed. An emptied item is removed. */
+export function centralsEdit(items: { value: string | null }[], drafts: ListDraft[]): ListItemEdit[] | null {
+  const edits = drafts
+    .filter((d) => d.value.trim() !== "")
+    .map(({ idx, value }): ListItemEdit => {
+      const clean = value.trim();
+      if (idx === null) return { value: clean };
+      return clean === (items[idx].value ?? "") ? { idx } : { idx, value: clean };
+    });
+  const unchanged = edits.length === items.length && edits.every((e, i) => e.idx === i && e.value === undefined);
+  return unchanged ? null : edits;
 }
 
 /** Result of a change: null when saved, or the message to show next to it. */

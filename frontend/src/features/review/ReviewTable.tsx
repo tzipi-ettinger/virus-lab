@@ -3,16 +3,10 @@
 // Owner: B
 
 import { useSenders } from "../../shared/useSenders";
+import { CentralNumbersCell } from "./CentralNumbersCell";
 import { FieldCell } from "./FieldCell";
 import { useRecordMutations, type ApiRecord } from "./recordMutations";
-import {
-  CONFIDENCE_TEXT,
-  FIELD_COLUMNS,
-  FORM_TYPE_TEXT,
-  listCell,
-  statusText,
-  type Cell,
-} from "./reviewRows";
+import { FIELD_COLUMNS, FORM_TYPE_TEXT, statusText } from "./reviewRows";
 import "./ReviewTable.css";
 
 interface ReviewTableProps {
@@ -23,17 +17,8 @@ interface ReviewTableProps {
   onRecords: (records: ApiRecord[]) => void;
 }
 
-function CellView({ cell }: { cell: Cell }) {
-  return (
-    <td className={cell.flagged ? "review-cell is-flagged" : "review-cell"} title={cell.issues.join("\n") || undefined}>
-      <span className="review-value">{cell.text ? <bdi>{cell.text}</bdi> : "—"}</span>
-      <span className={`review-confidence is-${cell.confidence}`}>{CONFIDENCE_TEXT[cell.confidence]}</span>
-    </td>
-  );
-}
-
 export function ReviewTable({ records, selectedId, onSelect, onRecords }: ReviewTableProps) {
-  const { saveField } = useRecordMutations(onRecords);
+  const { saveField, saveCentrals } = useRecordMutations(onRecords);
   const senders = useSenders();
   if (records.length === 0) {
     return <p className="review-empty">עוד אין רשומות. העלי טפסים כדי להתחיל</p>;
@@ -88,7 +73,11 @@ export function ReviewTable({ records, selectedId, onSelect, onRecords }: Review
                       options={c.name === "sender" && senders.length > 0 ? senders : undefined}
                     />
                   ))}
-                  <CellView cell={listCell(r.central_numbers)} />
+                  <CentralNumbersCell
+                    items={r.central_numbers}
+                    editable={r.status === "pending"}
+                    onSave={(items) => saveCentrals(r, items)}
+                  />
                   <td className={r.needs_review ? "review-status is-flagged" : "review-status"}>{statusText(r)}</td>
                 </tr>
               );
