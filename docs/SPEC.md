@@ -235,25 +235,30 @@
 
 ## 7. כללים עסקיים
 
-### 7.1 בניית שורות לאקסל [אתגר + החלטה]
+### 7.1 בניית רשומות [אתגר + החלטה]
 
 ```
-rows(form) =
+records(form) =
     if form.commitment_numbers is empty:
-        [ one row, commitment = "", needs_review = true ]
+        [ one record, commitment_number = empty, REQUIRED_MISSING ]
     else:
-        [ one row per commitment_number ]
+        [ one record per commitment_number ]
 
-כל שורה מכילה:
-    central_numbers  -> כולם, מחוברים ב־", " (סעיף 10)
-    שאר השדות        -> הערכים של הטופס
+כל רשומה מכילה:
+    central_numbers    -> כל המרכזיים של הטופס
+    commitment_number  -> התחייבות אחת
+    שאר השדות          -> הערכים של הטופס
+    form_type          -> סוג הטופס
 ```
 
-- **אסור לייצר צירופים** בין מרכזיים להתחייבויות. 2 התחייבויות ו־3 מרכזיים = **2 שורות**, לא 6
-- טופס בלי התחייבות **מיוצא** כשורה אחת מסומנת לבדיקה [החלטה, ממתין לתשובה]
-- טופס בסטטוס `error` לא מיוצא ומוצג במסך כנכשל. **לפני ההורדה מסך הייצוא מציג כמה טפסים לא ייכללו ולמה** — טופס לא נעלם בשקט [החלטה]
-- **סיבות לבדיקה בשורה:** ה־issues של הטופס, של השדות היחידים ושל ההתחייבות של אותה שורה בלבד — לא של ההתחייבויות האחרות באותו טופס [החלטה]
-- **סדר השורות:** לפי סדר העלאת הקבצים, אחר כך מספר העמוד, אחר כך סדר ההתחייבויות בטופס [החלטה]
+- **אסור לייצר צירופים** בין מרכזיים להתחייבויות. 2 התחייבויות ו־3 מרכזיים = **2 רשומות**, לא 6
+- טופס בלי התחייבות נשמר כרשומה אחת עם התחייבות ריקה, מסומנת לבדיקה. זה מצב צפוי, למשל ברוזנבלט [ראש הצוות, Q3]
+- **טופס על כמה עמודים:** עמודי ההמשך (סעיף 2) שייכים לרשומות של הטופס, ואינם רשומות משלהם. הם רק משלימים שדות שחסרים בעמוד הראשון, ולא מחליפים ערך. כשלא בטוח שעמוד ממשיך את הטופס שלפניו, הוא נשמר כטופס נפרד עם `PAGE_GROUPING_UNCERTAIN` [החלטה, A1 ב־#15]
+- **עמוד שנכשל לא נשמר.** הוא מוצג מעל טבלת הבדיקה עם הסיבה, ואפשר להעלות אותו שוב. גם שמירה שנכשלה מוצגת כך, לכל עמודי הטופס. טופס לא נעלם בשקט [החלטה, A7]
+- **השמירה של טופס היא טרנזקציה אחת:** כל העמודים שלו, התמונות והרשומות נשמרים יחד, או ששום דבר לא נשמר [החלטה]
+- **התחייבות כפולה:** מספר התחייבות שכבר קיים ברשומה אחרת לא חוסם את השמירה. הרשומה מסומנת `DUPLICATE_RECORD` [החלטה, A4]
+- **סיבות לבדיקה ברשומה:** ה־issues של הטופס, של השדות המשותפים ושל ההתחייבות של אותה רשומה בלבד, לא של ההתחייבויות האחרות באותו טופס [החלטה]
+- **סדר בטבלת הבדיקה:** לפי סדר העלאת הקבצים, אחר כך מספר העמוד, אחר כך סדר ההתחייבויות בטופס [החלטה]
 
 ### 7.2 ערכים מרובים
 
@@ -284,12 +289,22 @@ rows(form) =
 **כללים:**
 
 - **עריכה:** `value` = מה שהוקלד, `corrected = true`. `raw` נשאר כמו שהוא
-- **הרצת הכללים** (`validate`, `export`): אם `corrected` — מנרמלים מ־`value`; אחרת — מ־`raw`
+- **הרצת הכללים** (בכל תיקון ובכל אישור): אם `corrected` — מנרמלים מ־`value`; אחרת — מ־`raw`
 - **שדה שתוקן:** מתעלמים מ־`model_status` (לא מוסיפים `FIELD_UNCLEAR`); שאר הוולידציות רצות כרגיל
 - **שדה שאושר:** ה־issues נשארים ומוצגים, אבל `needs_review = false`. עריכה של שדה שאושר מבטלת את האישור (`confirmed = false`)
 - **רשימות:** פריט שהמשתמשת הוסיפה מקבל `raw: null`, `value` = מה שהוקלד, `model_status: "not_found"`, `corrected: true`. הסרה מוחקת את הפריט מהרשימה
-- **השרת לא סומך על הלקוח:** `issues` ו־`needs_review` שמגיעים בבקשה מתעלמים מהם ומחושבים מחדש בכל `validate` ו־`export`
-- באקסל, עמודת "תוקן / אושר ידנית" מציינת אילו שדות תוקנו או אושרו (סעיף 10)
+- **השרת לא סומך על הלקוח:** הלקוח שולח רק ערכים ו־`confirmed`. השרת מחשב בעצמו את `issues` ואת `needs_review` בכל תיקון ובכל אישור
+- **רשומות אחיות:** תיקון של שדה משותף (שם, ת״ז, תאריך, גורם שולח, מרכזי) מתעדכן בכל הרשומות הממתינות של אותו טופס. אם אחת מהן כבר אושרה, התיקון נחסם עם הסבר (`409 sibling_approved`). `commitment_number` שייך לרשומה אחת בלבד [החלטה, A3]
+- **תיקון במקביל:** כל רשומה נושאת `version`. תיקון או אישור עם גרסה ישנה נדחה (`409 version_conflict`), והמסך טוען את הרשומה מחדש בלי לאבד את מה שהוקלד [החלטה]
+- בייצוא ה־CSV, עמודת "תוקן / אושר ידנית" מציינת אילו שדות תוקנו או אושרו (סעיף 10)
+
+### 7.5 אישור רשומה [אתגר + החלטה]
+
+- **אישור נחסם בשרת** כל עוד יש ברשומה שדה עם `needs_review`, או issue ברמת הרשומה. השרת מריץ את הכללים מחדש לפני הבדיקה, ומחזיר את רשימת השדות החוסמים (`409 review_required` עם `blocking_fields`). שדה ריק שאושר (`confirmed`) נחשב מטופל
+- **"אשרי את כל המוכנות":** כל רשומה נבדקת בנפרד, ורק רשומה בלי שדה מסומן מאושרת. התוצאה יכולה להיות חלקית: מה שאושר, ומה שדולג עם הסיבה
+- **אין ביטול אישור, ואין עריכה של רשומה מאושרת** (`409 record_approved`) [החלטה, A6]. כתוב במגבלות ב־README
+- **מחיקה:** רק של רשומה ממתינה, למשל כפולה [החלטה, A5]
+- נשמרים מי אישר ומתי (`approved_by`, `approved_at`)
 
 ---
 
@@ -312,13 +327,16 @@ rows(form) =
 | `COMMITMENT_PREFIX` | warning | התחייבות עם `/` שאינו קידומת מעבדה | "מספר התחייבות עם קידומת — יש לוודא" |
 | `COMMITMENT_PREFIX_REMOVED` | info | הוסרה קידומת מעבדה של 3 ספרות (`606/`) | "הוסרה קידומת המעבדה השולחת" |
 | `ROTATION_UNRESOLVED` | warning | העמוד לא התיישר אחרי הניסיונות | "העמוד סרוק בכיוון חריג — יש לבדוק את כל השדות" |
+| `PAGE_GROUPING_UNCERTAIN` | warning | עמוד בלי מרכזי שאולי ממשיך את הטופס שלפניו, אבל משהו בו סותר אותו (7.1) | "עמוד בלי מספר מרכזי שלא תואם לטופס הקודם — יש לבדוק" |
+| `DUPLICATE_RECORD` | warning | מספר ההתחייבות כבר קיים ברשומה אחרת (7.1) | "מספר ההתחייבות כבר קיים ברשומה אחרת — יש לבדוק" |
 | `DUPLICATE_REMOVED` | info | הוסרה כפילות | — |
 | `EXTRACTION_FAILED` | error | כשל AI אחרי ניסיונות חוזרים | "הקריאה נכשלה — נסי שוב" |
 | `INVALID_FILE` | error | קובץ פגום / סוג לא נתמך / גדול מדי | "לא ניתן לקרוא את הקובץ" |
 
 - ההודעות נמצאות ב־`backend/app/i18n/he.yaml`, תחת `issues.<קוד>`, ולא בקוד. החומרה נמצאת ב־`rules/issues.py`
 - `needs_review` של שדה = יש לו issue בחומרה `warning` **והוא לא `confirmed`**
-- `needs_review` של טופס = לפחות שדה אחד דורש בדיקה, או issue ברמת הטופס
+- `needs_review` של רשומה = לפחות שדה אחד דורש בדיקה, או issue ברמת הרשומה (כולל ה־issues של הטופס שלה)
+- עמוד שלא נשמר מקבל קוד שגיאה ב־`failed_pages`: `EXTRACTION_FAILED`, `INVALID_FILE`, או `QUOTA_EXHAUSTED` כשמכסת Gemini נגמרה לפני שהעמוד נקרא
 
 **שדות חובה** (חסר = דורש בדיקה): ת״ז, מספר מרכזי, תאריך קבלה, גורם שולח, מספר התחייבות. שמות חסרים מסומנים רק כ־`unclear` [החלטה].
 
@@ -326,81 +344,99 @@ rows(form) =
 
 ## 9. חוזה API
 
-**מקור אמת:** `backend/app/schemas/api.py` (Pydantic). OpenAPI נוצר אוטומטית ב־`/openapi.json`; טיפוסי ה־frontend נוצרים ממנו ל־`frontend/src/api/schema.d.ts` [החלטה].
+**מקור אמת:** `backend/app/schemas/api.py` (Pydantic). OpenAPI נוצר אוטומטית ב־`/openapi.json`; טיפוסי ה־frontend נוצרים ממנו ל־`frontend/src/api/schema.d.ts` [החלטה]. הסעיף הזה מסכם. הקלט, הפלט וקודי השגיאה של כל endpoint מפורטים ב־[PLAN-DEV-B §2.2](PLAN-DEV-B.md).
 
 ### 9.1 נקודות קצה
 
+כל הנתיבים תחת `/api/v1` דורשים סשן תקף, חוץ מ־`auth/login`. `/api/health` פתוח.
+
 | Method | Path | קלט | פלט |
 |---|---|---|---|
-| `GET` | `/api/health` | — | `{"status": "ok", "provider": "gemini", "model": "gemini-3.8-flash"}` |
-| `POST` | `/api/v1/extract` | `multipart/form-data`, שדה `files` (אחד או יותר) | `ExtractResponse` |
-| `POST` | `/api/v1/validate` | `ValidateRequest` (JSON) | `ValidateResponse` |
-| `POST` | `/api/v1/export` | `ExportRequest` (JSON) | קובץ `.xlsx` |
+| `GET` | `/api/health` | — | `{"status": "ok", "extraction_provider": "gemini", "extraction_cache": false}` |
+| `POST` | `/api/v1/auth/login` | `LoginRequest {username, password}` | `204` ועוגיית סשן |
+| `POST` | `/api/v1/auth/logout` | — | `204` |
+| `GET` | `/api/v1/auth/me` | — | `User {id, username, display_name}` |
+| `POST` | `/api/v1/extract` | `multipart/form-data`, שדה `files` | `ExtractResponse` (9.3). הרשומות כבר נשמרו כממתינות |
+| `GET` | `/api/v1/records` | `q`, `status`, `needs_review`, `sender`, `form_type`, `date_from`, `date_to`, `limit`, `offset` | `RecordList {items: RecordSummary[], total, limit, offset, counts}` |
+| `GET` | `/api/v1/records/{id}` | — | `Record` (9.2) |
+| `PATCH` | `/api/v1/records/{id}` | `RecordPatch` (9.4) | `RecordPatchResponse {record, siblings}` |
+| `POST` | `/api/v1/records/{id}/approve` | `{version}` | `Record` מאושר, או `409 review_required` |
+| `POST` | `/api/v1/records/approve` | `BulkApproveRequest {items: [{record_id, version}]}` | `BulkApproveResponse {approved, skipped}` (7.5) |
+| `DELETE` | `/api/v1/records/{id}` | — | `204`. רשומה מאושרת: `409` |
+| `GET` | `/api/v1/records/export` | `format=csv\|json`, ואותם מסננים כמו ברשימה | קובץ להורדה (סעיף 10) |
+| `GET` | `/api/v1/pages/{page_id}/image` | — | תמונת העמוד (JPEG), עם `Cache-Control: no-store` |
+| `GET` | `/api/v1/senders` | — | הרשימה הסגורה של הגורמים השולחים (5.5) |
 
-### 9.2 `ExtractResponse` — דוגמה
+### 9.2 `Record` — דוגמה
+
+```json
+{
+  "record_id": "4b1d…",
+  "page_id": "9c7e…",
+  "source_file": "part1.pdf",
+  "page_number": 25,
+  "continuation_pages": [],
+  "continuation_page_ids": [],
+  "commitment_index": 0,
+  "status": "pending",
+  "version": 1,
+  "form_type": "hospital_system_screenshot",
+  "fields": {
+    "first_name":        { "raw": null, "value": null, "model_status": "unclear", "evidence": "שם בכתב יד לא קריא", "issues": [{ "code": "FIELD_UNCLEAR", "severity": "warning", "message": "הערך לא קריא במקור — יש להשלים ידנית" }], "needs_review": true, "corrected": false, "confirmed": false },
+    "last_name":         { "...": "same shape" },
+    "national_id":       { "raw": "11223344", "value": "011223344", "model_status": "found", "evidence": "ליד 'ת.ז.' בראש העמוד", "issues": [{ "code": "ID_PADDED", "severity": "info", "message": "הושלם 0 מוביל" }], "needs_review": false, "corrected": false, "confirmed": false },
+    "received_date":     { "raw": "30.8.26", "value": "2026-08-30", "model_status": "found", "evidence": "כתב יד ליד המספר המרכזי", "issues": [], "needs_review": false, "corrected": false, "confirmed": false },
+    "sender":            { "raw": "לאומית", "value": "לאומית", "model_status": "found", "evidence": "גורם מפנה", "issues": [], "needs_review": false, "corrected": false, "confirmed": false },
+    "commitment_number": { "raw": "260005102632", "value": "260005102632", "model_status": "found", "evidence": "טבלת קשרי ביטוח", "issues": [], "needs_review": false, "corrected": false, "confirmed": false }
+  },
+  "central_numbers": [
+    { "raw": "948062", "value": "948062", "model_status": "found", "evidence": "כתב יד בצד ימין", "issues": [], "needs_review": false, "corrected": false, "confirmed": false }
+  ],
+  "issues": [],
+  "needs_review": true,
+  "created_at": "2026-10-19T09:12:03Z",
+  "updated_at": "2026-10-19T09:12:03Z",
+  "approved_at": null
+}
+```
+
+- בטופס הזה יש 3 התחייבויות, ולכן הוא נשמר כ־3 רשומות אחיות, עם `commitment_index` 0, 1 ו־2 (7.1)
+- `value` של תאריך הוא ISO; ה־frontend מציג `DD/MM/YYYY`
+- **התמונה לא נמצאת ברשומה.** ה־frontend טוען אותה מ־`/api/v1/pages/{page_id}/image`, ואת עמודי ההמשך לפי `continuation_page_ids`
+- `version` נשלח בחזרה בכל תיקון ואישור (7.4)
+
+### 9.3 `ExtractResponse`
 
 ```json
 {
   "files": [
     { "file_id": "f_01", "filename": "part1.pdf", "page_count": 26, "status": "ok", "error": null }
   ],
-  "forms": [
-    {
-      "form_id": "f_01-p25",
-      "file_id": "f_01",
-      "source_file": "part1.pdf",
-      "page_number": 25,
-      "processing_status": "ok",
-      "error": null,
-      "applied_rotation": 90,
-      "preview_image": "data:image/jpeg;base64,...",
-      "fields": {
-        "first_name":    { "raw": null, "value": null, "model_status": "unclear", "evidence": "שם בכתב יד לא קריא", "issues": [{ "code": "FIELD_UNCLEAR", "severity": "warning", "message": "הערך לא קריא במקור — יש להשלים ידנית" }], "needs_review": true, "corrected": false, "confirmed": false },
-        "last_name":     { "...": "same shape" },
-        "national_id":   { "raw": "11223344", "value": "011223344", "model_status": "found", "evidence": "ליד 'ת.ז.' בראש העמוד", "issues": [{ "code": "ID_PADDED", "severity": "info", "message": "הושלם 0 מוביל" }], "needs_review": false, "corrected": false, "confirmed": false },
-        "received_date": { "raw": "30.8.26", "value": "2026-08-30", "model_status": "found", "evidence": "כתב יד ליד המספר המרכזי", "issues": [], "needs_review": false, "corrected": false, "confirmed": false },
-        "sender":        { "raw": "לאומית", "value": "לאומית", "model_status": "found", "evidence": "גורם מפנה", "issues": [], "needs_review": false, "corrected": false, "confirmed": false }
-      },
-      "central_numbers": [
-        { "raw": "948062", "value": "948062", "model_status": "found", "evidence": "כתב יד בצד ימין", "issues": [], "needs_review": false, "corrected": false, "confirmed": false }
-      ],
-      "commitment_numbers": [
-        { "raw": "260005102632", "value": "260005102632", "model_status": "found", "evidence": "טבלת קשרי ביטוח", "issues": [], "needs_review": false, "corrected": false, "confirmed": false },
-        { "raw": "260005102611", "value": "260005102611", "model_status": "found", "evidence": "טבלת קשרי ביטוח", "issues": [], "needs_review": false, "corrected": false, "confirmed": false },
-        { "raw": "260005102644", "value": "260005102644", "model_status": "found", "evidence": "טבלת קשרי ביטוח", "issues": [], "needs_review": false, "corrected": false, "confirmed": false }
-      ],
-      "issues": [],
-      "needs_review": true
-    }
-  ]
+  "records": [ /* Record, כמו ב־9.2, כבר שמורות כממתינות */ ],
+  "failed_pages": [
+    { "file_id": "f_01", "source_file": "part1.pdf", "page_number": 14, "error": { "code": "EXTRACTION_FAILED", "message": "הקריאה נכשלה — נסי שוב" } }
+  ],
+  "quota_exhausted": false
 }
 ```
 
-- `value` של תאריך הוא ISO; ה־frontend מציג `DD/MM/YYYY`
-- `processing_status`: `ok` | `error`. כשהוא `error`, השדות ריקים ו־`error` מכיל `{ "code", "message" }`
-- `preview_image` מוחזר בתשובה ולא נשמר בשרת (סעיף 11.1)
-- **מומלץ:** `preview_image` מוקטן לתצוגה (למשל ברוחב של כ־1200 פיקסלים), נפרד מהתמונה ב־200 DPI שנשלחת למודל, כדי ש־PDF של 26 עמודים לא ייצור תשובה של עשרות MB [החלטה, ממתין לאישור מפתחת A]
+- `UploadPanel` שולח קובץ אחד בכל בקשה, וה־endpoint מקבל גם כמה
+- עמוד שנכשל לא נשמר ומופיע ב־`failed_pages` (7.1)
 
-### 9.3 `ValidateRequest` / `ValidateResponse`
+### 9.4 תיקון ואישור
 
 ```json
-// ValidateRequest
-{ "forms": [ /* אותו מבנה כמו ב־ExtractResponse.forms, אחרי תיקונים; preview_image מושמט */ ] }
-
-// ValidateResponse
-{ "forms": [ /* אותם טפסים, עם value מנורמל, issues ו־needs_review שחושבו מחדש */ ] }
+// RecordPatch: רק מה שהמשתמשת שינתה
+{
+  "version": 3,
+  "fields": { "national_id": { "value": "011223344" }, "sender": { "confirmed": true } },
+  "central_numbers": [ { "idx": 0, "value": "948062" }, { "value": "948063" } ]
+}
 ```
 
-- נקרא מה־frontend אחרי כל תיקון או אישור (ביציאה מהשדה), עבור הטופס שנערך בלבד
-- השרת מריץ `apply_rules` (סעיף 9.6) לפי הכללים בסעיף 7.4, ולא משנה `raw`, `corrected` או `confirmed`
-
-### 9.4 `ExportRequest`
-
-```json
-{ "forms": [ /* אותו מבנה כמו ב־ExtractResponse.forms, אחרי תיקונים; preview_image מושמט */ ] }
-```
-
-השרת מריץ שוב `apply_rules` על הערכים המתוקנים, בונה שורות (סעיף 7.1) ומחזיר `.xlsx`.
+- השרת מריץ את `apply_rules` (9.6) לפי הכללים ב־7.4, ולא משנה `raw`
+- פריט ברשימת המרכזיים בלי `idx` הוא פריט חדש
+- התשובה כוללת גם את הרשומות האחיות שהשתנו (`siblings`), כדי שהטבלה תתעדכן בלי טעינה מחדש
 
 ### 9.5 שגיאות HTTP
 
@@ -426,7 +462,22 @@ rows(form) =
 
 > הגרסה הקודמת של הסעיף קבעה `422` לקובץ לא תקין ו־`502` כשכל העמודים נכשלו. הוחלף: קובץ לא תקין לא מבטל את שאר הקבצים בבקשה, ועמודים שנכשלו מוצגים מעל טבלת הבדיקה, כל אחד עם הסיבה שלו.
 
-השגיאות של `/api/v1/records` מפורטות ב־[PLAN-DEV-B §2.2](PLAN-DEV-B.md).
+**`/api/v1/records` ו־`auth`:**
+
+| מצב | קוד | `type` |
+|---|---|---|
+| אין סשן, או שהסשן פג | `401` | `unauthenticated` |
+| שם משתמש או סיסמה שגויים (הודעה כללית, בלי לומר מה מהשניים) | `401` | `invalid_credentials` |
+| יותר מדי ניסיונות כניסה שנכשלו | `429` | `too_many_attempts` |
+| בקשה שמשנה נתונים מ־origin זר | `403` | `origin_not_allowed` |
+| רשומה או עמוד לא קיימים | `404` | לעמוד: `page_not_found` |
+| `version` ישן | `409` | `version_conflict` |
+| אישור כשנשאר שדה מסומן | `409` | `review_required`, עם `blocking_fields` |
+| תיקון, אישור או מחיקה של רשומה מאושרת | `409` | `record_approved` |
+| תיקון שדה משותף כשרשומה אחות כבר אושרה | `409` | `sibling_approved` |
+| קלט לא תקין | `422` | — |
+
+הפירוט המלא: [PLAN-DEV-B §2.2](PLAN-DEV-B.md).
 
 ### 9.6 ממשק פנימי בין החילוץ לכללים
 
@@ -437,7 +488,8 @@ provider (A) ──► RawExtraction             schemas/extraction.py   (A)
                    normalize → validators → review_policy
 ```
 
-- **`apply_rules(form) -> form`** היא נקודת הכניסה היחידה לכללים. היא נקראת מ־`pipeline/service.py` (אחרי החילוץ), מ־`api/validate.py` ומ־`api/export.py`
+- **`apply_rules(form) -> form`** היא נקודת הכניסה היחידה לכללים. היא נקראת מ־`pipeline/service.py` אחרי החילוץ, ומ־`storage/service.py` בכל תיקון ואישור
+- **`save_extracted_page(conn, form, images, user)`** (B, `storage/service.py`) נקראת מה־pipeline פעם אחת לכל טופס, אחרי `apply_rules`. היא בונה את הרשומות (7.1) ושומרת בטרנזקציה אחת את העמודים, התמונות והרשומות. הפירוט: [PLAN-DEV-B §2.5](PLAN-DEV-B.md)
 - **`assemble.py`** הוא המקום היחיד שמכיר גם את פלט המודל וגם את החוזה, כך ששינוי בפלט המודל לא מגיע לכללים
 - `apply_rules` טהורה: בלי I/O ובלי קריאות ל־AI; אותו קלט מחזיר תמיד אותו פלט [החלטה]
 - **חסר:** תיאור המבנה של `RawExtraction` — באחריות מפתחת A, יתווסף לסעיף הזה
@@ -488,6 +540,7 @@ provider (A) ──► RawExtraction             schemas/extraction.py   (A)
 - **איפה:** PostgreSQL מנוהל של Render, באזור Frankfurt (האיחוד האירופי), ברשת הפנימית של השרת. התמונות נשמרות בתוך המסד, ואין אחסון קבצים נוסף. מלבד המסד, המידע נשלח רק לספק ה־AI, לצורך החילוץ
 - **מי רואה:** רק משתמשים מחוברים מתוך רשימה מוגדרת מראש, בלי הרשמה עצמית. התמונות מוגשות עם `Cache-Control: no-store`
 - **יומן פעולות בלי ערכים:** נשמר מי עשה איזו פעולה, על איזה שדה ומתי, בלי הערך הישן והחדש
+- **התחברות [החלטה]:** סיסמאות נשמרות כ־hash (`scrypt`). הסשן נשמר בשרת, ובעוגייה עם `HttpOnly`, `Secure` ו־`SameSite`. במסד נשמר רק ה־hash של טוקן הסשן. הסשן מסתיים אחרי 8 שעות בלי פעילות, ואחרי 5 ניסיונות כניסה שנכשלו המשתמש ננעל ל־15 דקות
 - **מחיקה:** פקודה אחת מוחקת את כל הנתונים
 - **לוגים בלי מידע אישי:** רק `form_id`, משכי זמן וקודי שגיאה. לא שמות, לא ת״ז, לא תוכן הטופס
 - מפתח ה־API רק ב־`backend/.env` במחשב המפתחת ובמשתני הסביבה של Render, מחוץ ל־Git. ה־frontend לא רואה אותו
@@ -508,11 +561,14 @@ provider (A) ──► RawExtraction             schemas/extraction.py   (A)
 - כשהמכסה היומית של מפתח נגמרה, **לא** מנסים שוב עם אותו מפתח. העמוד עובר למפתח הבא ב־`GEMINI_API_KEYS`, והמפתח שנגמר מדולג עד חצות לפי שעון פסיפיק, כשהמכסה מתחדשת. רק כשהמכסה נגמרה בכל המפתחות מחזירים `quota_exhausted`
 - מפתח ש־Gemini דוחה (לא תקין, בוטל, ה־API כבוי) מעביר גם הוא את העמוד למפתח הבא, ומדולג לשעה
 - עמוד שנכשל לא עוצר את שאר העמודים (FR-12)
+- שמירה של טופס היא טרנזקציה אחת. כשל באמצע לא משאיר חלקים של טופס במסד (7.1)
+- השרת לא עולה כשגרסת הסכמה במסד לא תואמת לקוד, ומסביר מה לעשות
 
 ### 11.4 נגישות וממשק
 
 - RTL מלא; CSS logical properties
 - סטטוס מוצג בטקסט ובאייקון, **לא בצבע בלבד**
+- לכל שדה תווית ביטחון בטקסט: "בטוח", "לא בטוח – בדקי" או "לא נמצא" [אתגר]
 - כל פעולה זמינה במקלדת; פוקוס נראה
 - הודעות שגיאה בעברית שאומרות מה קרה ומה לעשות
 
@@ -534,15 +590,16 @@ provider (A) ──► RawExtraction             schemas/extraction.py   (A)
 
 | מדד | הגדרה |
 |---|---|
-| דיוק לפי שדה | אחוז הטפסים שבהם הערך המנורמל זהה לטבלת האמת |
+| דיוק לפי שדה | אחוז הרשומות שבהן הערך המנורמל זהה לטבלת האמת |
 | כיסוי | אחוז השדות שקיימים בטופס וחולצו |
-| **שגיאות שלא סומנו** | ערך שגוי שלא סומן לבדיקה. **המדד החשוב ביותר** — זו טעות שתגיע לאקסל |
-| שורות | מספר שורות האקסל מול הצפוי; כפילויות |
+| **שגיאות שלא סומנו** | ערך שגוי שלא סומן לבדיקה. **המדד החשוב ביותר** — זו טעות שעלולה להגיע לרשומה מאושרת |
+| רשומות | מספר הרשומות מול הצפוי; כפילויות |
 | אפסים מובילים | נשמרו בכל המזהים |
 | זמן | ממוצע ומקסימום לעמוד |
 
 **כללים:**
 
+- המדידה רצה על הפלט אחרי הכללים ולפני תיקון של אדם
 - שמות לא נמדדים (שרבוט בדוגמאות)
 - לא משנים prompt לפי טופס מסוים ואז מציגים אותו טופס כהוכחה
 - מדווחים מספרים אמיתיים, כולל מה שנכשל
@@ -562,7 +619,7 @@ Q1–Q6 נשלחו למנטוריות ב־18.10, וראש הצוות ענתה ע
 | Q4 | גורם שולח: בית החולים או הקופה? | ✅ נענתה: מי שהוציא את ההתחייבות ומשלם למעבדה. ⏳ בצילומי שיבא: "גורם מפנה" או "שם מבטח" (#18) | 5.5 |
 | Q5 | האם `606/` הוא חלק ממספר הדרישה? מה המדבקה האנכית בוולפסון? | ✅ `606/` נענתה: לא. זה קוד המעבדה השולחת בכרמיאל. מסירים ומציגים כ־info (#18). ✅ המדבקה האנכית בוולפסון היא מספר ההתחייבות | 5.6 |
 | Q6 | האם טפסים אמיתיים מגיעים מסומנים בטוש צהוב? | ✅ נענתה: לא. הסימון נוסף כשהוכנו הדוגמאות, ולכן המדידה עליהן אופטימית | 12 |
-| Q7 | התאמה להנחיות v2: מסד נתונים, אישור רשומה, חיפוש וסינון; אקסל אופציונלי (החלטה של שתי המפתחות) | ממשיכים לפי המסמך; הכללים בסעיפים 5–8 תקפים בכל מקרה | 0 |
+| Q7 | התאמה להנחיות v2: מסד נתונים, אישור רשומה, חיפוש וסינון; אקסל אופציונלי (החלטה של שתי המפתחות) | ✅ הוחלט: רשומות ב־PostgreSQL, אישור חסום בשרת, מסך רשומות עם חיפוש וסינון, ייצוא CSV ו־JSON בלי אקסל (סעיף 0) | 0 |
 
 ---
 
@@ -573,4 +630,4 @@ Q1–Q6 נשלחו למנטוריות ב־18.10, וראש הצוות ענתה ע
 | 0.1 | 18.10.2026 | טיוטה ראשונה, מבוססת על הנחיות האתגר, מעבר על הדוגמאות ושני ניסויי Gemini |
 | 0.2 | 18.10.2026 | תיקוני סקירה של מפתחת B: הפרדת התיקון מהערך המקורי ושדה `confirmed` (7.4, 8); `POST /api/v1/validate` (9.1, 9.3); ממשק פנימי בין החילוץ לכללים (9.6); כלל נרמול ת״ז עם `ID_PADDED` / `ID_NORMALIZED` (5.2, 8); גורם שולח ב־`REQUIRED_MISSING`; תאריך אמיתי באקסל (10); סיבות, סדר וטפסים שנכשלו בייצוא (7.1); המלצה על תצוגה מקדימה מוקטנת (9.2); סימון שינוי ההנחיות מ־18.10 (0, Q7) |
 | 0.2.1 | 19.10.2026 | התשובות של ראש הצוות: כמה מרכזיים = רשומה אחת (5.3); גורם שולח = מי שמשלם (5.5); המדבקה בוולפסון, ומה אינו התחייבות (5.6); תיקוני הקטלוג (6); פורמט ה־CSV במקום האקסל (10, 7.1); המדידה על הדוגמאות אופטימית (12); סגירת Q1–Q6 (13) |
-| 0.3 | 19.10.2026 | מעבר בין כמה מפתחות Gemini כשמכסה נגמרת או מפתח נדחה (9.5, 11.3) |
+| 0.3 | 19.10.2026 | מעבר בין כמה מפתחות Gemini כשמכסה נגמרת או מפתח נדחה (9.5, 11.3); התאמה להנחיות v2: רשומות במסד במקום אקסל (0, 1, 3, 4); מונחי רשומה, סטטוס וסוג טופס (2); הכינוי "דגימה" בלאומית (5.6); בניית רשומות, עמודי המשך, שמירה בטרנזקציה וכפילויות (7.1); רשומות אחיות וגרסה (7.4); אישור רשומה ואישור של כל המוכנות (7.5); `PAGE_GROUPING_UNCERTAIN` ו־`DUPLICATE_RECORD` (8); חוזה ה־API של רשומות, התחברות ותמונות במקום `validate` ו־`export` (9); התחברות (11.1); מדידה לפי רשומות (12); סגירת Q7 (13) |
