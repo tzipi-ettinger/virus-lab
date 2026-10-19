@@ -37,7 +37,7 @@ def oriented(name: str, *, rotation: int = 0, unresolved: bool = False) -> Orien
 def test_ids_and_source_come_from_the_page():
     form = assemble(oriented("02_sheba_screenshot_rotated", rotation=90))
 
-    assert form.form_id == form_id("f1", 4) == "f1#p4"
+    assert form.form_id == form_id("f1", 4) == "f1-p4"
     assert (form.file_id, form.source_file, form.page_number) == ("f1", "forms.pdf", 4)
     assert form.applied_rotation == 90
     assert form.processing_status == "ok"

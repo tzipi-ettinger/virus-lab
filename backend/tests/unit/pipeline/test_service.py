@@ -105,7 +105,7 @@ def test_every_page_of_every_file_comes_back_ruled():
     page = result.forms[0]
     national_id = page.form.fields.national_id
     assert (national_id.raw, national_id.value) == ("0011223344", "011223344")  # the rules ran
-    assert page.form.form_id == f"{result.files[0].file_id}#p1"
+    assert page.form.form_id == f"{result.files[0].file_id}-p1"
     saved = page.images[0]
     assert saved.jpeg.startswith(b"\xff\xd8")  # the image for the preview
     assert max(pymupdf.Pixmap(saved.jpeg).width, pymupdf.Pixmap(saved.jpeg).height) == (
