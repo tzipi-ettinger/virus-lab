@@ -206,6 +206,7 @@ docker run --rm -p 8000:8000 -e EXTRACTION_PROVIDER=fake -e FRONTEND_ORIGIN=http
 | `EXTRACTION_PROVIDER` | `gemini` | `gemini` / `fake` 🚧 |
 | `EXTRACTION_CACHE` | `false` | מטמון לפיתוח בלבד, על קובצי דוגמה בלבד: עמוד ש־Gemini כבר קרא (אותו מודל ואותו prompt) נלקח מ־`backend/.cache/` בלי פנייה חדשה. לא בשרת החי |
 | `FRONTEND_ORIGIN` | `http://localhost:5173` | הכתובת של הדף: CORS בפיתוח, ובדיקת ה־`Origin` (CSRF) על בקשה שמשנה נתונים. בשרת החי: הכתובת הציבורית |
+| `ENV` | `development` | `production` בשרת החי (מ־`render.yaml`): HSTS, ובלי `/docs` ו־`/openapi.json` |
 | `DATABASE_URL` | — | Postgres. מקומית: מ־`docker compose`, כמו ב־`.env.example`. בשרת החי: ה־Internal URL של Render, שמגיע מ־`render.yaml`. בלעדיו השרת עולה, אבל כניסה ורשומות מחזירות `503` |
 | `STATIC_DIR` | ריק | תיקיית ה־frontend הבנוי, ש־FastAPI מגיש. מוגדר רק ב־image של Docker. בפיתוח Vite מגיש את הדף |
 | `KEEP_ALIVE_URL` | ריק | הכתובת הציבורית שהשרת פונה אליה (`/api/health`) כדי ש־Render לא ירדים אותו. כשהוא ריק משתמשים ב־`RENDER_EXTERNAL_URL`, ש־Render מגדיר בעצמו. בלי שניהם (מקומית ובטסטים) הפנייה כבויה |
@@ -283,8 +284,33 @@ cd backend
 
 - עובדות **רק עם קובצי הדוגמה של האתגר**, שבהם הפרטים האישיים שונו
 - הקובץ שהועלה עובר **בזיכרון בלבד** ולא נשמר. נשמרות רק הרשומות ותמונה דחוסה של כל עמוד, ב־PostgreSQL מנוהל של Render (Frankfurt, האיחוד האירופי). פירוט ב־[SPEC 11.1](docs/SPEC.md#111-פרטיות-ואבטחה)
-- הלוגים לא מכילים שמות, ת״ז או תוכן טפסים
+- הלוגים לא מכילים שמות, ת״ז או תוכן טפסים: ה־access log נכתב בלי ה־query של החיפוש, ושגיאה לא צפויה נרשמת רק לפי הסוג והנתיב, בלי ההודעה וה־traceback
+- **כניסה:** משתמשים מוגדרים מראש בלבד, סיסמאות ב־scrypt, עוגיית סשן `HttpOnly; Secure; SameSite=Strict`, נעילה אחרי 5 ניסיונות, ובדיקת `Origin` על כל שינוי
+- **כותרות:** CSP שמתיר רק את האתר עצמו, `nosniff`, `no-referrer`, איסור הטמעה במסגרת, ו־HSTS בשרת החי. תשובות ה־API לא נשמרות במטמון (`no-store`)
+- **בשרת החי** (`ENV=production`): אין `/docs` ואין `/openapi.json`
+- **מחיקה בפקודה אחת:** `python -m scripts.wipe_data` מוחק את כל העמודים, התמונות והרשומות. המשתמשים נשארים
 - מפתח ה־API רק ב־`backend/.env` ובמשתני הסביבה של Render; הקבצים `.env` ותוצאות הניסויים מוחרגים מ־Git
+
+### בדיקה לפני הגשה
+
+```powershell
+curl.exe -I https://<הכתובת>/                       # CSP, nosniff, no-referrer, X-Frame-Options, HSTS
+curl.exe -s -o NUL -w "%{http_code}" https://<הכתובת>/docs           # 404
+curl.exe -s -o NUL -w "%{http_code}" https://<הכתובת>/api/v1/records # 401 בלי כניסה
+```
+
+ואחר כך, בלוגים של Render: חיפוש לפי ת״ז במסך הרשומות לא משאיר את המספר בלוג.
+
+### נתוני הדגמה ומשתמש לשופטים
+
+```powershell
+# backend/, עם ה־External URL של ה־DB ב־Render (כמו ב־create_user)
+.\.venv\Scripts\python.exe -m scripts.create_user judge-demo --name "שופטים"
+.\.venv\Scripts\python.exe -m scripts.seed_demo "<תיקיית קובצי הדוגמה>" --user dana   # רק קובצי הדוגמה של האתגר
+.\.venv\Scripts\python.exe -m scripts.wipe_data                                   # להתחיל מחדש
+```
+
+`seed_demo` קורא כל קובץ כמו העלאה באתר ושומר את הרשומות כממתינות. `EXTRACTION_CACHE=true` חוסך מכסה על עמודים ש־Gemini כבר קרא. את פרטי הכניסה של `judge-demo` מוסרים בטופס ההגשה, לא כאן (D9).
 
 ---
 

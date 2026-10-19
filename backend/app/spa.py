@@ -18,6 +18,7 @@ from app.api.errors import ProblemError
 # The page itself is tiny and names the hashed assets, so the browser must ask for
 # it again after each deploy. The assets never change under the same name.
 _NO_CACHE = {"Cache-Control": "no-cache"}
+_API_DOCS = {"docs", "redoc", "openapi.json"}
 
 
 def mount_spa(app: FastAPI, dist: Path) -> None:
@@ -33,8 +34,9 @@ def mount_spa(app: FastAPI, dist: Path) -> None:
 
     @app.api_route("/{path:path}", methods=["GET", "HEAD"], include_in_schema=False)
     async def spa(path: str) -> FileResponse:
-        if path == "api" or path.startswith("api/"):
-            # A wrong API path is an API error, never the page.
+        if path == "api" or path.startswith("api/") or path in _API_DOCS:
+            # A wrong API path is an API error, never the page. So are the API docs
+            # when production turns them off.
             raise ProblemError(404, "not_found", "הכתובת לא נמצאה")
         file = (dist / path).resolve()
         if path and file.is_file() and file.is_relative_to(dist):

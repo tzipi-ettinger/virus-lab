@@ -14,6 +14,11 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.api import auth, extract, health, records
 from app.api.errors import add_problem_handler
 from app.keep_alive import start_keep_alive, stop_keep_alive
+from app.security import (
+    HideUnexpectedErrors,
+    SecurityHeaders,
+    keep_patient_data_out_of_server_logs,
+)
 from app.settings import Settings, get_settings
 from app.spa import mount_spa
 from app.storage.db import open_pool
@@ -43,6 +48,7 @@ def _lifespan(settings: Settings):
 
 def create_app(settings: Settings | None = None) -> FastAPI:
     settings = settings or get_settings()
+    keep_patient_data_out_of_server_logs()
     if settings.extraction_provider == "fake":
         logger.warning("EXTRACTION_PROVIDER=fake: every answer is a test fixture, not a reading")
     elif settings.extraction_cache:
@@ -50,7 +56,14 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             "EXTRACTION_CACHE=true: pages already read come from backend/.cache "
             "(dev only, sample files only)"
         )
-    app = FastAPI(title="virus-lab", lifespan=_lifespan(settings))
+    # The live server doesn't describe its API to strangers: no /docs, /redoc or
+    # /openapi.json. scripts/export_openapi still builds the contract from the code.
+    hidden = {"docs_url": None, "redoc_url": None, "openapi_url": None}
+    app = FastAPI(
+        title="virus-lab",
+        lifespan=_lifespan(settings),
+        **(hidden if settings.production else {}),
+    )
     app.state.pool = None  # until the lifespan opens it
     app.add_middleware(
         CORSMiddleware,
@@ -58,6 +71,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
+    app.add_middleware(HideUnexpectedErrors)
+    # Added last, so it wraps everything: errors and CORS answers get the headers too.
+    app.add_middleware(SecurityHeaders, production=settings.production)
     add_problem_handler(app)
     app.include_router(health.router)
     app.include_router(auth.router)

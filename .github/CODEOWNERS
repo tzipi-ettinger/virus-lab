@@ -62,3 +62,7 @@
 /render.yaml                             @esterrroz
 /backend/app/spa.py                      @esterrroz
 /backend/tests/unit/test_spa.py          @esterrroz
+/backend/app/security.py                 @esterrroz
+/backend/app/keep_alive.py               @esterrroz
+/backend/tests/unit/test_security.py     @esterrroz
+/backend/tests/unit/test_keep_alive.py   @esterrroz
