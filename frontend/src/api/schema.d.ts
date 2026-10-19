@@ -413,6 +413,34 @@ export interface components {
             updated_at: string;
             /** Approved At */
             approved_at: string | null;
+            /**
+             * Approved By
+             * @description Username; null until approved.
+             */
+            approved_by?: string | null;
+            /**
+             * Updated By
+             * @description Username of the last edit; null if never edited.
+             */
+            updated_by?: string | null;
+        };
+        /**
+         * RecordCounts
+         * @description The counters on the records screen.
+         *
+         *     Counted over the other filters (q, sender, form_type, dates) but not status or
+         *     needs_review, so they stay put while the user switches between them.
+         */
+        RecordCounts: {
+            /** Pending */
+            pending: number;
+            /** Approved */
+            approved: number;
+            /**
+             * Needs Review
+             * @description Pending records with a field still flagged.
+             */
+            needs_review: number;
         };
         /** RecordFields */
         RecordFields: {
@@ -445,6 +473,7 @@ export interface components {
             limit: number;
             /** Offset */
             offset: number;
+            counts: components["schemas"]["RecordCounts"];
         };
         /** RecordPatch */
         RecordPatch: {

@@ -146,6 +146,10 @@ class Record(BaseModel):
     created_at: datetime
     updated_at: datetime
     approved_at: datetime | None
+    approved_by: str | None = Field(default=None, description="Username; null until approved.")
+    updated_by: str | None = Field(
+        default=None, description="Username of the last edit; null if never edited."
+    )
 
 
 class RecordSummary(BaseModel):
@@ -170,11 +174,24 @@ class RecordSummary(BaseModel):
     approved_at: datetime | None
 
 
+class RecordCounts(BaseModel):
+    """The counters on the records screen.
+
+    Counted over the other filters (q, sender, form_type, dates) but not status or
+    needs_review, so they stay put while the user switches between them.
+    """
+
+    pending: int
+    approved: int
+    needs_review: int = Field(description="Pending records with a field still flagged.")
+
+
 class RecordList(BaseModel):
     items: list[RecordSummary]
     total: int = Field(description="Matches before limit / offset, for paging.")
     limit: int
     offset: int
+    counts: RecordCounts
 
 
 # --- POST /api/v1/extract

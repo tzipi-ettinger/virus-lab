@@ -1229,6 +1229,30 @@
               }
             ],
             "title": "Approved At"
+          },
+          "approved_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Approved By",
+            "description": "Username; null until approved."
+          },
+          "updated_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated By",
+            "description": "Username of the last edit; null if never edited."
           }
         },
         "type": "object",
@@ -1250,6 +1274,31 @@
           "approved_at"
         ],
         "title": "Record"
+      },
+      "RecordCounts": {
+        "properties": {
+          "pending": {
+            "type": "integer",
+            "title": "Pending"
+          },
+          "approved": {
+            "type": "integer",
+            "title": "Approved"
+          },
+          "needs_review": {
+            "type": "integer",
+            "title": "Needs Review",
+            "description": "Pending records with a field still flagged."
+          }
+        },
+        "type": "object",
+        "required": [
+          "pending",
+          "approved",
+          "needs_review"
+        ],
+        "title": "RecordCounts",
+        "description": "The counters on the records screen.\n\nCounted over the other filters (q, sender, form_type, dates) but not status or\nneeds_review, so they stay put while the user switches between them."
       },
       "RecordFields": {
         "properties": {
@@ -1370,6 +1419,9 @@
           "offset": {
             "type": "integer",
             "title": "Offset"
+          },
+          "counts": {
+            "$ref": "#/components/schemas/RecordCounts"
           }
         },
         "type": "object",
@@ -1377,7 +1429,8 @@
           "items",
           "total",
           "limit",
-          "offset"
+          "offset",
+          "counts"
         ],
         "title": "RecordList"
       },
