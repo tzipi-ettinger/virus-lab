@@ -237,13 +237,14 @@ INDEX: record(status, received_date), record(national_id), record(commitment_num
 - `form_type` של הטופס מועתק לכל הרשומות שלו.
 - טופס בלי התחייבות הופך לרשומה אחת עם `REQUIRED_MISSING`.
 
-**`service.save_extracted_page(conn, form, image, user)`:** כל השלבים רצים בטרנזקציה אחת:
+**`service.save_extracted_page(conn, form, images, user)`** (סוכם ב־#15): שומרת **טופס שלם**. `images` הם העמוד הראשון ואחריו עמודי ההמשך לפי הסדר ב־`form.continuation_pages`, כולם מאותו קובץ. אחרת, או אם החילוץ של הטופס נכשל, נזרק `ValueError` ושום דבר לא נשמר. הכללים לא רצים שוב, כי ה־pipeline של A כבר הריץ אותם. כל השלבים רצים בטרנזקציה אחת:
 
-1. `apply_rules`
-2. `build_records`
-3. בדיקת כפילות (A4 ⏳): התחייבות שכבר קיימת ב־DB מקבלת `DUPLICATE_RECORD` (warning) על השדה `commitment_number`, כך ש־`confirmed` על השדה פותר את הסימון.
-4. שמירה של העמוד, התמונה והרשומות.
-5. רישום `record_event 'created'`.
+1. `build_records`
+2. נעילת מספרי ההתחייבות (`pg_advisory_xact_lock`, בסדר ממוין), ובדיקת כפילות (A4): התחייבות שכבר קיימת ב־DB מקבלת `DUPLICATE_RECORD` (warning) על השדה `commitment_number`, כך ש־`confirmed` על השדה פותר את הסימון.
+3. שמירה של העמודים (עמוד המשך מצביע על העמוד הראשון), התמונות והרשומות.
+4. רישום `record_event 'created'`.
+
+מחזירה את ה־`list[Record]` של הטופס, עם `continuation_page_ids`.
 
 עמוד שנכשל **לא נשמר** (A7 ⏳).
 

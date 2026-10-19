@@ -305,6 +305,11 @@ export interface components {
              * @description Later pages of the same file that belong to this form. page_id / page_number are its first page.
              */
             continuation_pages?: number[];
+            /**
+             * Continuation Page Ids
+             * @description The page_id of each continuation page, in the order of continuation_pages. Load its image from /api/v1/pages/{page_id}/image.
+             */
+            continuation_page_ids?: string[];
             /** Commitment Index */
             commitment_index: number;
             /**
