@@ -57,10 +57,9 @@ function elapsed(ms: number) {
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
 }
 
-function detail(item: UploadItem, now: number) {
+function detail(item: UploadItem) {
   const r = item.result;
   const parts: string[] = [];
-  if (item.status === "sending" && item.startedAt) parts.push(elapsed(now - item.startedAt));
   if (r && (item.status === "done" || item.status === "partial")) {
     const pages = r.files[0]?.page_count;
     if (pages) parts.push(pages === 1 ? "עמוד אחד" : `${pages} עמודים`);
@@ -151,7 +150,15 @@ export function UploadPanel({ onResult }: UploadPanelProps) {
                   {STATUS_TEXT[item.status]}
                 </span>
                 <span className="upload-name"><bdi>{item.file.name}</bdi></span>
-                <span className="upload-detail">{detail(item, now)}</span>
+                <span className="upload-detail">
+                  {item.status === "sending" && item.startedAt ? (
+                    // Hidden from screen readers: in the aria-live list, the clock
+                    // would be read out every second.
+                    <span aria-hidden="true">{elapsed(now - item.startedAt)}</span>
+                  ) : (
+                    detail(item)
+                  )}
+                </span>
                 {item.canRetry && (
                   <button type="button" className="upload-retry" onClick={() => retry(item.key)}>
                     נסי שוב

@@ -43,12 +43,14 @@ export type Outcome =
   | { kind: "partial"; result: ExtractResponse }
   | { kind: "failed"; message: string; canRetry: boolean; result?: ExtractResponse }
   | { kind: "quota"; message: string }
+  | { kind: "signed_out" }
   | { kind: "interrupted" };
 
 export const QUOTA_MESSAGE = "המכסה היומית נגמרה";
 // Nothing from these files was saved, so sending them again is safe - once the quota is back.
 export const NOT_SENT_QUOTA = "המכסה היומית נגמרה. אפשר לשלוח שוב כשהמכסה מתחדשת";
 export const NOT_SENT_CONNECTION = "ההעלאה נעצרה כי החיבור נקטע";
+export const SIGNED_OUT = "צריך להתחבר מחדש, ואז לשלוח שוב";
 
 // 4xx types where the server says nothing was saved and sending again may work.
 const RETRYABLE_4XX = new Set(["invalid_upload"]);
@@ -74,7 +76,8 @@ export function classify(status: number, body: unknown): Outcome {
   }
   // Pages may already be saved when the server breaks or the connection drops.
   if (status >= 500) return { kind: "interrupted" };
-  if (status === 401) return { kind: "failed", message: "צריך להתחבר מחדש", canRetry: false };
+  // Refused before anything was read: sending again after signing in is safe.
+  if (status === 401) return { kind: "signed_out" };
   const parts = [problem.title || "הקובץ לא התקבל"];
   if (problem.detail) parts.push(problem.detail);
   if (problem.type === "too_many_pages") parts.push("אפשר לחלק את הקובץ לכמה קבצים");
@@ -96,24 +99,35 @@ export async function sendFile(file: File, fetchImpl: typeof fetch = fetch): Pro
   } catch {
     if (response.ok) return { kind: "interrupted" };
   }
-  return classify(response.status, json);
+  try {
+    return classify(response.status, json);
+  } catch {
+    // A 200 that is JSON but not an ExtractResponse (a proxy's or a login page's
+    // answer). Pages may have been saved, so the same as a dropped connection.
+    return { kind: "interrupted" };
+  }
 }
 
 export type Action =
-  | { type: "add"; files: File[] }
+  | { type: "add"; files: { key: string; file: File }[] }
   | { type: "start"; key: string; at: number }
   | { type: "finish"; key: string; outcome: Outcome }
   | { type: "retry"; key: string };
 
 let nextKey = 0;
 
+// Makes the keys here, not in the reducer: React may run a reducer twice
+// (StrictMode), and a reducer must give the same result both times.
+export function addFiles(files: File[]): Action {
+  return { type: "add", files: files.map((file) => ({ key: `f${++nextKey}`, file })) };
+}
+
 export function uploadReducer(items: UploadItem[], action: Action): UploadItem[] {
   switch (action.type) {
     case "add":
       return [
         ...items,
-        ...action.files.map((file): UploadItem => {
-          const key = `f${++nextKey}`;
+        ...action.files.map(({ key, file }): UploadItem => {
           if (!ACCEPTED.test(file.name)) {
             return { key, file, status: "failed", canRetry: false, message: "סוג קובץ לא נתמך. אפשר להעלות PDF, JPG או PNG" };
           }
@@ -147,19 +161,23 @@ function finish(items: UploadItem[], key: string, outcome: Outcome): UploadItem[
         return { ...i, status: "failed", canRetry: outcome.canRetry, result: outcome.result, message: outcome.message };
       case "quota":
         return { ...i, status: "not_sent", canRetry: true, message: outcome.message };
+      case "signed_out":
+        return { ...i, status: "not_sent", canRetry: true, message: SIGNED_OUT };
       case "interrupted":
         return { ...i, status: "interrupted", canRetry: false };
     }
   };
-  // The quota is daily, and a dropped connection will most likely drop the next
-  // file too: the files still waiting are not sent. Nothing of theirs was saved,
-  // so they can be sent again.
+  // The quota is daily, and a dropped connection or an ended session will most
+  // likely fail the next file too: the files still waiting are not sent. Nothing
+  // of theirs was saved, so they can be sent again.
   const stopMessage =
     outcome.kind === "partial" || outcome.kind === "quota"
       ? NOT_SENT_QUOTA
       : outcome.kind === "interrupted"
         ? NOT_SENT_CONNECTION
-        : null;
+        : outcome.kind === "signed_out"
+          ? SIGNED_OUT
+          : null;
   return items.map((i) => {
     if (i.key === key) return update(i);
     if (stopMessage && i.status === "queued") return { ...i, status: "not_sent", canRetry: true, message: stopMessage };
@@ -193,7 +211,7 @@ export function useExtract(onResult: (result: ExtractResponse) => void) {
 
   return {
     items,
-    add: (files: File[]) => dispatch({ type: "add", files }),
+    add: (files: File[]) => dispatch(addFiles(files)),
     retry: (key: string) => dispatch({ type: "retry", key }),
   };
 }

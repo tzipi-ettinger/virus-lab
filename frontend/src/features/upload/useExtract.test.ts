@@ -9,6 +9,8 @@ import {
   NOT_SENT_CONNECTION,
   NOT_SENT_QUOTA,
   QUOTA_MESSAGE,
+  SIGNED_OUT,
+  addFiles,
   classify,
   sendFile,
   uploadReducer,
@@ -29,7 +31,7 @@ function response(over: Partial<ExtractResponse> = {}): ExtractResponse {
 }
 
 function queued(...names: string[]): UploadItem[] {
-  return uploadReducer([], { type: "add", files: names.map((n) => pdf(n)) });
+  return uploadReducer([], addFiles(names.map((n) => pdf(n))));
 }
 
 describe("classify", () => {
@@ -118,18 +120,30 @@ describe("sendFile", () => {
     const fake = (async () => new Response("<html>", { status: 200 })) as typeof fetch;
     expect((await sendFile(pdf(), fake)).kind).toBe("interrupted");
   });
+
+  test("a 200 that is JSON of another shape is interrupted, not a stuck queue", async () => {
+    // Before: classify threw, the promise rejected, and the queue never moved on.
+    const fake = (async () => new Response('{"ok": true}', { status: 200 })) as typeof fetch;
+    expect((await sendFile(pdf(), fake)).kind).toBe("interrupted");
+  });
+
+  test("401 is signed_out", async () => {
+    const fake = (async () =>
+      new Response('{"type": "unauthorized", "title": "x", "status": 401}', { status: 401 })) as typeof fetch;
+    expect((await sendFile(pdf(), fake)).kind).toBe("signed_out");
+  });
 });
 
 describe("uploadReducer", () => {
   test("files that are not PDF, JPG or PNG fail at once and are never sent", () => {
-    const items = uploadReducer([], { type: "add", files: [pdf("a.pdf"), pdf("b.docx"), pdf("c.JPG")] });
+    const items = uploadReducer([], addFiles([pdf("a.pdf"), pdf("b.docx"), pdf("c.JPG")]));
     expect(items.map((i) => i.status)).toEqual(["queued", "failed", "queued"]);
     expect(items[1].canRetry).toBe(false);
   });
 
   test("files over 20MB fail at once and are never sent", () => {
     const big = new File([new Uint8Array(MAX_FILE_BYTES + 1)], "big.pdf");
-    const [item] = uploadReducer([], { type: "add", files: [big] });
+    const [item] = uploadReducer([], addFiles([big]));
     expect(item).toMatchObject({ status: "failed", canRetry: false });
   });
 
@@ -177,6 +191,22 @@ describe("uploadReducer", () => {
     items = uploadReducer(items, { type: "finish", key: items[0].key, outcome: { kind: "done", result: response() } });
     items = uploadReducer(items, { type: "finish", key: items[1].key, outcome: { kind: "quota", message: "x" } });
     expect(items[0].status).toBe("done");
+  });
+
+  test("an ended session stops the queue: this file and the waiting ones can be sent again", () => {
+    let items = queued("a.pdf", "b.pdf");
+    items = uploadReducer(items, { type: "start", key: items[0].key, at: 0 });
+    items = uploadReducer(items, { type: "finish", key: items[0].key, outcome: { kind: "signed_out" } });
+    expect(items.map((i) => [i.status, i.canRetry, i.message])).toEqual([
+      ["not_sent", true, SIGNED_OUT],
+      ["not_sent", true, SIGNED_OUT],
+    ]);
+  });
+
+  test("the reducer gives the same result when React runs it twice", () => {
+    // StrictMode runs reducers twice; the keys come from addFiles, outside.
+    const action = addFiles([pdf("a.pdf"), pdf("b.pdf")]);
+    expect(uploadReducer([], action)).toEqual(uploadReducer([], action));
   });
 
   test("interrupted is never offered again", () => {
