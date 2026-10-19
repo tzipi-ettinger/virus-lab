@@ -61,6 +61,14 @@ async def insert_page_image(conn: AsyncConnection, page_id: str, jpeg: bytes) ->
     )
 
 
+async def get_page_image(conn: AsyncConnection, page_id: str) -> bytes | None:
+    """The saved JPEG of one page, or None when there is no such page."""
+    async with conn.cursor(row_factory=dict_row) as cur:
+        await cur.execute("SELECT bytes FROM page_image WHERE page_id = %s", (page_id,))
+        row = await cur.fetchone()
+    return bytes(row["bytes"]) if row else None
+
+
 async def insert_record(
     conn: AsyncConnection,
     *,
