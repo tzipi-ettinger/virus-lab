@@ -37,6 +37,135 @@
         }
       }
     },
+    "/api/v1/auth/login": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Login",
+        "description": "Sign in and set the session cookie (HttpOnly, Secure, SameSite=Strict).",
+        "operationId": "login_api_v1_auth_login_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/User"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Wrong username or password (\"invalid_credentials\")",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Locked after 5 failed logins (\"too_many_attempts\"), see Retry-After",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not from our page (\"origin_not_allowed\")",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/logout": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Logout",
+        "description": "End the session on the server too, so the token is useless even if it leaked.",
+        "operationId": "logout_api_v1_auth_logout_post",
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "403": {
+            "description": "Not from our page (\"origin_not_allowed\")",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/me": {
+      "get": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Me",
+        "description": "The signed-in user. The app calls it on load to decide: login screen or app.",
+        "operationId": "me_api_v1_auth_me_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/User"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid session (\"unauthenticated\")",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/extract": {
       "post": {
         "summary": "Extract",
@@ -268,6 +397,16 @@
               }
             }
           },
+          "401": {
+            "description": "No valid session (\"unauthenticated\")",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
           "422": {
             "description": "Validation Error",
             "content": {
@@ -303,6 +442,16 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/Record"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid session (\"unauthenticated\")",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
                 }
               }
             }
@@ -361,6 +510,16 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/RecordPatchResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid session (\"unauthenticated\")",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
                 }
               }
             }
@@ -435,6 +594,16 @@
               }
             }
           },
+          "401": {
+            "description": "No valid session (\"unauthenticated\")",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
           "404": {
             "description": "No such record",
             "content": {
@@ -491,15 +660,25 @@
               "image/jpeg": {}
             }
           },
-          "404": {
+          "401": {
+            "description": "No valid session (\"unauthenticated\")",
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/Problem"
                 }
               }
-            },
-            "description": "Not Found"
+            }
+          },
+          "404": {
+            "description": "No such page (\"page_not_found\")",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
           },
           "422": {
             "description": "Validation Error",
@@ -873,6 +1052,28 @@
         "type": "object",
         "title": "ListItemEdit"
       },
+      "LoginRequest": {
+        "properties": {
+          "username": {
+            "type": "string",
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Username"
+          },
+          "password": {
+            "type": "string",
+            "maxLength": 1024,
+            "minLength": 1,
+            "title": "Password"
+          }
+        },
+        "type": "object",
+        "required": [
+          "username",
+          "password"
+        ],
+        "title": "LoginRequest"
+      },
       "Problem": {
         "properties": {
           "type": {
@@ -947,6 +1148,14 @@
             "type": "array",
             "title": "Continuation Pages",
             "description": "Later pages of the same file that belong to this form. page_id / page_number are its first page."
+          },
+          "continuation_page_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Continuation Page Ids",
+            "description": "The page_id of each continuation page, in the order of continuation_pages. Load its image from /api/v1/pages/{page_id}/image."
           },
           "commitment_index": {
             "type": "integer",
@@ -1391,6 +1600,30 @@
         ],
         "title": "RecordSummary",
         "description": "A row on the records screen: effective values only, straight from the record table."
+      },
+      "User": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "username": {
+            "type": "string",
+            "title": "Username"
+          },
+          "display_name": {
+            "type": "string",
+            "title": "Display Name"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "username",
+          "display_name"
+        ],
+        "title": "User",
+        "description": "The signed-in user, as require_user gives it to the endpoints."
       },
       "ValidationError": {
         "properties": {

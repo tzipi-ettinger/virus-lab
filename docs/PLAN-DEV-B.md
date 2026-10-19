@@ -238,13 +238,14 @@ INDEX: record(status, received_date), record(national_id), record(commitment_num
 - `form_type` של הטופס מועתק לכל הרשומות שלו.
 - טופס בלי התחייבות הופך לרשומה אחת עם `REQUIRED_MISSING`.
 
-**`service.save_extracted_page(conn, form, image, user)`:** כל השלבים רצים בטרנזקציה אחת:
+**`service.save_extracted_page(conn, form, images, user)`** (סוכם ב־#15): שומרת **טופס שלם**. `images` הם העמוד הראשון ואחריו עמודי ההמשך לפי הסדר ב־`form.continuation_pages`, כולם מאותו קובץ. אחרת, או אם החילוץ של הטופס נכשל, נזרק `ValueError` ושום דבר לא נשמר. הכללים לא רצים שוב, כי ה־pipeline של A כבר הריץ אותם. כל השלבים רצים בטרנזקציה אחת:
 
-1. `apply_rules`
-2. `build_records`
-3. בדיקת כפילות (A4 ⏳): התחייבות שכבר קיימת ב־DB מקבלת `DUPLICATE_RECORD` (warning) על השדה `commitment_number`, כך ש־`confirmed` על השדה פותר את הסימון.
-4. שמירה של העמוד, התמונה והרשומות.
-5. רישום `record_event 'created'`.
+1. `build_records`
+2. נעילת מספרי ההתחייבות (`pg_advisory_xact_lock`, בסדר ממוין), ובדיקת כפילות (A4): התחייבות שכבר קיימת ב־DB מקבלת `DUPLICATE_RECORD` (warning) על השדה `commitment_number`, כך ש־`confirmed` על השדה פותר את הסימון.
+3. שמירה של העמודים (עמוד המשך מצביע על העמוד הראשון), התמונות והרשומות.
+4. רישום `record_event 'created'`.
+
+מחזירה את ה־`list[Record]` של הטופס, עם `continuation_page_ids`.
 
 עמוד שנכשל **לא נשמר** (A7 ⏳).
 
@@ -270,7 +271,7 @@ INDEX: record(status, received_date), record(national_id), record(commitment_num
 
 - **CSV:**
   - **קידוד:** UTF-8 עם BOM, כדי שאקסל יציג עברית נכון.
-  - **שורות ועמודות:** שורה לכל רשומה. עמודות בעברית: שם פרטי, שם משפחה, ת״ז, מספרים מרכזיים (מופרדים ב־`; `), תאריך קבלה (`DD/MM/YYYY`), גורם שולח, מספר התחייבות, סוג טופס, סטטוס, דורש בדיקה, סיבות לבדיקה, שדות שתוקנו או אושרו ידנית, קובץ מקור, עמוד.
+  - **שורות ועמודות:** שורה לכל רשומה, לפי ההמלצה של ראש הצוות ([SPEC 10](SPEC.md)). קודם 7 השדות בסדר שבהנחיות: שם פרטי, שם משפחה, ת״ז, מספר מרכזי (כולם באותו תא, מופרדים בפסיק), תאריך קבלה (`DD/MM/YYYY`), גורם שולח, מספר התחייבות. אחריהם "לבדיקה" (ריק, או הסיבות מופרדות ב־`; `), ואז שדות שתוקנו או אושרו ידנית, קובץ מקור ועמוד. בלי סטטוס וסוג טופס: הם מסננים במסך, והקובץ מכיל בדיוק את מה שסונן.
   - **ערכים:** נכתבים כמו שהם, כטקסט, כך שאפסים מובילים נשמרים בקובץ.
   - **הגנה מ־CSV injection:** תא שמתחיל ב־`=`, `+`, `-`, `@` או tab מקבל `'` בהתחלה, כדי שאקסל לא יריץ אותו כנוסחה.
 - **JSON:** רשימה של `Record` מלא, כמו בחוזה. מתאים לחיבור עתידי למערכת של המעבדה.
@@ -735,7 +736,7 @@ npm run lint ; npm run build ; npm test
 | 14 | B1.7 | `feature/review-table` | Add review table with in-place editing | `Add review table with one row per record` · `Edit a flagged cell in place` · `Confirm a flagged value as is` · `Show a confidence label on every field` · `Edit the central numbers list` · `Pick sender from the closed list` · `Show the source page next to the selected row` (A8) | `reviewReducer.test.ts` (עריכה מסמנת `corrected` ומבטלת `confirmed`, `raw` לא משתנה, הוספה והסרה) · `FieldCell.test.tsx` (תווית ביטחון בטקסט ולא רק בצבע, Enter שומר, Escape מבטל) · `ReviewTable.test.tsx` (בחירת שורה מציגה את העמוד שלה) |
 | 15 | B1.7 | `feature/review-approve` | Add per-row and approve-all-ready actions | `Add approve button with blocking fields` · `Add approve-all-ready action` · `Handle version conflicts and approval errors` | `ApproveButton.test.tsx` (מושבת עם רשימה, `409` מציג שדות) · `ApproveAllBar.test.tsx` (מונה את המוכנות, סיכום חלקי) · `useRecordMutations.test.ts` (`version_conflict` טוען מחדש ושומר את הטיוטה) |
 | 16 | B1.8 | `feature/records-screen` | Add records list with search and filters | `Sync records filters with the URL` · `Add records table with pagination and counts` · `Add search box and filters` · `Add form type column and filter` · `Add record page` | `filters.test.ts` (parse/serialize הלוך־חזור) · `format.test.ts` (`DD/MM/YYYY`, אפסים מובילים) · `RecordsPage.test.tsx` (מצב ריק, שינוי מסנן מעדכן את ה־URL) |
-| 16א | B1.9 | `feature/records-export` | Add CSV and JSON export of filtered records | `Add CSV and JSON writers for records` · `Add export endpoint with the list filters` · `Log exports without record values` · `Add export button to the records screen` | `test_export.py`: BOM וכותרות בעברית, אפסים מובילים, שורה לכל רשומה, תא שמתחיל ב־`=` מוגן, JSON שעובר כרשימת `Record`, המסננים חלים, `401` בלי סשן, שורה ב־`export_log`. `ExportButton.test.tsx`: הקישור נבנה מהמסננים שבמסך |
+| 16א | B1.9 | `feature/records-export` | Add CSV and JSON export of filtered records | `Add CSV and JSON writers for records` · `Add export endpoint with the list filters` · `Log exports without record values` · `Add export button to the records screen` | `test_export.py`: BOM וכותרות בעברית בסדר של SPEC 10, מרכזיים מופרדים בפסיק באותו תא, תאריך `DD/MM/YYYY`, "לבדיקה" ריק ברשומה תקינה ועם הסיבה ברשומה מסומנת, אפסים מובילים, שורה לכל רשומה, תא שמתחיל ב־`=` מוגן, JSON שעובר כרשימת `Record`, המסננים חלים, `401` בלי סשן, שורה ב־`export_log`. `ExportButton.test.tsx`: הקישור נבנה מהמסננים שבמסך |
 | 17 | B2.1 | `feature/save-extraction-records` (אם A2 קובעת ש־B כותבת) | Save extracted pages as records | `Save each extracted page through the record service` | `test_extract_records.py` עם `FakeProvider`: רשומות נשמרות כ־pending, עמוד שנכשל לא נשמר, בלי סשן מקבלים `401` |
 | 18 | B2.2 | `chore/security-hardening` | Add security headers and production settings | `Add security headers middleware` · `Disable API docs in production` · `Add demo seed and wipe scripts` | `test_security.py`: הכותרות קיימות על API ועל קבצים סטטיים, `/docs` מחזיר `404` כש־`ENV=production`, `caplog`: ת״ז ושם לא מופיעים בלוגים של save ו־patch |
 | 19 | B2.3 | `feature/eval-metrics` | Add evaluation against ground truth | `Load ground truth and match records` · `Compute per-field accuracy and unflagged errors` · `Write markdown evaluation report` | `test_eval.py` על CSV סינתטי קטן: exact match, שגיאה שלא סומנה נספרת, מספר רשומות מול הצפוי |

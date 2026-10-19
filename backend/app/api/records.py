@@ -9,8 +9,11 @@ Owner: B
 from datetime import date
 from typing import Annotated
 
-from fastapi import APIRouter, HTTPException, Query, Response
+from fastapi import APIRouter, Depends, HTTPException, Query, Response
+from psycopg_pool import AsyncConnectionPool
 
+from app.api.errors import ProblemError
+from app.auth.deps import get_pool, require_user
 from app.schemas.api import (
     ApproveRequest,
     Problem,
@@ -20,8 +23,14 @@ from app.schemas.api import (
     RecordPatchResponse,
     RecordStatus,
 )
+from app.storage import repo
 
-router = APIRouter(prefix="/api/v1")
+# Every records endpoint needs a signed-in user (Dev-B plan 2.6).
+router = APIRouter(
+    prefix="/api/v1",
+    dependencies=[Depends(require_user)],
+    responses={401: {"model": Problem, "description": 'No valid session ("unauthenticated")'}},
+)
 
 _NOT_FOUND = {404: {"model": Problem, "description": "No such record"}}
 _CONFLICT = {409: {"model": Problem, "description": 'Stale version (type "version_conflict")'}}
@@ -84,8 +93,18 @@ def approve_record(record_id: str, body: ApproveRequest) -> Record:
 @router.get(
     "/pages/{page_id}/image",
     response_class=Response,
-    responses={200: {"content": {"image/jpeg": {}}}, 404: {"model": Problem}},
+    responses={
+        200: {"content": {"image/jpeg": {}}},
+        404: {"model": Problem, "description": 'No such page ("page_not_found")'},
+    },
 )
-def page_image(page_id: str) -> Response:
+async def page_image(
+    page_id: str, pool: Annotated[AsyncConnectionPool, Depends(get_pool)]
+) -> Response:
     """The rotated, compressed page the fields came from (D4). Sent with Cache-Control: no-store."""
-    raise _not_implemented()
+    async with pool.connection() as conn:
+        jpeg = await repo.get_page_image(conn, page_id)
+    if jpeg is None:
+        raise ProblemError(404, "page_not_found", "העמוד לא נמצא")
+    # no-store: a patient's form must not stay in the browser's or a proxy's cache (D4).
+    return Response(jpeg, media_type="image/jpeg", headers={"Cache-Control": "no-store"})
