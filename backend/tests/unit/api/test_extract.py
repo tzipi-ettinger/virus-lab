@@ -1,5 +1,8 @@
 import os
+import secrets
 import tempfile
+from datetime import UTC, datetime
+from uuid import uuid4
 
 import pymupdf
 import pytest
@@ -12,6 +15,9 @@ from app.extraction.fake_provider import FIXTURES_DIR
 from app.extraction.gemini_provider import GeminiProvider
 from app.extraction.provider import PageImage, ProviderError, QuotaExhausted
 from app.main import create_app
+from app.pipeline.service import ExtractedForm
+from app.rules.records import build_records
+from app.schemas.api import Record
 from app.schemas.extraction import RawExtraction
 from app.settings import Settings, get_settings
 
@@ -51,14 +57,42 @@ class Answers:
         return MACCABI.model_copy(deep=True)
 
 
+async def unsaved_records(extracted: ExtractedForm) -> list[Record]:
+    """The records save_extracted_page would return, without a database or a user.
+    Saving itself is tested in test_extract_saves.py."""
+    now = datetime.now(UTC)
+    form = extracted.form
+    page_id = f"p_{secrets.token_hex(8)}"
+    return [
+        Record(
+            record_id=str(uuid4()),
+            page_id=page_id,
+            source_file=form.source_file,
+            page_number=form.page_number,
+            continuation_pages=form.continuation_pages,
+            commitment_index=draft.commitment_index,
+            status="pending",
+            version=1,
+            form_type=form.form_type,
+            fields=draft.fields,
+            central_numbers=draft.central_numbers,
+            issues=draft.issues,
+            needs_review=draft.needs_review,
+            created_at=now,
+            updated_at=now,
+            approved_at=None,
+        )
+        for draft in build_records(form)
+    ]
+
+
 @pytest.fixture
 def make_client():
     def build(provider=None, save_form=None, **settings):
         app = create_app()
         app.dependency_overrides[get_settings] = lambda: Settings(_env_file=None, **settings)
         app.dependency_overrides[extract.get_provider] = lambda: provider or Answers()
-        if save_form:
-            app.dependency_overrides[extract.get_save_form] = lambda: save_form
+        app.dependency_overrides[extract.get_save_form] = lambda: save_form or unsaved_records
         return TestClient(app)
 
     return build
@@ -258,30 +292,6 @@ def test_an_upload_cut_off_in_the_middle_is_invalid_not_empty(make_client):
 
     body = assert_problem(response, 400, "invalid_upload")
     assert "נקטעה" in body["title"]
-
-
-def test_records_without_saving_gives_one_record_per_commitment(make_client):
-    # Two commitment numbers on one page: two records, each with all central numbers.
-    reading = MACCABI.model_copy(deep=True)
-    reading.commitment_numbers = [
-        reading.commitment_numbers[0],
-        reading.commitment_numbers[0].model_copy(update={"value": "50364187"}),
-    ]
-
-    class TwoCommitments:
-        async def extract(self, page):
-            return reading.model_copy(deep=True)
-
-    response = make_client(provider=TwoCommitments()).post(
-        "/api/v1/extract", files=upload(("a.pdf", make_pdf(1)))
-    )
-
-    records = response.json()["records"]
-    assert [r["commitment_index"] for r in records] == [0, 1]
-    assert len({r["record_id"] for r in records}) == 2
-    assert len({r["page_id"] for r in records}) == 1
-    assert all(len(r["central_numbers"]) == 3 for r in records)
-    assert all(r["form_type"] == "hmo_form" for r in records)
 
 
 def test_a_hebrew_file_name_comes_back_as_sent(make_client):

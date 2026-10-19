@@ -215,6 +215,26 @@
               }
             }
           },
+          "401": {
+            "description": "Not signed in (\"unauthenticated\"). Nothing was read, so the file can be sent again",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The request did not come from our own page (\"origin_not_allowed\")",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
           "413": {
             "description": "Request over MAX_REQUEST_MB (\"request_too_large\") or over MAX_PAGES_PER_REQUEST (\"too_many_pages\")",
             "content": {
@@ -236,7 +256,7 @@
             }
           },
           "503": {
-            "description": "The daily Gemini quota ran out before any page was saved (\"quota_exhausted\"): nothing was saved, so the file can be sent again",
+            "description": "The daily Gemini quota ran out before any page was saved (\"quota_exhausted\"): nothing was saved, so the file can be sent again. Also when the database is not reachable (\"database_unavailable\")",
             "content": {
               "application/json": {
                 "schema": {

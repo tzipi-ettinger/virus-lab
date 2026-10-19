@@ -721,6 +721,24 @@ export interface operations {
                     "application/json": components["schemas"]["Problem"];
                 };
             };
+            /** @description Not signed in ("unauthenticated"). Nothing was read, so the file can be sent again */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description The request did not come from our own page ("origin_not_allowed") */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
             /** @description Request over MAX_REQUEST_MB ("request_too_large") or over MAX_PAGES_PER_REQUEST ("too_many_pages") */
             413: {
                 headers: {
@@ -739,7 +757,7 @@ export interface operations {
                     "application/json": components["schemas"]["Problem"];
                 };
             };
-            /** @description The daily Gemini quota ran out before any page was saved ("quota_exhausted"): nothing was saved, so the file can be sent again */
+            /** @description The daily Gemini quota ran out before any page was saved ("quota_exhausted"): nothing was saved, so the file can be sent again. Also when the database is not reachable ("database_unavailable") */
             503: {
                 headers: {
                     [name: string]: unknown;
