@@ -17,6 +17,8 @@ services:
     dockerfilePath: ./Dockerfile
     dockerContext: .
     healthCheckPath: /api/health
+    # Keep-alive needs no variable here: Render sets RENDER_EXTERNAL_URL itself, and
+    # the app pings {RENDER_EXTERNAL_URL}/api/health every 10 minutes (app/keep_alive.py).
     envVars:
       # The internal URL: the server reaches the DB over Render's private network.
       - key: DATABASE_URL

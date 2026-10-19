@@ -180,6 +180,7 @@ EXTRACTION_PROVIDER=fake
    ```
 
 4. בדיקה: `https://<הכתובת>/api/health` מחזיר `"status": "ok"` ו־`"extraction_provider": "gemini"`.
+5. **השרת לא נרדם:** השרת פונה לכתובת הציבורית של עצמו כל 10 דקות ([app/keep_alive.py](backend/app/keep_alive.py)), בלי הגדרה נוספת. בלוגים של Render מופיעה בקשת `GET /api/health` כל 10 דקות. כדי שזה יישאר בתוך 750 השעות החינמיות בחודש, זה צריך להיות השרת החינמי היחיד ב־workspace.
 
 **בדיקה מקומית של ה־image:**
 
@@ -207,6 +208,8 @@ docker run --rm -p 8000:8000 -e EXTRACTION_PROVIDER=fake -e FRONTEND_ORIGIN=http
 | `FRONTEND_ORIGIN` | `http://localhost:5173` | הכתובת של הדף: CORS בפיתוח, ובדיקת ה־`Origin` (CSRF) על בקשה שמשנה נתונים. בשרת החי: הכתובת הציבורית |
 | `DATABASE_URL` | — | Postgres. מקומית: מ־`docker compose`, כמו ב־`.env.example`. בשרת החי: ה־Internal URL של Render, שמגיע מ־`render.yaml`. בלעדיו השרת עולה, אבל כניסה ורשומות מחזירות `503` |
 | `STATIC_DIR` | ריק | תיקיית ה־frontend הבנוי, ש־FastAPI מגיש. מוגדר רק ב־image של Docker. בפיתוח Vite מגיש את הדף |
+| `KEEP_ALIVE_URL` | ריק | הכתובת הציבורית שהשרת פונה אליה (`/api/health`) כדי ש־Render לא ירדים אותו. כשהוא ריק משתמשים ב־`RENDER_EXTERNAL_URL`, ש־Render מגדיר בעצמו. בלי שניהם (מקומית ובטסטים) הפנייה כבויה |
+| `KEEP_ALIVE_INTERVAL_S` | `600` | כל כמה שניות לפנות. לפחות 60. Render מרדים שרת חינמי אחרי 15 דקות בלי בקשות מבחוץ |
 | `MAX_FILE_MB` | `20` | גודל קובץ מקסימלי 🚧 |
 | `MAX_CONCURRENCY` | `4` | עמודים שמעובדים במקביל 🚧 |
 
