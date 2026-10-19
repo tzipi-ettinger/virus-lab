@@ -1,8 +1,9 @@
-"""The records routes take what the screen sends, before they are implemented.
+"""The records routes take what the screen sends.
 
-The handlers answer 501 for now, so a 501 means the request got past validation
-and reached the right handler. The session check is replaced by a fixed user:
-login itself is tested in tests/unit/auth/.
+No database here: the pool is a stub that raises Reached when a handler asks it
+for a connection, so Reached means the request got past validation and reached
+the right handler. What the handlers do is tested in tests/unit/api/. The session
+check is replaced by a fixed user: login itself is tested in tests/unit/auth/.
 
 Owner: shared
 """
@@ -12,7 +13,7 @@ from typing import get_args
 import pytest
 from fastapi.testclient import TestClient
 
-from app.auth.deps import require_user
+from app.auth.deps import get_pool, require_user
 from app.main import app
 from app.schemas import api
 
@@ -20,13 +21,24 @@ PATHS = app.openapi()["paths"]
 client = TestClient(app)
 
 
+class Reached(Exception):
+    pass
+
+
+class StubPool:
+    def connection(self):
+        raise Reached
+
+
 @pytest.fixture(autouse=True)
 def signed_in():
     app.dependency_overrides[require_user] = lambda: api.User(
         id="u1", username="tester", display_name="Tester"
     )
+    app.dependency_overrides[get_pool] = StubPool
     yield
     app.dependency_overrides.pop(require_user, None)
+    app.dependency_overrides.pop(get_pool, None)
 
 
 def list_params() -> dict[str, dict]:
@@ -49,7 +61,8 @@ def test_list_takes_every_filter_of_the_screen():
 
 @pytest.mark.parametrize("form_type", get_args(api.FormType))
 def test_list_filters_by_any_form_type(form_type):
-    assert client.get("/api/v1/records", params={"form_type": form_type}).status_code == 501
+    with pytest.raises(Reached):
+        client.get("/api/v1/records", params={"form_type": form_type})
 
 
 def test_list_rejects_an_unknown_form_type():
@@ -58,7 +71,8 @@ def test_list_rejects_an_unknown_form_type():
 
 def test_approve_many_reaches_its_own_route():
     body = {"items": [{"record_id": "r1", "version": 1}, {"record_id": "r2", "version": 3}]}
-    assert client.post("/api/v1/records/approve", json=body).status_code == 501
+    with pytest.raises(Reached):
+        client.post("/api/v1/records/approve", json=body)
 
 
 @pytest.mark.parametrize("body", [{"items": []}, {"items": [{"record_id": "r1"}]}])

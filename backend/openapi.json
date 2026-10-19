@@ -742,7 +742,7 @@
       },
       "patch": {
         "summary": "Patch Record",
-        "description": "Correct or confirm fields, rerun apply_rules (SPEC 7.4) and save.\n\nApproved records are read-only (A6).",
+        "description": "Correct or confirm fields, rerun apply_rules (SPEC 7.4) and save.\n\nA shared field (names, ID, date, sender, central numbers) changes in the form's\nother records too, returned in `siblings` (A3). Approved records are read-only (A6).",
         "operationId": "patch_record_api_v1_records__record_id__patch",
         "parameters": [
           {
@@ -797,7 +797,7 @@
             }
           },
           "409": {
-            "description": "Stale version (type \"version_conflict\")",
+            "description": "Stale version (\"version_conflict\"), an approved record (\"record_approved\"), or a shared field while another record of the form is approved (\"sibling_approved\")",
             "content": {
               "application/json": {
                 "schema": {
@@ -807,11 +807,11 @@
             }
           },
           "422": {
-            "description": "Validation Error",
+            "description": "No central number at that idx (\"validation\")",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
+                  "$ref": "#/components/schemas/Problem"
                 }
               }
             }
@@ -820,7 +820,7 @@
       },
       "delete": {
         "summary": "Delete Record",
-        "description": "Delete a pending record (A5).",
+        "description": "Delete a pending record (A5). The form's pages go too once no record needs them.",
         "operationId": "delete_record_api_v1_records__record_id__delete",
         "parameters": [
           {
