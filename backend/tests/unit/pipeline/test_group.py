@@ -48,8 +48,14 @@ def page(number: int = 1, *, file_id: str = "f1", unresolved: bool = False, **fi
         extraction=extraction, image=image, applied_rotation=0, unresolved=unresolved, calls=1
     )
     form = assemble(oriented)
+    saved = PageImage(file_id, "forms.pdf", number, 0, f"saved {number}".encode())
     return ReadPage(
-        form=form, ruled=apply_rules(form, today=TODAY), image=image, calls=1, seconds=1.0
+        form=form,
+        ruled=apply_rules(form, today=TODAY),
+        image=image,
+        saved=saved,
+        calls=1,
+        seconds=1.0,
     )
 
 
@@ -75,7 +81,7 @@ def test_a_blank_page_after_a_form_continues_it():
     assert place(second, group, after_failure=False) == "join"
     joined = join(group, second, today=TODAY)
     assert (joined.form.page_number, joined.form.continuation_pages) == (1, [2])
-    assert [image.jpeg for image in joined.images] == [b"jpeg 1", b"jpeg 2"]
+    assert [image.jpeg for image in joined.images] == [b"saved 1", b"saved 2"]  # not the model's
     assert joined.form.issues == []
     assert joined.form.fields.national_id.value == "000000018"
 
