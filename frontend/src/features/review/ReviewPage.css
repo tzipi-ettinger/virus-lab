@@ -1,0 +1,32 @@
+/* ReviewPage layout: upload on top, then the table with the source page beside it.
+   Logical properties only (RTL). Owner: B */
+
+.review-page {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding-block: 16px;
+}
+
+.review-page-work {
+  display: grid;
+  grid-template-columns: minmax(0, 3fr) minmax(280px, 2fr);
+  align-items: start;
+  gap: 16px;
+}
+
+/* The page stays in view while scrolling down a long table. */
+.review-page-work > .preview {
+  position: sticky;
+  inset-block-start: 16px;
+}
+
+@media (max-width: 900px) {
+  .review-page-work {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .review-page-work > .preview {
+    position: static;
+  }
+}
