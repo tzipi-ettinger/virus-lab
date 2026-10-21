@@ -131,8 +131,8 @@ function RecordDetails({ record, backLink, back, onRecord }: DetailsProps) {
         </div>
         <p className={`records-status is-${status.tone}`}>
           <span aria-hidden="true">{status.icon}</span>{" "}
-          {record.status === "approved" && record.approved_by
-            ? `אושר על ידי ${record.approved_by} ב־${formatDateTime(record.approved_at)}`
+          {record.status === "approved" && record.approved_at
+            ? `אושר ב־${formatDateTime(record.approved_at)}`
             : status.text}
         </p>
         <dl className="record-meta">

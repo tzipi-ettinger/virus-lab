@@ -115,16 +115,9 @@ def test_record_continuation_pages_default_to_empty():
     assert api.Record.model_validate(record_data(continuation_pages=[2])).continuation_pages == [2]
 
 
-def test_record_who_approved_and_edited_is_empty_until_someone_does():
-    record = api.Record.model_validate(record_data())
-    assert (record.approved_by, record.updated_by) == (None, None)
-
-
-def test_record_keeps_who_approved_and_edited_it():
-    record = api.Record.model_validate(
-        record_data(status="approved", approved_at=NOW, approved_by="esty", updated_by="tzipi")
-    )
-    assert (record.approved_by, record.updated_by) == ("esty", "tzipi")
+def test_record_has_no_user_fields():
+    # No sign-in (21.10): a record says when it was approved, not by whom.
+    assert {"approved_by", "updated_by"}.isdisjoint(api.Record.model_fields)
 
 
 def test_record_list_requires_counts():
@@ -139,7 +132,7 @@ def test_record_list_requires_counts():
 def test_bulk_approve_response_lists_approved_and_skipped_records():
     response = api.BulkApproveResponse.model_validate(
         {
-            "approved": [record_data(status="approved", approved_at=NOW, approved_by="esty")],
+            "approved": [record_data(status="approved", approved_at=NOW)],
             "skipped": [
                 {
                     "record_id": "r2",

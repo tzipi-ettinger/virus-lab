@@ -14,7 +14,7 @@ from app.pipeline.service import ExtractedForm, SaveForm
 from app.rules.issues import make_issue
 from app.rules.records import RecordDraft, build_records
 from app.rules.text import fold_text
-from app.schemas.api import Form, Record, User
+from app.schemas.api import Form, Record
 from app.storage import repo
 
 
@@ -22,7 +22,6 @@ async def save_extracted_page(
     conn: AsyncConnection,
     form: Form,
     images: list[PageImage],
-    user: User,
     *,
     now: datetime | None = None,
 ) -> list[Record]:
@@ -58,7 +57,6 @@ async def save_extracted_page(
                 rotation=image.rotation,
                 first_page_id=None if page_id == first_page_id else first_page_id,
                 now=now,
-                user_id=user.id,
             )
             await repo.insert_page_image(conn, page_id, image.jpeg)
 
@@ -67,18 +65,18 @@ async def save_extracted_page(
             if draft.fields.commitment_number.value in existing:
                 draft = _flag_duplicate(draft)
             record = _to_record(draft, form, first_page_id, page_ids[1:], now)
-            await _insert(conn, record, user.id)
+            await _insert(conn, record)
             records.append(record)
     return records
 
 
-def form_saver(pool: AsyncConnectionPool, user: User) -> SaveForm:
+def form_saver(pool: AsyncConnectionPool) -> SaveForm:
     """The pipeline's SaveForm for one request: each form on its own short
     connection from the pool, so a long upload never holds one."""
 
     async def save(extracted: ExtractedForm) -> list[Record]:
         async with pool.connection() as conn:
-            return await save_extracted_page(conn, extracted.form, extracted.images, user)
+            return await save_extracted_page(conn, extracted.form, extracted.images)
 
     return save
 
@@ -134,7 +132,7 @@ def _to_record(
     )
 
 
-async def _insert(conn: AsyncConnection, record: Record, user_id: str) -> None:
+async def _insert(conn: AsyncConnection, record: Record) -> None:
     fields = record.fields
     central_values = [item.value for item in record.central_numbers if item.value]
     await repo.insert_record(
@@ -156,10 +154,9 @@ async def _insert(conn: AsyncConnection, record: Record, user_id: str) -> None:
         received_date=_iso_date(fields.received_date.value),
         search_text=search_text(record),
         now=record.created_at,
-        user_id=user_id,
     )
     await repo.insert_event(
-        conn, record_id=record.record_id, action="created", user_id=user_id, now=record.created_at
+        conn, record_id=record.record_id, action="created", now=record.created_at
     )
 
 

@@ -3,9 +3,8 @@
     python -m scripts.wipe_data           # asks you to type "delete"
     python -m scripts.wipe_data --yes     # no question
 
-The one command the privacy section promises (SPEC 11, D12). Users stay, so the
-team and the judges can still sign in. Uses DATABASE_URL (backend/.env); for the
-live database, its External URL with ?sslmode=require.
+The one command the privacy section promises (SPEC 11, D12). Uses DATABASE_URL
+(backend/.env); for the live database, its External URL with ?sslmode=require.
 
 Owner: B
 """
@@ -47,7 +46,7 @@ def main(
                 return 1
         # CASCADE: page_image, record and record_event all hang off page.
         conn.execute("TRUNCATE page, export_log CASCADE")
-    print(f"Deleted {pages} pages and {records} records. Users are kept.")
+    print(f"Deleted {pages} pages and {records} records.")
     return 0
 
 

@@ -45,12 +45,11 @@ async def insert_page(
     rotation: int,
     first_page_id: str | None,
     now: datetime,
-    user_id: str,
 ) -> None:
     await conn.execute(
         "INSERT INTO page (id, file_id, source_filename, page_number, rotation,"
-        " first_page_id, created_at, created_by) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)",
-        (page_id, file_id, source_filename, page_number, rotation, first_page_id, now, user_id),
+        " first_page_id, created_at) VALUES (%s, %s, %s, %s, %s, %s, %s)",
+        (page_id, file_id, source_filename, page_number, rotation, first_page_id, now),
     )
 
 
@@ -89,14 +88,12 @@ async def insert_record(
     received_date: date | None,
     search_text: str,
     now: datetime,
-    user_id: str,
 ) -> None:
     await conn.execute(
         "INSERT INTO record (id, page_id, commitment_idx, needs_review, form_type,"
         " fields, central_numbers, issues, national_id, commitment_number, central_values,"
-        " first_name, last_name, sender, received_date, search_text,"
-        " created_at, created_by, updated_at)"
-        " VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)",
+        " first_name, last_name, sender, received_date, search_text, created_at, updated_at)"
+        " VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)",
         (
             record_id,
             page_id,
@@ -115,7 +112,6 @@ async def insert_record(
             received_date,
             search_text,
             now,
-            user_id,
             now,
         ),
     )
@@ -126,35 +122,27 @@ async def insert_event(
     *,
     record_id: str,
     action: str,
-    user_id: str,
     now: datetime,
     field: str | None = None,
 ) -> None:
-    """Who did what, to which field, and when. Never the values (D13)."""
+    """What was done, to which field, and when. Never the values (D13)."""
     await conn.execute(
-        "INSERT INTO record_event (record_id, at, user_id, action, field)"
-        " VALUES (%s, %s, %s, %s, %s)",
-        (record_id, now, user_id, action, field),
+        "INSERT INTO record_event (record_id, at, action, field) VALUES (%s, %s, %s, %s)",
+        (record_id, now, action, field),
     )
 
 
 # --- Reading records
 
-# A record with what the contract shows next to it: its form's pages and who
-# approved or last edited it (by username, from users and record_event).
+# A record with what the contract shows next to it: its form's pages.
 _RECORD_SELECT = """
 SELECT r.*,
        p.source_filename,
        p.page_number,
        COALESCE(cont.numbers, '{}') AS continuation_pages,
-       COALESCE(cont.ids, '{}') AS continuation_page_ids,
-       approver.username AS approved_by_username,
-       (SELECT u.username FROM record_event e JOIN users u ON u.id = e.user_id
-         WHERE e.record_id = r.id AND e.action IN ('corrected', 'confirmed')
-         ORDER BY e.at DESC, e.id DESC LIMIT 1) AS updated_by_username
+       COALESCE(cont.ids, '{}') AS continuation_page_ids
   FROM record r
   JOIN page p ON p.id = r.page_id
-  LEFT JOIN users approver ON approver.id = r.approved_by
   LEFT JOIN LATERAL (
        SELECT array_agg(c.page_number ORDER BY c.page_number) AS numbers,
               array_agg(c.id ORDER BY c.page_number) AS ids
@@ -320,12 +308,12 @@ async def export_records(
 
 
 async def insert_export_log(
-    conn: AsyncConnection, *, user_id: str, export_format: str, record_count: int, now: datetime
+    conn: AsyncConnection, *, export_format: str, record_count: int, now: datetime
 ) -> None:
-    """Who exported, when and how many. Not the filters and not the records (D13)."""
+    """When and how many were exported. Not the filters and not the records (D13)."""
     await conn.execute(
-        "INSERT INTO export_log (at, user_id, format, record_count) VALUES (%s, %s, %s, %s)",
-        (now, user_id, export_format, record_count),
+        "INSERT INTO export_log (at, format, record_count) VALUES (%s, %s, %s)",
+        (now, export_format, record_count),
     )
 
 
@@ -384,13 +372,11 @@ async def update_record(
     )
 
 
-async def approve_record(
-    conn: AsyncConnection, record_id: str, *, user_id: str, now: datetime
-) -> None:
+async def approve_record(conn: AsyncConnection, record_id: str, *, now: datetime) -> None:
     await conn.execute(
-        "UPDATE record SET status = 'approved', approved_at = %s, approved_by = %s,"
+        "UPDATE record SET status = 'approved', approved_at = %s,"
         " version = version + 1, updated_at = %s WHERE id = %s",
-        (now, user_id, now, record_id),
+        (now, now, record_id),
     )
 
 
