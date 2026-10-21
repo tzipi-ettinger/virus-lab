@@ -1,0 +1,113 @@
+/* RecordPanel. Colors come from shared/ui/tokens.css. Logical properties only (RTL).
+   The field cells keep their look from ReviewTable.css. Owner: B */
+
+.record-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-inline-size: 0;
+  padding: 16px;
+  background: var(--color-surface, #ffffff);
+  border: 1px solid var(--color-border, #dde3e9);
+  border-radius: var(--radius-lg, 12px);
+  color: var(--color-text, #0f1b2a);
+}
+
+.record-panel-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 4px 12px;
+}
+
+.record-panel-title {
+  margin: 0;
+  font-size: 1.125rem;
+}
+
+/* A's DocumentPreview, inside the panel: no card of its own, and a short frame
+   until "הגדלת הטופס". */
+.record-panel-preview {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.record-panel-preview .preview {
+  gap: 8px;
+  padding: 0;
+  border: 0;
+}
+
+.record-panel-preview .preview-title {
+  font-size: 0.875rem;
+  color: var(--color-text-muted, #52606d);
+}
+
+.record-panel-preview .preview-frame {
+  max-block-size: 220px;
+}
+
+.record-panel-preview.is-expanded .preview-frame {
+  max-block-size: 75vh;
+}
+
+.record-panel-toggle,
+.record-panel-next {
+  align-self: flex-start;
+  padding: 4px 12px;
+  font: inherit;
+  font-size: 0.875rem;
+  color: var(--color-text, #0f1b2a);
+  background: var(--color-surface, #ffffff);
+  border: 1px solid var(--color-border-strong, #9fb3c8);
+  border-radius: var(--radius-md, 8px);
+  cursor: pointer;
+}
+
+.record-panel-toggle:focus-visible,
+.record-panel-next:focus-visible {
+  outline: 3px solid var(--color-focus, #1d4ed8);
+  outline-offset: 2px;
+}
+
+.record-panel-fields {
+  inline-size: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+
+.record-panel-fields th,
+.record-panel-fields td {
+  padding-block: 6px;
+  padding-inline: 8px;
+  border-block-end: 1px solid var(--color-border, #dde3e9);
+  text-align: start;
+  vertical-align: top;
+}
+
+.record-panel-fields th {
+  inline-size: 9rem;
+  color: var(--color-text-muted, #52606d);
+  font-weight: 600;
+}
+
+.record-panel-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 8px 12px;
+  padding-block-start: 4px;
+}
+
+/* "Next to fix" sits at the far end, away from approve and delete. */
+.record-panel-next {
+  margin-inline-start: auto;
+}
+
+.record-panel-actions .review-delete {
+  margin-block-start: 0;
+  padding: 4px 12px;
+  font-size: 0.875rem;
+}

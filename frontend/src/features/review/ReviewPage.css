@@ -1,4 +1,4 @@
-/* ReviewPage layout: upload on top, then the table with the source page beside it.
+/* ReviewPage layout: upload on top, then the short list with the open record beside it.
    Logical properties only (RTL). Owner: B */
 
 .review-page {
@@ -10,15 +10,17 @@
 
 .review-page-work {
   display: grid;
-  grid-template-columns: minmax(0, 3fr) minmax(280px, 2fr);
+  grid-template-columns: minmax(0, 2fr) minmax(360px, 3fr);
   align-items: start;
   gap: 16px;
 }
 
-/* The page stays in view while scrolling down a long table. */
-.review-page-work > .preview {
+/* The open record stays in view while scrolling down a long list. */
+.review-page-work > .record-panel {
   position: sticky;
   inset-block-start: 16px;
+  max-block-size: calc(100vh - 32px);
+  overflow-y: auto;
 }
 
 @media (max-width: 900px) {
@@ -26,7 +28,8 @@
     grid-template-columns: minmax(0, 1fr);
   }
 
-  .review-page-work > .preview {
+  .review-page-work > .record-panel {
     position: static;
+    max-block-size: none;
   }
 }

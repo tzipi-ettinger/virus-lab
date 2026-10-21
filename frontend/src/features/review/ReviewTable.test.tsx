@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
-// The review table end to end: a correction goes to the server, and its answer,
-// siblings included, replaces the rows (PLAN-DEV-B 3.3).
+// The review list: a short row per record, the selection, and "approve all ready"
+// (PLAN-DEV-B 3.1, D20). Editing is in RecordPanel (ReviewPage.test.tsx).
 // Owner: B
 
 import { cleanup, render, screen, within } from "@testing-library/react";
@@ -24,13 +24,13 @@ afterEach(() => {
 
 function Table({ initial }: { initial: ApiRecord[] }) {
   const [records, setRecords] = useState(initial);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
   return (
     <ReviewTable
       records={records}
-      selectedId={null}
-      onSelect={() => {}}
+      selectedId={selectedId}
+      onSelect={setSelectedId}
       onRecords={(changed) => setRecords((current) => replaceRecords(current, changed))}
-      onRemoved={(id) => setRecords((current) => current.filter((r) => r.record_id !== id))}
     />
   );
 }
@@ -38,48 +38,65 @@ function Table({ initial }: { initial: ApiRecord[] }) {
 const reply = (body: unknown) =>
   new Response(JSON.stringify(body), { status: 200, headers: { "Content-Type": "application/json" } });
 
+const blocked = (over: Partial<ApiRecord> = {}) =>
+  record({
+    needs_review: true,
+    fields: { ...record().fields, national_id: field("1122", flagged("1122")) },
+    central_numbers: [field("12", flagged("12"))],
+    ...over,
+  });
+
 describe("ReviewTable", () => {
-  test("a corrected ID updates its row and the form's other record from the answer", async () => {
-    const first = record({ needs_review: true, fields: { ...record().fields, national_id: field(null, flagged("1122")) } });
-    const second = record({ record_id: "r2", commitment_index: 1, fields: first.fields, needs_review: true });
-    const fixed = { ...first.fields, national_id: field("011223344", { raw: "1122", corrected: true }) };
-    const saved = {
-      record: { ...first, version: 2, needs_review: false, fields: fixed },
-      siblings: [{ ...second, version: 2, needs_review: false, fields: fixed }],
-    };
-    fetchMock.mockImplementation(async (url) => reply(String(url).endsWith("/senders") ? [] : saved));
-    render(<Table initial={[first, second]} />);
+  test("a row shows the source, the name, the ID and what is left to do", () => {
+    render(<Table initial={[record(), blocked({ record_id: "r2" }), record({ record_id: "r3", status: "approved" })]} />);
+
+    const [, ready, toFix, approved] = screen.getAllByRole("row");
+    expect(within(ready).getByText("part1.pdf")).toBeTruthy();
+    expect(within(ready).getByText("עמוד 1")).toBeTruthy();
+    expect(within(ready).getByText("דנה לוי")).toBeTruthy();
+    expect(within(ready).getByText("011223344")).toBeTruthy();
+    expect(within(ready).getByText("מוכן לאישור")).toBeTruthy();
+    const badge = within(toFix).getByText("⚠ 2 לתיקון");
+    expect(badge.getAttribute("title")).toBe("לטפל קודם ב: ת״ז, מספר מרכזי 1");
+    expect(within(approved).getByText("✓ אושר")).toBeTruthy();
+    expect(screen.getByText("3 רשומות · 1 לתיקון")).toBeTruthy();
+  });
+
+  test("the list has no editors: fields are edited in the panel", () => {
+    render(<Table initial={[blocked()]} />);
+
+    expect(screen.queryByRole("button", { name: /לעריכה/ })).toBeNull();
+    expect(screen.queryByRole("button", { name: /אישור ערך/ })).toBeNull();
+  });
+
+  test("a click selects the row, and the arrows move the selection", async () => {
+    render(<Table initial={[record(), record({ record_id: "r2", source_file: "part2.pdf" })]} />);
     const user = userEvent.setup();
 
+    await user.click(screen.getByRole("button", { name: /part1\.pdf/ }));
     const [, row1, row2] = screen.getAllByRole("row");
-    await user.click(within(row1).getByRole("button", { name: /^ת״ז:/ }));
-    await user.type(screen.getByRole("textbox"), "{Control>}a{/Control}011223344{Enter}");
+    expect(row1.getAttribute("aria-selected")).toBe("true");
 
-    const patch = fetchMock.mock.calls.find(([, init]) => init?.method === "PATCH");
-    expect(JSON.parse(String(patch?.[1]?.body))).toEqual({
-      version: 1,
-      fields: { national_id: { value: "011223344" } },
-    });
-    expect(within(row1).getByText("011223344")).toBeTruthy();
-    expect(within(row2).getByText("011223344")).toBeTruthy();
-    expect(within(row1).getAllByText("תוקן").length).toBeGreaterThan(0);
-    expect(within(row1).queryByText("דורש בדיקה")).toBeNull();
+    await user.keyboard("{ArrowDown}");
+    expect(row1.getAttribute("aria-selected")).toBe("false");
+    expect(row2.getAttribute("aria-selected")).toBe("true");
+    expect(document.activeElement).toBe(within(row2).getByRole("button"));
+
+    await user.keyboard("{ArrowDown}"); // the last row: stays
+    expect(row2.getAttribute("aria-selected")).toBe("true");
+    await user.keyboard("{ArrowUp}");
+    expect(row1.getAttribute("aria-selected")).toBe("true");
   });
 
   test("approve all ready sends only the ready ones and says what's left", async () => {
     const ready1 = record();
     const ready2 = record({ record_id: "r2", version: 3 });
-    const blocked = record({
-      record_id: "r3",
-      needs_review: true,
-      fields: { ...record().fields, national_id: field("1122", flagged("1122")) },
-    });
     const answer = {
       approved: [{ ...ready1, status: "approved", version: 2 }],
       skipped: [{ record_id: "r2", type: "version_conflict" }],
     };
-    fetchMock.mockImplementation(async (url) => reply(String(url).endsWith("/senders") ? [] : answer));
-    render(<Table initial={[ready1, ready2, blocked]} />);
+    fetchMock.mockImplementation(async () => reply(answer));
+    render(<Table initial={[ready1, ready2, blocked({ record_id: "r3" })]} />);
     const user = userEvent.setup();
 
     await user.click(screen.getByRole("button", { name: "✓ אשרי את כל המוכנות (2)" }));
@@ -98,46 +115,10 @@ describe("ReviewTable", () => {
   });
 
   test("nothing ready, nothing to send", () => {
-    const blocked = record({ fields: { ...record().fields, sender: field("x", flagged("x")) } });
-    fetchMock.mockImplementation(async () => reply([]));
-    render(<Table initial={[blocked]} />);
+    render(<Table initial={[blocked()]} />);
 
     expect((screen.getByRole("button", { name: /אשרי את כל המוכנות \(0\)/ }) as HTMLButtonElement).disabled).toBe(
       true,
     );
-  });
-
-  test("a pending record is deleted after asking, and its row goes", async () => {
-    fetchMock.mockImplementation(async (_url, init) =>
-      init?.method === "DELETE" ? new Response(null, { status: 204 }) : reply([]),
-    );
-    const ask = vi.spyOn(window, "confirm").mockReturnValue(true);
-    render(<Table initial={[record(), record({ record_id: "r2" })]} />);
-
-    await userEvent.setup().click(screen.getAllByRole("button", { name: "מחיקה" })[0]);
-
-    expect(ask.mock.calls[0][0]).toContain("למחוק את הרשומה של דנה לוי");
-    expect(fetchMock.mock.calls.some(([url, init]) => url === "/api/v1/records/r1" && init?.method === "DELETE")).toBe(
-      true,
-    );
-    expect(screen.getAllByRole("row")).toHaveLength(2); // the header and r2
-  });
-
-  test("saying no deletes nothing", async () => {
-    fetchMock.mockImplementation(async () => reply([]));
-    vi.spyOn(window, "confirm").mockReturnValue(false);
-    render(<Table initial={[record()]} />);
-
-    await userEvent.setup().click(screen.getByRole("button", { name: "מחיקה" }));
-
-    expect(fetchMock.mock.calls.some(([, init]) => init?.method === "DELETE")).toBe(false);
-    expect(screen.getAllByRole("row")).toHaveLength(2);
-  });
-
-  test("an approved row is read-only", () => {
-    render(<Table initial={[record({ status: "approved" })]} />);
-
-    expect(screen.queryByRole("button", { name: /לעריכה/ })).toBeNull();
-    expect(screen.queryByRole("button", { name: "מחיקה" })).toBeNull();
   });
 });

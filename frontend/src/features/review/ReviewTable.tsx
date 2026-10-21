@@ -1,16 +1,12 @@
-// Review table: one row per record, one column per field, flagged cells in orange
-// with a confidence label, each field edited in place (PLAN-DEV-B 3.1).
+// Review list: one short row per record (source, name, ID, status). The selected
+// row opens in RecordPanel, where its fields are edited (PLAN-DEV-B 3.1).
+// Up and down arrows move the selection.
 // Owner: B
 
-import { useState } from "react";
-import { useSenders } from "../../shared/useSenders";
+import { useState, type KeyboardEvent } from "react";
 import { ApproveAllBar } from "./ApproveAllBar";
-import { ApproveButton } from "./ApproveButton";
-import { DeleteButton } from "./DeleteButton";
-import { CentralNumbersCell } from "./CentralNumbersCell";
-import { FieldCell } from "./FieldCell";
 import { useRecordMutations, type ApiRecord } from "./recordMutations";
-import { FIELD_COLUMNS, FORM_TYPE_TEXT, statusText } from "./reviewRows";
+import { blockingFields, fieldTitle } from "./reviewRows";
 import "./ReviewTable.css";
 
 interface ReviewTableProps {
@@ -19,45 +15,51 @@ interface ReviewTableProps {
   onSelect: (recordId: string) => void;
   /** Records the server sent back after a change: they replace the local ones. */
   onRecords: (records: ApiRecord[]) => void;
-  /** A record deleted on the server: take its row off. */
-  onRemoved: (recordId: string) => void;
 }
 
-export function ReviewTable({ records, selectedId, onSelect, onRecords, onRemoved }: ReviewTableProps) {
-  const { saveField, saveCentrals, approve, approveMany, remove } = useRecordMutations(onRecords);
-  const senders = useSenders();
+export function ReviewTable({ records, selectedId, onSelect, onRecords }: ReviewTableProps) {
+  const { approveMany } = useRecordMutations(onRecords);
   const [skipped, setSkipped] = useState<Record<string, string>>({});
   if (records.length === 0) {
     return <p className="review-empty">עוד אין רשומות. העלי טפסים כדי להתחיל</p>;
   }
-  const flagged = records.filter((r) => r.needs_review).length;
+  const toFix = records.filter((r) => r.status === "pending" && blockingFields(r).length > 0).length;
+
+  function onKeyDown(event: KeyboardEvent<HTMLButtonElement>, index: number) {
+    const step = event.key === "ArrowDown" ? 1 : event.key === "ArrowUp" ? -1 : 0;
+    const next = records[index + step];
+    if (step === 0 || !next) return;
+    event.preventDefault();
+    onSelect(next.record_id);
+    const buttons = event.currentTarget.closest("tbody")?.querySelectorAll<HTMLButtonElement>(".review-select");
+    buttons?.[index + step]?.focus();
+  }
 
   return (
     <section className="review" aria-labelledby="review-title">
-      <h2 id="review-title" className="review-title">
-        טבלת בדיקה
-        <span className="review-count">
-          {records.length} רשומות · {flagged} דורשות בדיקה
-        </span>
-      </h2>
-      <ApproveAllBar records={records} onApproveMany={approveMany} onSkipped={setSkipped} />
+      <div className="review-head">
+        <h2 id="review-title" className="review-title">
+          טבלת בדיקה
+          <span className="review-count">
+            {records.length} רשומות · {toFix} לתיקון
+          </span>
+        </h2>
+        <ApproveAllBar records={records} onApproveMany={approveMany} onSkipped={setSkipped} />
+      </div>
       <div className="review-scroll">
         <table className="review-table">
           <thead>
             <tr>
-              <th scope="col">טופס</th>
-              <th scope="col">סוג</th>
-              {FIELD_COLUMNS.map((c) => (
-                <th key={c.name} scope="col">{c.title}</th>
-              ))}
-              <th scope="col">מספרים מרכזיים</th>
+              <th scope="col">מקור</th>
+              <th scope="col">שם</th>
+              <th scope="col">ת״ז</th>
               <th scope="col">סטטוס</th>
-              <th scope="col">פעולות</th>
             </tr>
           </thead>
           <tbody>
-            {records.map((r) => {
+            {records.map((r, index) => {
               const selected = r.record_id === selectedId;
+              const name = [r.fields.first_name.value, r.fields.last_name.value].filter(Boolean).join(" ");
               return (
                 <tr
                   key={r.record_id}
@@ -67,33 +69,27 @@ export function ReviewTable({ records, selectedId, onSelect, onRecords, onRemove
                 >
                   <th scope="row">
                     {/* The button makes the row reachable from the keyboard; the row click is for the mouse. */}
-                    <button type="button" className="review-select" aria-pressed={selected}>
-                      <bdi>{r.source_file}</bdi>, עמוד {r.page_number}
+                    <button
+                      type="button"
+                      className="review-select"
+                      aria-pressed={selected}
+                      onKeyDown={(event) => onKeyDown(event, index)}
+                    >
+                      <bdi>{r.source_file}</bdi>
+                      <span className="review-page-number">עמוד {r.page_number}</span>
                     </button>
                   </th>
-                  <td>{FORM_TYPE_TEXT[r.form_type]}</td>
-                  {FIELD_COLUMNS.map((c) => (
-                    <FieldCell
-                      key={c.name}
-                      title={c.title}
-                      field={r.fields[c.name]}
-                      editable={r.status === "pending"}
-                      onSave={(edit) => saveField(r, c.name, edit)}
-                      options={c.name === "sender" && senders.length > 0 ? senders : undefined}
-                    />
-                  ))}
-                  <CentralNumbersCell
-                    items={r.central_numbers}
-                    editable={r.status === "pending"}
-                    onSave={(items) => saveCentrals(r, items)}
-                  />
-                  <td className={r.needs_review ? "review-status is-flagged" : "review-status"}>{statusText(r)}</td>
-                  <td className="review-actions">
-                    <ApproveButton record={r} onApprove={approve} />
+                  <td>
+                    <bdi>{name || "ללא שם"}</bdi>
+                  </td>
+                  <td className="review-number">
+                    <bdi>{r.fields.national_id.value ?? "—"}</bdi>
+                  </td>
+                  <td>
+                    <RowStatus record={r} />
                     {skipped[r.record_id] && r.status === "pending" && (
                       <span className="review-cell-error">{skipped[r.record_id]}</span>
                     )}
-                    <DeleteButton record={r} onDelete={remove} onDeleted={(gone) => onRemoved(gone.record_id)} />
                   </td>
                 </tr>
               );
@@ -102,6 +98,18 @@ export function ReviewTable({ records, selectedId, onSelect, onRecords, onRemove
         </table>
       </div>
     </section>
+  );
+}
+
+/** Approved, ready, or how many fields still block approval, in text and not color only. */
+function RowStatus({ record }: { record: ApiRecord }) {
+  if (record.status === "approved") return <span className="review-approved">✓ אושר</span>;
+  const blocking = blockingFields(record);
+  if (blocking.length === 0) return <span className="review-badge is-ready">מוכן לאישור</span>;
+  return (
+    <span className="review-badge is-flagged" title={`לטפל קודם ב: ${blocking.map(fieldTitle).join(", ")}`}>
+      ⚠ {blocking.length} לתיקון
+    </span>
   );
 }
 

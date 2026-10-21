@@ -105,6 +105,16 @@ export function isReady(record: ApiRecord): boolean {
   return record.status === "pending" && blockingFields(record).length === 0;
 }
 
+/** The next pending record with a field to fix, after this one and around: "הבאה לתיקון". */
+export function nextToFix(records: ApiRecord[], currentId: string): ApiRecord | null {
+  const start = records.findIndex((r) => r.record_id === currentId);
+  for (let step = 1; step <= records.length; step++) {
+    const r = records[(start + step) % records.length];
+    if (r.record_id !== currentId && r.status === "pending" && blockingFields(r).length > 0) return r;
+  }
+  return null;
+}
+
 /** A blocking field's name in Hebrew: "national_id" → ת״ז, "central_numbers[1]" → מספר מרכזי 2. */
 export function fieldTitle(name: string): string {
   const central = /^central_numbers\[(\d+)\]$/.exec(name);
@@ -135,8 +145,3 @@ export const FORM_TYPE_TEXT: Record<ApiRecord["form_type"], string> = {
   government: "גוף ממשלתי",
   unknown: "לא ידוע",
 };
-
-export function statusText(record: ApiRecord): string {
-  if (record.status === "approved") return "אושר";
-  return record.needs_review ? "דורש בדיקה" : "מוכן לאישור";
-}

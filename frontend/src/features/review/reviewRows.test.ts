@@ -3,7 +3,7 @@
 
 import { describe, expect, test } from "vitest";
 import type { components } from "../../api/schema";
-import { confidence, fieldCell, findRecord, listCell, mergeRecords, statusText } from "./reviewRows";
+import { confidence, fieldCell, findRecord, listCell, mergeRecords, nextToFix } from "./reviewRows";
 
 type ApiRecord = components["schemas"]["Record"];
 type FormField = components["schemas"]["FormField"];
@@ -115,12 +115,18 @@ describe("cells", () => {
   });
 });
 
-describe("statusText", () => {
-  test.each([
-    [record("a", { needs_review: true }), "דורש בדיקה"],
-    [record("a"), "מוכן לאישור"],
-    [record("a", { status: "approved" }), "אושר"],
-  ])("%#", (r, expected) => {
-    expect(statusText(r)).toBe(expected);
+describe("nextToFix", () => {
+  const blocked = (id: string, over: Partial<ApiRecord> = {}) =>
+    record(id, { fields: { ...record(id).fields, sender: field({ needs_review: true }) }, ...over });
+
+  test("the next pending record with a field to fix, after this one and around", () => {
+    const records = [blocked("a"), record("b"), blocked("c"), blocked("d", { status: "approved" })];
+    expect(nextToFix(records, "a")?.record_id).toBe("c");
+    expect(nextToFix(records, "c")?.record_id).toBe("a");
+    expect(nextToFix(records, "b")?.record_id).toBe("c");
+  });
+
+  test("none left but this one", () => {
+    expect(nextToFix([blocked("a"), record("b")], "a")).toBeNull();
   });
 });
