@@ -253,17 +253,18 @@ def rerun_rules(record: Record, *, today: date) -> Record:
 
 async def _keep_duplicate_flag(conn: AsyncConnection, before: Record, after: Record) -> Record:
     """apply_rules doesn't know other records, so DUPLICATE_RECORD (set on save, A4) is
-    kept here: carried while the number stays, checked again when it changes.
+    kept here. It is checked again when the number changes, and while the number stays
+    and is flagged, since the other record may be gone by now. An unflagged number
+    that stays is not checked: the record saved first is never flagged by a later copy.
     Confirming the field still resolves it."""
     old, new = before.fields.commitment_number, after.fields.commitment_number
     if not new.value:
         return after
-    if new.value == old.value:
-        duplicate = any(issue.code == "DUPLICATE_RECORD" for issue in old.issues)
-    else:
-        await repo.lock_commitments(conn, [new.value])
-        duplicate = await repo.commitment_taken(conn, new.value, except_id=after.record_id)
-    if not duplicate:
+    flagged = any(issue.code == "DUPLICATE_RECORD" for issue in old.issues)
+    if new.value == old.value and not flagged:
+        return after
+    await repo.lock_commitments(conn, [new.value])
+    if not await repo.commitment_taken(conn, new.value, except_id=after.record_id):
         return after
     flagged = new.model_copy(
         update={

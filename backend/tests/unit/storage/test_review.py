@@ -282,6 +282,25 @@ def test_a_duplicate_stays_flagged_across_edits_until_confirmed(db):
     assert not confirmed.fields.commitment_number.needs_review
 
 
+def test_the_flag_goes_once_the_other_record_is_deleted(db):
+    [first] = save(db, "clean", file_id="f1")
+    [duplicate] = save(db, "clean", file_id="f2")
+    call(db, review.delete_record, first.record_id)
+
+    approved = approve(db, duplicate)
+    assert approved.status == "approved"
+    assert not approved.fields.commitment_number.issues
+
+
+def test_the_record_saved_first_is_not_flagged_by_a_later_copy(db):
+    [first] = save(db, "clean", file_id="f1")
+    save(db, "clean", file_id="f2")
+
+    edited = patch(db, first, fields={"first_name": {"value": "רות"}}).record
+    assert not edited.fields.commitment_number.issues
+    assert approve(db, edited).status == "approved"
+
+
 def test_changing_to_a_number_another_record_has_flags_it(db):
     [taken] = save(db, "clean", file_id="f1")
     [record] = save(db, "no_commitment", file_id="f2")
