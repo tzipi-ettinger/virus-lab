@@ -97,7 +97,9 @@ class FieldBox(BaseModel):
     Left is the image's own left: the page is never mirrored for RTL.
     """
 
-    page_number: int = Field(description="The page it was read on: the form's first or a continuation page.")
+    page_number: int = Field(
+        description="The page it was read on: the form's first or a continuation page."
+    )
     top: BoxEdge
     left: BoxEdge
     bottom: BoxEdge

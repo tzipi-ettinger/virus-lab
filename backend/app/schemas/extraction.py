@@ -30,6 +30,12 @@ class RawField(BaseModel):
     value: str | None
     status: ModelStatus
     evidence: str | None
+    # Gemini's own box format. Default None: readings cached or kept as fixtures
+    # before v6 have none. assemble.py drops a box that isn't a rectangle on the page.
+    box_2d: list[int] | None = Field(
+        default=None,
+        description="Bounding box of the value on the page: [ymin, xmin, ymax, xmax], 0-1000.",
+    )
 
 
 class RawExtraction(BaseModel):
