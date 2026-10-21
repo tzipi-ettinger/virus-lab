@@ -124,3 +124,97 @@ def test_rules_merge_the_maccabi_commitment():
     form = apply_rules(assemble(oriented("03_maccabi_three_centrals")), today=date(2026, 10, 18))
 
     assert [item.value for item in form.commitment_numbers] == ["50364186"]
+
+
+def boxed(**fields) -> OrientedPage:
+    """A page whose fields carry the given box_2d values; everything else not found."""
+    nothing = {"value": None, "status": "not_found", "evidence": None}
+    raw = {
+        "page_rotation_degrees": 0,
+        "form_type": "hmo_form",
+        **{name: nothing for name in FormFields.model_fields},
+        "central_numbers": [],
+        "commitment_numbers": [],
+        **fields,
+    }
+    image = PageImage(file_id="f1", filename="forms.pdf", page_number=4, rotation=0, jpeg=b"")
+    return OrientedPage(
+        extraction=RawExtraction.model_validate(raw),
+        image=image,
+        applied_rotation=0,
+        unresolved=False,
+        calls=1,
+    )
+
+
+def read(value: str, box_2d, status: str = "found") -> dict:
+    return {"value": value, "status": status, "evidence": "label", "box_2d": box_2d}
+
+
+def test_the_box_says_where_and_on_which_page_the_value_was_read():
+    form = assemble(boxed(national_id=read("11223344", [100, 600, 130, 820])))
+
+    box = form.fields.national_id.box
+    assert (box.page_number, box.top, box.left, box.bottom, box.right) == (4, 100, 600, 130, 820)
+
+
+def test_every_list_item_gets_its_own_box():
+    form = assemble(
+        boxed(
+            central_numbers=[read("937309", [10, 10, 40, 90]), read("937310", [50, 10, 80, 90])],
+            commitment_numbers=[read("50364186", [200, 500, 230, 700])],
+        )
+    )
+
+    assert [item.box.top for item in form.central_numbers] == [10, 50]
+    assert form.commitment_numbers[0].box.left == 500
+
+
+def test_an_unclear_value_keeps_its_box():
+    # Unclear is where the reviewer most needs to look.
+    form = assemble(boxed(sender=read("מכ", [300, 300, 330, 400], status="unclear")))
+
+    assert form.fields.sender.box is not None
+
+
+@pytest.mark.parametrize(
+    "box_2d",
+    [
+        None,
+        [100, 600, 130],  # three numbers
+        [100, 600, 130, 820, 5],
+        [130, 600, 100, 820],  # top below bottom
+        [100, 820, 130, 600],  # left right of right
+        [100, 600, 100, 820],  # flat
+        [-5, 600, 130, 820],  # off the page
+        [100, 600, 130, 1200],
+    ],
+)
+def test_a_box_that_isnt_a_rectangle_on_the_page_is_dropped(box_2d):
+    form = assemble(boxed(national_id=read("11223344", box_2d)))
+
+    assert form.fields.national_id.raw == "11223344"  # the value itself still counts
+    assert form.fields.national_id.box is None
+
+
+def test_a_value_not_found_has_no_box_even_if_the_model_gave_one():
+    nothing = {"value": None, "status": "not_found", "evidence": None, "box_2d": [1, 1, 2, 2]}
+
+    assert assemble(boxed(national_id=nothing)).fields.national_id.box is None
+
+
+def test_the_rules_keep_the_box():
+    form = assemble(boxed(national_id=read("11223344", [100, 600, 130, 820])))
+
+    ruled = apply_rules(form, today=date(2026, 10, 21))
+
+    assert ruled.fields.national_id.value == "011223344"  # normalized
+    assert ruled.fields.national_id.box == form.fields.national_id.box
+
+
+def test_a_reading_from_before_boxes_has_none():
+    # Fixtures and cached readings from prompt v5 have no box_2d at all.
+    form = assemble(oriented("03_maccabi_three_centrals"))
+
+    assert form.fields.national_id.box is None
+    assert all(item.box is None for item in form.central_numbers)
