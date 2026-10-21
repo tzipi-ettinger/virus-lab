@@ -32,7 +32,7 @@ export function RecordPanel({ record, records, onSelect, onRecords, onRemoved }:
   const { saveField, saveCentrals, approve, remove } = useRecordMutations(onRecords);
   const senders = useSenders();
   const [expanded, setExpanded] = useState(false);
-  const { focused, rowProps } = useFieldFocus<FieldName | "central_numbers">(record?.record_id ?? "");
+  const { focused, rowProps, areaProps } = useFieldFocus<FieldName | "central_numbers">(record?.record_id ?? "");
 
   if (record === null) {
     return (
@@ -67,7 +67,7 @@ export function RecordPanel({ record, records, onSelect, onRecords, onRemoved }:
         </span>
       </div>
 
-      <div className={expanded ? "record-panel-preview is-expanded" : "record-panel-preview"}>
+      <div className={expanded ? "record-panel-preview is-expanded" : "record-panel-preview"} {...areaProps}>
         <DocumentPreview record={record} highlight={highlight} />
         <button
           type="button"
@@ -80,7 +80,7 @@ export function RecordPanel({ record, records, onSelect, onRecords, onRemoved }:
       </div>
 
       {/* Keyed by the record, so an editor left open doesn't carry over to the next one. */}
-      <table key={record.record_id} className="record-panel-fields">
+      <table key={record.record_id} className="record-panel-fields" {...areaProps}>
         <tbody>
           {FIELD_COLUMNS.map((c) => (
             <tr key={c.name} {...rowProps(c.name)}>

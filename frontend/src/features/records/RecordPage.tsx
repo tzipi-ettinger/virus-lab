@@ -120,7 +120,7 @@ function RecordDetails({ record, backLink, back, onRecord }: DetailsProps) {
       onSave: (edit: FieldEdit) => saveCentrals(record, keepCentrals(record.central_numbers, { [i]: edit })),
     })),
   ];
-  const { focused, rowProps } = useFieldFocus<string>(record.record_id); // a row's title
+  const { focused, rowProps, areaProps } = useFieldFocus<string>(record.record_id); // a row's title
   const focusedRow = rows.find((row) => row.title === focused);
   const highlight = focusedRow
     ? fieldHighlight(`${record.record_id}:${focusedRow.title}`, focusedRow.title, [focusedRow.field])
@@ -164,7 +164,7 @@ function RecordDetails({ record, backLink, back, onRecord }: DetailsProps) {
         )}
 
         <div className="records-scroll">
-          <table className="records-table record-fields">
+          <table className="records-table record-fields" {...areaProps}>
             <thead>
               <tr>
                 <th scope="col">שדה</th>
@@ -202,7 +202,7 @@ function RecordDetails({ record, backLink, back, onRecord }: DetailsProps) {
           </table>
         </div>
       </div>
-      <DocumentPreview record={record} highlight={highlight} />
+      <DocumentPreview record={record} highlight={highlight} pointerArea={areaProps} />
     </div>
   );
 }

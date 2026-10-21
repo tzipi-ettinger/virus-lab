@@ -134,6 +134,13 @@
 
 .preview-highlight {
   margin: 0;
+  /* One line, kept even when empty: a note that comes, goes or wraps would move the
+     table under the pointer onto the next row. */
+  min-block-size: 1.5em;
+  min-block-size: 1lh;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
   color: var(--color-accent-strong, #08515a);
   font-weight: 600;
 }
