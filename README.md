@@ -339,8 +339,8 @@ Remove-Item Env:DATABASE_URL
 
 | | אחריות |
 |---|---|
-| **מפתחת A** | קליטת קבצים, עיבוד עמודים, חילוץ AI, `assemble`, `UploadPanel`, `DocumentPreview` |
-| **מפתחת B** | נרמול, ולידציה, מדיניות בדיקה (`apply_rules`), `validate`, שורות ו־Excel, `ResultsTable`, ייצוא |
+| **מפתחת A** | קליטת קבצים, עיבוד ויישור עמודים, חילוץ AI וה־prompt, `assemble`, צירוף עמודי המשך (`group`), `UploadPanel`, `DocumentPreview` |
+| **מפתחת B** | הכללים (`apply_rules`: נרמול, ולידציה, מדיניות בדיקה), שמירה במסד וה־API של הרשומות, מסך הבדיקה ומסך הרשומות, ייצוא CSV ו־JSON, פריסה (Docker, Render), מדידה |
 | **משותף** | חוזה ה־API (`schemas/api.py`), טבלת האמת, בדיקות קצה לקצה |
 
 - ענף לכל משימה (`feature/<name>`), מיזוג ל־`main` רק דרך Pull Request
