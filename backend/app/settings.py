@@ -46,8 +46,9 @@ class Settings(BaseSettings):
     # "fake" serves tests/fixtures: no key, no quota, no real data. "gemini" sends
     # each page to GEMINI_MODEL and needs GEMINI_API_KEYS (checked at startup).
     extraction_provider: Literal["fake", "gemini"] = "fake"
-    # One model call, retries not included (SPEC 9.7).
-    provider_timeout_s: int = Field(60, ge=1)
+    # One model call, retries not included (SPEC 9.7). 180, not 60: on the live
+    # server Gemini sometimes took over a minute for one page (21.10).
+    provider_timeout_s: int = Field(180, ge=1)
     # Dev only, sample files only: answer a page Gemini already read from
     # backend/.cache/ (gitignored) instead of a new call. Never on the live server.
     extraction_cache: bool = False

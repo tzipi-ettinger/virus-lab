@@ -497,7 +497,7 @@ provider (A) ──► RawExtraction             schemas/extraction.py   (A)
 | גודל קובץ | 20MB | `MAX_FILE_MB` |
 | עמודים לבקשה | 60 | `MAX_PAGES_PER_REQUEST` |
 | עיבוד מקבילי | 4 עמודים | `MAX_CONCURRENCY` |
-| זמן מקסימלי לקריאה למודל | 60 שניות | `PROVIDER_TIMEOUT_S` |
+| זמן מקסימלי לקריאה למודל | 180 שניות (היה 60: בשרת החי Gemini לקח לפעמים יותר מדקה לעמוד, 21.10) | `PROVIDER_TIMEOUT_S` |
 
 ---
 
