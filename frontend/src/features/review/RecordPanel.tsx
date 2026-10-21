@@ -8,6 +8,7 @@ import { useState } from "react";
 import { useSenders } from "../../shared/useSenders";
 import { DocumentPreview } from "../preview/DocumentPreview";
 import { fieldHighlight } from "../preview/previewPages";
+import { useFieldFocus } from "../preview/useFieldFocus";
 import { ApproveButton } from "./ApproveButton";
 import { CentralNumbersCell } from "./CentralNumbersCell";
 import { DeleteButton } from "./DeleteButton";
@@ -31,8 +32,7 @@ export function RecordPanel({ record, records, onSelect, onRecords, onRemoved }:
   const { saveField, saveCentrals, approve, remove } = useRecordMutations(onRecords);
   const senders = useSenders();
   const [expanded, setExpanded] = useState(false);
-  // Kept with its record, so the next record opens with nothing boxed.
-  const [focus, setFocus] = useState<{ recordId: string; name: FieldName | "central_numbers" } | null>(null);
+  const { focused, rowProps } = useFieldFocus<FieldName | "central_numbers">(record?.record_id ?? "");
 
   if (record === null) {
     return (
@@ -45,8 +45,6 @@ export function RecordPanel({ record, records, onSelect, onRecords, onRemoved }:
   const name = [record.fields.first_name.value, record.fields.last_name.value].filter(Boolean).join(" ");
   const position = records.findIndex((r) => r.record_id === record.record_id) + 1;
   const next = nextToFix(records, record.record_id);
-  const pick = (name: FieldName | "central_numbers") => setFocus({ recordId: record.record_id, name });
-  const focused = focus?.recordId === record.record_id ? focus.name : null;
   const highlight =
     focused === null
       ? null
@@ -85,7 +83,7 @@ export function RecordPanel({ record, records, onSelect, onRecords, onRemoved }:
       <table key={record.record_id} className="record-panel-fields">
         <tbody>
           {FIELD_COLUMNS.map((c) => (
-            <tr key={c.name} onMouseEnter={() => pick(c.name)} onFocus={() => pick(c.name)}>
+            <tr key={c.name} {...rowProps(c.name)}>
               <th scope="row">{c.title}</th>
               <FieldCell
                 title={c.title}
@@ -96,7 +94,7 @@ export function RecordPanel({ record, records, onSelect, onRecords, onRemoved }:
               />
             </tr>
           ))}
-          <tr onMouseEnter={() => pick("central_numbers")} onFocus={() => pick("central_numbers")}>
+          <tr {...rowProps("central_numbers")}>
             <th scope="row">מספרים מרכזיים</th>
             <CentralNumbersCell
               items={record.central_numbers}

@@ -11,6 +11,7 @@ import type { components } from "../../api/schema";
 import { useSenders } from "../../shared/useSenders";
 import { DocumentPreview } from "../preview/DocumentPreview";
 import { fieldHighlight } from "../preview/previewPages";
+import { useFieldFocus } from "../preview/useFieldFocus";
 import { ApproveButton } from "../review/ApproveButton";
 import { DeleteButton } from "../review/DeleteButton";
 import { FieldCell } from "../review/FieldCell";
@@ -119,7 +120,7 @@ function RecordDetails({ record, backLink, back, onRecord }: DetailsProps) {
       onSave: (edit: FieldEdit) => saveCentrals(record, keepCentrals(record.central_numbers, { [i]: edit })),
     })),
   ];
-  const [focused, setFocused] = useState<string | null>(null); // a row's title
+  const { focused, rowProps } = useFieldFocus<string>(record.record_id); // a row's title
   const focusedRow = rows.find((row) => row.title === focused);
   const highlight = focusedRow
     ? fieldHighlight(`${record.record_id}:${focusedRow.title}`, focusedRow.title, [focusedRow.field])
@@ -178,8 +179,7 @@ function RecordDetails({ record, backLink, back, onRecord }: DetailsProps) {
                 <tr
                   key={title}
                   className={field.needs_review ? "is-flagged" : undefined}
-                  onMouseEnter={() => setFocused(title)}
-                  onFocus={() => setFocused(title)}
+                  {...rowProps(title)}
                 >
                   <th scope="row">{title}</th>
                   <FieldCell
