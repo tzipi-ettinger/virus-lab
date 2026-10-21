@@ -6,7 +6,7 @@ import type { components } from "../../api/schema";
 
 type ApiRecord = components["schemas"]["Record"];
 type FormField = components["schemas"]["FormField"];
-type FieldName = keyof components["schemas"]["RecordFields"];
+export type FieldName = keyof components["schemas"]["RecordFields"];
 
 // Records from /extract join the table as each file's answer arrives. A record
 // that is already there (same record_id) is replaced in place, so a newer copy

@@ -189,3 +189,15 @@ def test_the_next_page_is_compared_with_the_form_so_far():
 
     assert place(page(3, national_id=found("000000026")), group, after_failure=False) == "uncertain"
     assert place(page(3, national_id=found("000000018")), group, after_failure=False) == "join"
+
+
+def test_a_value_filled_in_from_a_continuation_page_keeps_that_pages_box():
+    # The preview opens on the first page: the box says to turn to page 2.
+    group = first_form(received_date=NOTHING)
+    stamp = {**found("19/10/2026", "בחותמת התקבל"), "box_2d": [700, 100, 740, 300]}
+
+    joined = join(group, page(2, received_date=stamp), today=TODAY)
+
+    box = joined.form.fields.received_date.box
+    assert (box.page_number, box.top, box.left, box.bottom, box.right) == (2, 700, 100, 740, 300)
+    assert joined.form.fields.national_id.box is None  # page 1's own reading, read without a box

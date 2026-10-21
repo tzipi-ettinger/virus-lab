@@ -46,3 +46,42 @@ export function zoomOut(zoom: Zoom): Zoom {
   if (zoom === "fit") return "fit";
   return [...ZOOM_STEPS].reverse().find((step) => step < zoom) ?? "fit";
 }
+
+// --- Field boxes: where on the page the model read the value under the pointer.
+
+type FormField = components["schemas"]["FormField"];
+export type FieldBox = components["schemas"]["FieldBox"];
+
+export interface Highlight {
+  // Changes when another field (or record) is picked: the preview turns to its page then.
+  key: string;
+  label: string; // the field's name, said in text next to the image, not by color alone
+  boxes: FieldBox[];
+}
+
+// A field, or all items of a list (central numbers), marked together. Items read
+// without a box (records from before boxes, or a box the model got wrong) are skipped.
+export function fieldHighlight(key: string, label: string, fields: FormField[]): Highlight {
+  return { key, label, boxes: fields.flatMap((field) => (field.box ? [field.box] : [])) };
+}
+
+// The page to turn to: the first one a box is on. null when no box is on a page we show.
+export function highlightPageIndex(pages: PreviewPage[], highlight: Highlight): number | null {
+  for (const box of highlight.boxes) {
+    const index = pages.findIndex((page) => page.pageNumber === box.page_number);
+    if (index !== -1) return index;
+  }
+  return null;
+}
+
+// Edges in thousandths of the image, as CSS percents of the image's own box. Physical
+// top / left on purpose: the page image is never mirrored for RTL.
+export function boxStyle(box: FieldBox): { top: string; left: string; width: string; height: string } {
+  const percent = (n: number) => `${n / 10}%`;
+  return {
+    top: percent(box.top),
+    left: percent(box.left),
+    width: percent(box.right - box.left),
+    height: percent(box.bottom - box.top),
+  };
+}

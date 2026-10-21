@@ -1,17 +1,20 @@
 // The record picked in the review list, open for review (PLAN-DEV-B 3.1): its
 // original page on top, small until asked to grow, then each field edited in place,
-// then approve, delete and "next to fix".
+// then approve, delete and "next to fix". The field under the pointer or in focus is
+// boxed on the page, where the model read it (field boxes).
 // Owner: B
 
 import { useState } from "react";
 import { useSenders } from "../../shared/useSenders";
 import { DocumentPreview } from "../preview/DocumentPreview";
+import { fieldHighlight } from "../preview/previewPages";
+import { useFieldFocus } from "../preview/useFieldFocus";
 import { ApproveButton } from "./ApproveButton";
 import { CentralNumbersCell } from "./CentralNumbersCell";
 import { DeleteButton } from "./DeleteButton";
 import { FieldCell } from "./FieldCell";
 import { useRecordMutations, type ApiRecord } from "./recordMutations";
-import { FIELD_COLUMNS, FORM_TYPE_TEXT, nextToFix } from "./reviewRows";
+import { FIELD_COLUMNS, FORM_TYPE_TEXT, nextToFix, type FieldName } from "./reviewRows";
 import "./RecordPanel.css";
 
 interface RecordPanelProps {
@@ -29,6 +32,7 @@ export function RecordPanel({ record, records, onSelect, onRecords, onRemoved }:
   const { saveField, saveCentrals, approve, remove } = useRecordMutations(onRecords);
   const senders = useSenders();
   const [expanded, setExpanded] = useState(false);
+  const { focused, rowProps, areaProps } = useFieldFocus<FieldName | "central_numbers">(record?.record_id ?? "");
 
   if (record === null) {
     return (
@@ -41,6 +45,16 @@ export function RecordPanel({ record, records, onSelect, onRecords, onRemoved }:
   const name = [record.fields.first_name.value, record.fields.last_name.value].filter(Boolean).join(" ");
   const position = records.findIndex((r) => r.record_id === record.record_id) + 1;
   const next = nextToFix(records, record.record_id);
+  const highlight =
+    focused === null
+      ? null
+      : focused === "central_numbers"
+        ? fieldHighlight(`${record.record_id}:${focused}`, "מספרים מרכזיים", record.central_numbers)
+        : fieldHighlight(
+            `${record.record_id}:${focused}`,
+            FIELD_COLUMNS.find((c) => c.name === focused)?.title ?? "",
+            [record.fields[focused]],
+          );
 
   return (
     <aside className="record-panel" aria-labelledby="record-panel-title">
@@ -53,8 +67,8 @@ export function RecordPanel({ record, records, onSelect, onRecords, onRemoved }:
         </span>
       </div>
 
-      <div className={expanded ? "record-panel-preview is-expanded" : "record-panel-preview"}>
-        <DocumentPreview record={record} />
+      <div className={expanded ? "record-panel-preview is-expanded" : "record-panel-preview"} {...areaProps}>
+        <DocumentPreview record={record} highlight={highlight} />
         <button
           type="button"
           className="record-panel-toggle"
@@ -66,10 +80,10 @@ export function RecordPanel({ record, records, onSelect, onRecords, onRemoved }:
       </div>
 
       {/* Keyed by the record, so an editor left open doesn't carry over to the next one. */}
-      <table key={record.record_id} className="record-panel-fields">
+      <table key={record.record_id} className="record-panel-fields" {...areaProps}>
         <tbody>
           {FIELD_COLUMNS.map((c) => (
-            <tr key={c.name}>
+            <tr key={c.name} {...rowProps(c.name)}>
               <th scope="row">{c.title}</th>
               <FieldCell
                 title={c.title}
@@ -80,7 +94,7 @@ export function RecordPanel({ record, records, onSelect, onRecords, onRemoved }:
               />
             </tr>
           ))}
-          <tr>
+          <tr {...rowProps("central_numbers")}>
             <th scope="row">מספרים מרכזיים</th>
             <CentralNumbersCell
               items={record.central_numbers}

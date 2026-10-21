@@ -94,3 +94,53 @@
   color: var(--color-text-muted, #52606d);
   text-align: center;
 }
+
+/* Field boxes. The canvas is the image's own box: the boxes are placed on it in
+   percents of the image, with physical top / left (the page is not mirrored). */
+.preview-canvas {
+  position: relative;
+}
+
+.preview-canvas .preview-image {
+  inline-size: 100%;
+}
+
+.preview-box {
+  position: absolute;
+  /* Drawn just outside the value, so it frames the digits and never hides them. Thin:
+     in the review panel the page is 220px high and a line of text a few pixels. */
+  outline: 2px solid var(--color-accent, #0b6e79);
+  outline-offset: 2px;
+  border-radius: 2px;
+  background: rgb(11 110 121 / 10%);
+  /* A thin light ring past the outline keeps it seen on dark ink and dark scans. */
+  box-shadow: 0 0 0 5px rgb(255 255 255 / 60%);
+  pointer-events: none;
+  animation: preview-box-in 240ms ease-out;
+}
+
+@keyframes preview-box-in {
+  from {
+    opacity: 0;
+    transform: scale(1.15);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .preview-box {
+    animation: none;
+  }
+}
+
+.preview-highlight {
+  margin: 0;
+  /* One line, kept even when empty: a note that comes, goes or wraps would move the
+     table under the pointer onto the next row. */
+  min-block-size: 1.5em;
+  min-block-size: 1lh;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  color: var(--color-accent-strong, #08515a);
+  font-weight: 600;
+}

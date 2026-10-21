@@ -12,7 +12,7 @@ Owner: shared
 """
 
 from datetime import datetime
-from typing import Literal
+from typing import Annotated, Literal
 
 from pydantic import BaseModel, Field
 
@@ -86,6 +86,26 @@ class Issue(BaseModel):
     message: str
 
 
+BoxEdge = Annotated[int, Field(ge=0, le=1000)]
+
+
+class FieldBox(BaseModel):
+    """Where the model read a value: a rectangle on one page of the form.
+
+    Edges are in thousandths of the page image as saved (upright, the same image
+    /api/v1/pages/{page_id}/image serves), 0 = top / left, 1000 = bottom / right.
+    Left is the image's own left: the page is never mirrored for RTL.
+    """
+
+    page_number: int = Field(
+        description="The page it was read on: the form's first or a continuation page."
+    )
+    top: BoxEdge
+    left: BoxEdge
+    bottom: BoxEdge
+    right: BoxEdge
+
+
 class FormField(BaseModel):
     """One field, or one item of a list (central numbers, commitment numbers)."""
 
@@ -97,6 +117,9 @@ class FormField(BaseModel):
     needs_review: bool
     corrected: bool
     confirmed: bool
+    # Where `raw` was read. null when nothing was read, the model gave no usable box,
+    # or the record is older than boxes. A correction keeps it: it points at the source.
+    box: FieldBox | None = None
 
 
 class FormFields(BaseModel):

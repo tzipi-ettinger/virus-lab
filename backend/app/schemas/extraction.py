@@ -8,9 +8,15 @@ can change with the prompt without touching the rules.
 Owner: A
 """
 
-from typing import Literal
+from typing import Any, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import (
+    BaseModel,
+    Field,
+    ValidationError,
+    ValidatorFunctionWrapHandler,
+    field_validator,
+)
 
 ModelStatus = Literal["found", "unclear", "not_found"]
 
@@ -30,6 +36,22 @@ class RawField(BaseModel):
     value: str | None
     status: ModelStatus
     evidence: str | None
+    # Gemini's own box format. Default None: readings cached or kept as fixtures
+    # before v6 have none. assemble.py drops a box that isn't a rectangle on the page.
+    box_2d: list[int] | None = Field(
+        default=None,
+        description="Bounding box of the value on the page: [ymin, xmin, ymax, xmax], 0-1000.",
+    )
+
+    @field_validator("box_2d", mode="wrap")
+    @classmethod
+    def _box_never_fails_the_page(cls, value: Any, handler: ValidatorFunctionWrapHandler):
+        # The box only helps the reviewer look: one that doesn't parse (12.5, "a", a
+        # nested list) is dropped, and the values read on the page still count.
+        try:
+            return handler(value)
+        except ValidationError:
+            return None
 
 
 class RawExtraction(BaseModel):
