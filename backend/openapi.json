@@ -1161,6 +1161,49 @@
         "title": "FailedPage",
         "description": "A page whose extraction failed. It is not saved (A7) and is shown as failed (FR-12)."
       },
+      "FieldBox": {
+        "properties": {
+          "page_number": {
+            "type": "integer",
+            "title": "Page Number",
+            "description": "The page it was read on: the form's first or a continuation page."
+          },
+          "top": {
+            "type": "integer",
+            "maximum": 1000.0,
+            "minimum": 0.0,
+            "title": "Top"
+          },
+          "left": {
+            "type": "integer",
+            "maximum": 1000.0,
+            "minimum": 0.0,
+            "title": "Left"
+          },
+          "bottom": {
+            "type": "integer",
+            "maximum": 1000.0,
+            "minimum": 0.0,
+            "title": "Bottom"
+          },
+          "right": {
+            "type": "integer",
+            "maximum": 1000.0,
+            "minimum": 0.0,
+            "title": "Right"
+          }
+        },
+        "type": "object",
+        "required": [
+          "page_number",
+          "top",
+          "left",
+          "bottom",
+          "right"
+        ],
+        "title": "FieldBox",
+        "description": "Where the model read a value: a rectangle on one page of the form.\n\nEdges are in thousandths of the page image as saved (upright, the same image\n/api/v1/pages/{page_id}/image serves), 0 = top / left, 1000 = bottom / right.\nLeft is the image's own left: the page is never mirrored for RTL."
+      },
       "FieldEdit": {
         "properties": {
           "value": {
@@ -1297,6 +1340,16 @@
           "confirmed": {
             "type": "boolean",
             "title": "Confirmed"
+          },
+          "box": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/FieldBox"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "type": "object",

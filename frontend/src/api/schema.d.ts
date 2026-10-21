@@ -279,6 +279,29 @@ export interface components {
             error: components["schemas"]["ErrorInfo"];
         };
         /**
+         * FieldBox
+         * @description Where the model read a value: a rectangle on one page of the form.
+         *
+         *     Edges are in thousandths of the page image as saved (upright, the same image
+         *     /api/v1/pages/{page_id}/image serves), 0 = top / left, 1000 = bottom / right.
+         *     Left is the image's own left: the page is never mirrored for RTL.
+         */
+        FieldBox: {
+            /**
+             * Page Number
+             * @description The page it was read on: the form's first or a continuation page.
+             */
+            page_number: number;
+            /** Top */
+            top: number;
+            /** Left */
+            left: number;
+            /** Bottom */
+            bottom: number;
+            /** Right */
+            right: number;
+        };
+        /**
          * FieldEdit
          * @description Leave a key out to keep it. value: null clears the field.
          *
@@ -335,6 +358,7 @@ export interface components {
             corrected: boolean;
             /** Confirmed */
             confirmed: boolean;
+            box?: components["schemas"]["FieldBox"] | null;
         };
         /** HTTPValidationError */
         HTTPValidationError: {
