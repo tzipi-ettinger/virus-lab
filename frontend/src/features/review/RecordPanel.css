@@ -111,3 +111,7 @@
   padding: 4px 12px;
   font-size: 0.875rem;
 }
+
+.record-panel-title:focus {
+  outline: none; /* focused by script, not a control */
+}

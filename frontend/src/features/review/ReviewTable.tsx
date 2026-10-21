@@ -1,6 +1,7 @@
 // Review list: one short row per record (source, name, ID, status). The selected
 // row opens in RecordPanel, where its fields are edited (PLAN-DEV-B 3.1).
-// Up and down arrows move the selection.
+// Up and down arrows move the selection; picking a row also brings the panel into
+// view where it sits below the list.
 // Owner: B
 
 import { useState, type KeyboardEvent } from "react";
@@ -12,7 +13,8 @@ import "./ReviewTable.css";
 interface ReviewTableProps {
   records: ApiRecord[];
   selectedId: string | null;
-  onSelect: (recordId: string) => void;
+  /** reveal: the row was picked (click or Enter), not reached with the arrows. */
+  onSelect: (recordId: string, reveal: boolean) => void;
   /** Records the server sent back after a change: they replace the local ones. */
   onRecords: (records: ApiRecord[]) => void;
 }
@@ -30,7 +32,7 @@ export function ReviewTable({ records, selectedId, onSelect, onRecords }: Review
     const next = records[index + step];
     if (step === 0 || !next) return;
     event.preventDefault();
-    onSelect(next.record_id);
+    onSelect(next.record_id, false);
     const buttons = event.currentTarget.closest("tbody")?.querySelectorAll<HTMLButtonElement>(".review-select");
     buttons?.[index + step]?.focus();
   }
@@ -64,8 +66,8 @@ export function ReviewTable({ records, selectedId, onSelect, onRecords }: Review
                 <tr
                   key={r.record_id}
                   className={selected ? "is-selected" : undefined}
-                  aria-selected={selected}
-                  onClick={() => onSelect(r.record_id)}
+                  aria-current={selected ? "true" : undefined}
+                  onClick={() => onSelect(r.record_id, true)}
                 >
                   <th scope="row">
                     {/* The button makes the row reachable from the keyboard; the row click is for the mouse. */}

@@ -3,7 +3,7 @@
 // then approve, delete and "next to fix".
 // Owner: B
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useSenders } from "../../shared/useSenders";
 import { DocumentPreview } from "../preview/DocumentPreview";
 import { ApproveButton } from "./ApproveButton";
@@ -23,12 +23,26 @@ interface RecordPanelProps {
   onRecords: (records: ApiRecord[]) => void;
   /** A record deleted on the server: take it off. */
   onRemoved: (recordId: string) => void;
+  /** Grows each time a row is picked in the list. */
+  reveal: number;
 }
 
-export function RecordPanel({ record, records, onSelect, onRecords, onRemoved }: RecordPanelProps) {
+// Matches ReviewPage.css: below this width the panel sits under the list.
+const STACKED = "(max-width: 900px)";
+
+export function RecordPanel({ record, records, onSelect, onRecords, onRemoved, reveal }: RecordPanelProps) {
   const { saveField, saveCentrals, approve, remove } = useRecordMutations(onRecords);
   const senders = useSenders();
   const [expanded, setExpanded] = useState(false);
+  const title = useRef<HTMLHeadingElement>(null);
+
+  // Under the list, a picked row would change nothing in sight: bring the panel up,
+  // and move the focus to its title so a screen reader reads the record.
+  useEffect(() => {
+    if (reveal === 0 || !window.matchMedia?.(STACKED).matches) return;
+    title.current?.scrollIntoView?.({ block: "start" });
+    title.current?.focus({ preventScroll: true });
+  }, [reveal]);
 
   if (record === null) {
     return (
@@ -45,7 +59,7 @@ export function RecordPanel({ record, records, onSelect, onRecords, onRemoved }:
   return (
     <aside className="record-panel" aria-labelledby="record-panel-title">
       <div className="record-panel-head">
-        <h2 id="record-panel-title" className="record-panel-title">
+        <h2 id="record-panel-title" className="record-panel-title" ref={title} tabIndex={-1}>
           <bdi>{name || "ללא שם"}</bdi>
         </h2>
         <span className="review-count">

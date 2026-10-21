@@ -15,6 +15,7 @@ import "./ReviewPage.css";
 export function ReviewPage() {
   const [records, setRecords] = useState<ApiRecord[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [reveal, setReveal] = useState(0); // grows with each row picked in the list
   // Nothing picked (yet, or the picked one was deleted): the first record is open,
   // so the panel isn't empty while there is something to review.
   const selected = findRecord(records, selectedId) ?? records[0] ?? null;
@@ -23,6 +24,10 @@ export function ReviewPage() {
     (changed: ApiRecord[]) => setRecords((current) => replaceRecords(current, changed)),
     [],
   );
+  const pick = useCallback((recordId: string, show: boolean) => {
+    setSelectedId(recordId);
+    if (show) setReveal((n) => n + 1);
+  }, []);
   const onRemoved = useCallback((recordId: string) => {
     setRecords((current) => current.filter((r) => r.record_id !== recordId));
     setSelectedId((picked) => (picked === recordId ? null : picked));
@@ -35,7 +40,7 @@ export function ReviewPage() {
         <ReviewTable
           records={records}
           selectedId={selected?.record_id ?? null}
-          onSelect={setSelectedId}
+          onSelect={pick}
           onRecords={onRecords}
         />
         <RecordPanel
@@ -44,6 +49,7 @@ export function ReviewPage() {
           onSelect={setSelectedId}
           onRecords={onRecords}
           onRemoved={onRemoved}
+          reveal={reveal}
         />
       </div>
     </div>
