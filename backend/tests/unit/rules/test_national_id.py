@@ -34,6 +34,11 @@ def test_normalize_national_id(raw, value, issue_codes):
     assert (got_value, codes(issues)) == (value, issue_codes)
 
 
+def test_eight_zeros_are_flagged_after_padding():
+    value, issues = normalize_national_id("00000000")
+    assert codes(issues + validate_national_id(value)) == ["ID_PADDED", "ID_CHECKSUM_INVALID"]
+
+
 def test_padding_is_info_and_normalizing_is_a_warning():
     _, padded = normalize_national_id("11223344")
     _, normalized = normalize_national_id("0011223344")
@@ -54,6 +59,8 @@ def test_israeli_id_checksum(national_id, ok):
     [
         ("011223344", []),
         ("011223345", ["ID_CHECKSUM_INVALID"]),
+        ("000000000", ["ID_CHECKSUM_INVALID"]),
+        ("000000018", []),
         ("1234", ["ID_LENGTH_INVALID"]),
         ("1122334455", ["ID_LENGTH_INVALID"]),
         (None, []),
