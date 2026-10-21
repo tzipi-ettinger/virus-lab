@@ -92,7 +92,7 @@ class BoxProvider:
 
     async def extract(self, page: PageImage) -> BoxedExtraction:
         contents = [types.Part.from_bytes(data=page.jpeg, mime_type="image/jpeg"), self._prompt]
-        for attempt in range(8):
+        for _ in range(8):
             try:
                 started = time.perf_counter()
                 async with asyncio.timeout(120):
@@ -209,9 +209,11 @@ async def main() -> None:
         draw(saved.jpeg, extraction, args.out / f"part{part}_p{number}.png")
 
         gt = truth.get((filename, int(number)), {})
-        print(f"\n=== {spec}  rotation {oriented.applied_rotation}  "
-              f"{oriented.calls} calls  {seconds:.1f}s")
-        for name, label, item in boxed_items(extraction):
+        print(
+            f"\n=== {spec}  rotation {oriented.applied_rotation}  "
+            f"{oriented.calls} calls  {seconds:.1f}s"
+        )
+        for _, label, item in boxed_items(extraction):
             print(f"  {label:7} {item.status:9} {item.value!s:22} box={item.box_2d}")
         checks = {
             "national_id": (digits(extraction.national_id.value), digits(gt.get("national_id"))),
@@ -220,7 +222,9 @@ async def main() -> None:
                 ";".join(sorted(digits(v) for v in (gt.get("central_numbers") or "").split(";"))),
             ),
             "commitment": (
-                ";".join(digits((i.value or "").split("/")[-1]) for i in extraction.commitment_numbers),
+                ";".join(
+                    digits((i.value or "").split("/")[-1]) for i in extraction.commitment_numbers
+                ),
                 digits(gt.get("commitment_number")),
             ),
         }
@@ -228,8 +232,13 @@ async def main() -> None:
             mark = "OK " if got == want else "DIFF"
             print(f"  [{mark}] {key}: got {got!r} want {want!r}")
         results.append(
-            {"page": spec, "rotation": oriented.applied_rotation, "calls": oriented.calls,
-             "seconds": round(seconds, 1), "extraction": extraction.model_dump()}
+            {
+                "page": spec,
+                "rotation": oriented.applied_rotation,
+                "calls": oriented.calls,
+                "seconds": round(seconds, 1),
+                "extraction": extraction.model_dump(),
+            }
         )
 
     (args.out / "results.json").write_text(
