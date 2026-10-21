@@ -91,20 +91,24 @@ RecordsPage ── GET /records          חיפוש, סינון, מונים ◄�
 virus-lab/
 ├── backend/
 │   ├── app/
-│   │   ├── api/            # health, extract, validate, export
+│   │   ├── api/            # health, extract, records: רק קריאת הבקשה וקריאה לשכבה שמתחת
 │   │   ├── schemas/        # api.py (החוזה), extraction.py (פלט המודל)
-│   │   ├── pipeline/       # ingest, orient, assemble, service
+│   │   ├── pipeline/       # ingest, orient, assemble, group (עמודי המשך), service
 │   │   ├── extraction/     # providers: gemini, fake, cached + prompts/
-│   │   ├── rules/          # engine (apply_rules), normalize, validators, review_policy, senders.yaml
-│   │   └── export/         # rows, excel
+│   │   ├── rules/          # engine (apply_rules), normalize, validators, review_policy, records, senders.yaml
+│   │   ├── storage/        # schema.sql, db (pool וסכמה), repo (SQL בלבד), service (שמירה), review (תיקון ואישור)
+│   │   ├── export/         # records_export: CSV ו־JSON
+│   │   └── i18n/           # he.yaml: ההודעות למשתמשת
+│   ├── scripts/            # seed_demo, wipe_data, export_openapi
 │   ├── tests/              # unit, contract, fixtures
-│   ├── eval/               # ground_truth.csv, run_eval.py
-│   └── spike/              # ניסוי Gemini ראשוני (לא קוד מוצר)
+│   └── eval/               # ground_truth.csv, metrics, run_eval
 ├── frontend/src/
 │   ├── api/                # client, schema.d.ts (נוצר מ־OpenAPI)
-│   ├── features/           # upload, preview, review, export
-│   └── shared/ui/
-├── docs/SPEC.md            # איפיון
+│   ├── features/           # upload, preview, review, records
+│   └── shared/             # layout, ui (tokens, רכיבים משותפים)
+├── docs/                   # SPEC.md (איפיון), PLAN-DEV-B.md, GUIDELINES-V2-CHANGES.md
+├── Dockerfile, render.yaml # השרת החי
+├── docker-compose.yml      # Postgres מקומי
 └── PLAN.md                 # תוכנית עבודה
 ```
 
@@ -231,11 +235,18 @@ docker run --rm -p 8000:8000 -e EXTRACTION_PROVIDER=fake -e FRONTEND_ORIGIN=http
 | Method | Path | תיאור |
 |---|---|---|
 | `GET` | `/api/health` | בדיקת חיים |
-| `POST` | `/api/v1/extract` | `multipart/form-data` עם `files` → טפסים עם שדות, סטטוסים ותצוגה מקדימה |
-| `POST` | `/api/v1/validate` | טופס אחרי תיקון או אישור → אותו טופס עם סטטוסים שחושבו מחדש |
-| `POST` | `/api/v1/export` | טפסים אחרי תיקון → `.xlsx` |
+| `POST` | `/api/v1/extract` | `multipart/form-data` עם `files` → הרשומות שנשמרו כממתינות, והעמודים שנכשלו |
+| `GET` | `/api/v1/records` | רשימה עם חיפוש (`q`), סינון, מיון, דפדוף ומונים של ממתין ומאושר |
+| `GET` | `/api/v1/records/{id}` | רשומה אחת עם כל השדות |
+| `PATCH` | `/api/v1/records/{id}` | תיקון או אישור של ערכים. מחזיר את הרשומה ואת האחיות שהשתנו |
+| `POST` | `/api/v1/records/{id}/approve` | אישור רשומה, או `409 review_required` עם השדות החוסמים |
+| `POST` | `/api/v1/records/approve` | אישור של כל המוכנות: מה אושר, ומה דולג ולמה |
+| `DELETE` | `/api/v1/records/{id}` | מחיקה של רשומה ממתינה |
+| `GET` | `/api/v1/records/export` | `format=csv\|json`, עם אותם מסננים כמו הרשימה |
+| `GET` | `/api/v1/pages/{page_id}/image` | תמונת העמוד לתצוגה ליד הטבלה |
+| `GET` | `/api/v1/senders` | הרשימה הסגורה של הגורמים השולחים |
 
-החוזה המלא ודוגמאות: [docs/SPEC.md §9](docs/SPEC.md#9-חוזה-api).
+כל בקשה שמשנה נתונים חייבת להגיע מהדף של האתר (בדיקת `Origin`). שגיאות מוחזרות כ־`application/problem+json`. החוזה המלא ודוגמאות: [docs/SPEC.md §9](docs/SPEC.md#9-חוזה-api).
 
 ---
 
