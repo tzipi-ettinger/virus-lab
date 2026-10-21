@@ -173,7 +173,9 @@ function Pages({ record, highlight }: { record: ApiRecord; highlight: Highlight 
 function HighlightNote({ highlight, onThisPage }: { highlight: Highlight; onThisPage: boolean }) {
   const label = <bdi>{highlight.label}</bdi>;
   return (
-    <p className="preview-highlight" aria-live="polite">
+    // No aria-live: it would speak on every pointer move. With the keyboard, the
+    // field's own button already says which field it is.
+    <p className="preview-highlight">
       {highlight.boxes.length === 0 ? (
         <>אין סימון בתמונה ל{label}</>
       ) : onThisPage ? (

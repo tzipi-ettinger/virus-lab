@@ -107,13 +107,14 @@
 
 .preview-box {
   position: absolute;
-  /* Drawn just outside the value, so it frames the digits and never hides them. */
-  outline: 3px solid var(--color-accent, #0b6e79);
-  outline-offset: 3px;
+  /* Drawn just outside the value, so it frames the digits and never hides them. Thin:
+     in the review panel the page is 220px high and a line of text a few pixels. */
+  outline: 2px solid var(--color-accent, #0b6e79);
+  outline-offset: 2px;
   border-radius: 2px;
   background: rgb(11 110 121 / 10%);
-  /* A light ring past the outline keeps the box seen on dark ink and dark scans. */
-  box-shadow: 0 0 0 8px rgb(255 255 255 / 70%);
+  /* A thin light ring past the outline keeps it seen on dark ink and dark scans. */
+  box-shadow: 0 0 0 5px rgb(255 255 255 / 60%);
   pointer-events: none;
   animation: preview-box-in 240ms ease-out;
 }

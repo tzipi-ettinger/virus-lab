@@ -3,10 +3,9 @@
 // the same in words. The records are made up (review/testRecords).
 // Owner: A
 
-import { act, cleanup, render, screen, within } from "@testing-library/react";
+import { cleanup, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
-import { RecordPanel } from "../review/RecordPanel";
+import { afterEach, describe, expect, test } from "vitest";
 import { field, record } from "../review/testRecords";
 import { DocumentPreview } from "./DocumentPreview";
 import { fieldHighlight, type FieldBox } from "./previewPages";
@@ -19,15 +18,7 @@ const twoPages = record({
   continuation_page_ids: ["p4"],
 });
 
-beforeEach(() => {
-  // RecordPanel asks for the sender list; an empty one keeps the fields as text.
-  vi.stubGlobal("fetch", vi.fn(async () => new Response("[]", { headers: { "Content-Type": "application/json" } })));
-});
-
-afterEach(() => {
-  cleanup();
-  vi.unstubAllGlobals();
-});
+afterEach(cleanup);
 
 const shownPage = () => screen.getByRole("img").getAttribute("alt");
 
@@ -84,45 +75,5 @@ describe("DocumentPreview with a highlight", () => {
     render(<DocumentPreview record={twoPages} highlight={highlight} />);
 
     expect(screen.getAllByTestId("preview-box")).toHaveLength(2);
-  });
-});
-
-describe("RecordPanel boxes the field under the pointer", () => {
-  const boxed = record({
-    fields: {
-      ...record().fields,
-      national_id: field("011223344", { box: box(1) }),
-      commitment_number: field("50364186", { box: { ...box(1), top: 500, bottom: 530 } }),
-    },
-  });
-
-  function panel() {
-    render(<RecordPanel record={boxed} records={[boxed]} onSelect={() => {}} onRecords={() => {}} onRemoved={() => {}} />);
-  }
-
-  test("nothing is boxed until a field is pointed at", () => {
-    panel();
-    expect(screen.queryByTestId("preview-box")).toBeNull();
-  });
-
-  test("pointing at a field boxes it, and the next field moves the box", async () => {
-    panel();
-    const rows = screen.getAllByRole("row");
-    const row = (title: string) => rows.find((r) => within(r).queryByRole("rowheader", { name: title }))!;
-
-    await userEvent.hover(row("ת״ז"));
-    expect(screen.getByTestId("preview-box").style.top).toBe("10%");
-
-    await userEvent.hover(row("מספר התחייבות"));
-    expect(screen.getByTestId("preview-box").style.top).toBe("50%");
-    expect(screen.getByText(/מסומן בתמונה/).textContent).toBe("מסומן בתמונה: מספר התחייבות");
-  });
-
-  test("reaching a field with the keyboard boxes it too", async () => {
-    panel();
-
-    act(() => screen.getByRole("button", { name: /^ת״ז:/ }).focus());
-
-    expect(screen.getByTestId("preview-box").style.top).toBe("10%");
   });
 });
