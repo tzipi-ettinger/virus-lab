@@ -66,7 +66,7 @@ describe("ReviewPage", () => {
     await user.click(screen.getByText("יוסי כהן"));
 
     expect(within(panel()).getByRole("heading", { name: "יוסי כהן" })).toBeTruthy();
-    expect(screen.getAllByRole("row")[2].getAttribute("aria-selected")).toBe("true");
+    expect(screen.getAllByRole("row")[2].getAttribute("aria-current")).toBe("true");
   });
 
   test("a corrected ID updates the record and the form's other record from the answer", async () => {
@@ -152,6 +152,39 @@ describe("ReviewPage", () => {
     expect(within(panel()).queryByRole("button", { name: "הבאה לתיקון ←" })).toBeNull();
   });
 
+  test("on a narrow screen, a picked row brings the panel up and focuses its title", async () => {
+    vi.stubGlobal("matchMedia", (query: string) => ({ matches: query === "(max-width: 900px)" }));
+    const scrolled = vi.fn();
+    Element.prototype.scrollIntoView = scrolled; // jsdom has none
+    try {
+      const user = await upload([record(), named("יוסי", "כהן", { record_id: "r2" })]);
+
+      await user.click(screen.getByText("יוסי כהן"));
+
+      const title = within(panel()).getByRole("heading", { name: "יוסי כהן" });
+      expect(document.activeElement).toBe(title);
+      expect(scrolled).toHaveBeenCalledOnce();
+
+      // The arrows only move the selection: the focus stays in the list.
+      within(screen.getAllByRole("row")[1]).getByRole("button").focus();
+      await user.keyboard("{ArrowDown}");
+      expect(within(panel()).getByRole("heading", { name: "יוסי כהן" })).toBeTruthy();
+      expect(panel().contains(document.activeElement)).toBe(false);
+      expect(scrolled).toHaveBeenCalledOnce();
+    } finally {
+      delete (Element.prototype as { scrollIntoView?: unknown }).scrollIntoView;
+    }
+  });
+
+  test("on a wide screen, the focus stays on the picked row", async () => {
+    vi.stubGlobal("matchMedia", () => ({ matches: false }));
+    const user = await upload([record(), named("יוסי", "כהן", { record_id: "r2" })]);
+
+    await user.click(screen.getByText("יוסי כהן"));
+
+    expect(panel().contains(document.activeElement)).toBe(false);
+  });
+
   test("the original page starts small and grows on demand", async () => {
     const user = await upload([record()]);
     const toggle = within(panel()).getByRole("button", { name: "הגדלת הטופס" });
@@ -161,5 +194,18 @@ describe("ReviewPage", () => {
 
     expect(toggle.getAttribute("aria-expanded")).toBe("true");
     expect(toggle.textContent).toBe("הקטנת הטופס");
+  });
+
+  test("the panel says why a field is flagged, in text", async () => {
+    await upload([record({ fields: { ...record().fields, sender: field("x", flagged("x", "גורם שולח לא מוכר")) } })]);
+
+    expect(within(panel()).getByText("גורם שולח לא מוכר")).toBeTruthy();
+  });
+
+  test("the screen has a heading and names itself in the tab", () => {
+    render(<ReviewPage />);
+
+    expect(screen.getByRole("heading", { level: 1, name: "העלאה ובדיקה" })).toBeTruthy();
+    expect(document.title).toBe("העלאה ובדיקה · virus-lab");
   });
 });

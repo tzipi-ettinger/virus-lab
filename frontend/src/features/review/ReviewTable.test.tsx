@@ -75,17 +75,17 @@ describe("ReviewTable", () => {
 
     await user.click(screen.getByRole("button", { name: /part1\.pdf/ }));
     const [, row1, row2] = screen.getAllByRole("row");
-    expect(row1.getAttribute("aria-selected")).toBe("true");
+    expect(row1.getAttribute("aria-current")).toBe("true");
 
     await user.keyboard("{ArrowDown}");
-    expect(row1.getAttribute("aria-selected")).toBe("false");
-    expect(row2.getAttribute("aria-selected")).toBe("true");
+    expect(row1.getAttribute("aria-current")).toBeNull();
+    expect(row2.getAttribute("aria-current")).toBe("true");
     expect(document.activeElement).toBe(within(row2).getByRole("button"));
 
     await user.keyboard("{ArrowDown}"); // the last row: stays
-    expect(row2.getAttribute("aria-selected")).toBe("true");
+    expect(row2.getAttribute("aria-current")).toBe("true");
     await user.keyboard("{ArrowUp}");
-    expect(row1.getAttribute("aria-selected")).toBe("true");
+    expect(row1.getAttribute("aria-current")).toBe("true");
   });
 
   test("approve all ready sends only the ready ones and says what's left", async () => {

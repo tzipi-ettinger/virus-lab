@@ -5,6 +5,7 @@
 import { useCallback } from "react";
 import { useSearchParams } from "react-router";
 import type { components } from "../../api/schema";
+import { usePageTitle } from "../../shared/usePageTitle";
 import { ExportButton } from "./ExportButton";
 import { NO_FILTERS, PAGE_SIZE, hasFilters, parseFilters, toParams, withChange, type RecordFilters } from "./filters";
 import { RecordsFilters } from "./RecordsFilters";
@@ -15,6 +16,7 @@ import "./RecordsPage.css";
 type RecordCounts = components["schemas"]["RecordCounts"];
 
 export function RecordsPage() {
+  usePageTitle("רשומות");
   const [params, setParams] = useSearchParams();
   const filters = parseFilters(params);
   const { query, reload } = useRecordsQuery(filters);

@@ -4,7 +4,7 @@
 // sets the new flags.
 // Owner: B
 
-import { useRef, useState, type KeyboardEvent } from "react";
+import { useId, useRef, useState, type KeyboardEvent } from "react";
 import type { components } from "../../api/schema";
 import type { FieldEdit, Saved } from "./recordMutations";
 import { CONFIDENCE_TEXT, fieldCell } from "./reviewRows";
@@ -18,10 +18,15 @@ interface FieldCellProps {
   onSave: (edit: FieldEdit) => Promise<Saved>;
   /** A closed list (the senders): edited with a dropdown that saves on pick. */
   options?: string[];
+  /** The issues as text under the value, not only in the cell's title (touch, keyboard, screen readers). */
+  showIssues?: boolean;
 }
 
-export function FieldCell({ title, field, editable, onSave, options }: FieldCellProps) {
+export function FieldCell({ title, field, editable, onSave, options, showIssues = false }: FieldCellProps) {
   const cell = fieldCell(field);
+  const issuesId = useId();
+  const issues = showIssues && cell.issues.length > 0;
+  const describedBy = issues ? issuesId : undefined;
   const [draft, setDraft] = useState<string | null>(null); // null: not editing
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -66,12 +71,13 @@ export function FieldCell({ title, field, editable, onSave, options }: FieldCell
   return (
     <td
       className={cell.flagged ? "review-cell is-flagged" : "review-cell"}
-      title={cell.issues.join("\n") || undefined}
+      title={showIssues ? undefined : cell.issues.join("\n") || undefined}
     >
       {draft !== null && options ? (
         <select
           className="review-cell-input"
           aria-label={`עריכת ${title}`}
+          aria-describedby={describedBy}
           value={draft}
           disabled={busy}
           autoFocus
@@ -101,6 +107,7 @@ export function FieldCell({ title, field, editable, onSave, options }: FieldCell
         <input
           className="review-cell-input"
           aria-label={`עריכת ${title}`}
+          aria-describedby={describedBy}
           value={draft}
           disabled={busy}
           autoFocus
@@ -117,6 +124,7 @@ export function FieldCell({ title, field, editable, onSave, options }: FieldCell
           type="button"
           className="review-cell-value"
           aria-label={`${title}: ${cell.text || "ריק"}, ${CONFIDENCE_TEXT[cell.confidence]}. לעריכה`}
+          aria-describedby={describedBy}
           onClick={() => {
             setError(null);
             setDraft(field.value ?? "");
@@ -134,6 +142,7 @@ export function FieldCell({ title, field, editable, onSave, options }: FieldCell
           className="review-confirm"
           disabled={busy}
           aria-label={`אישור ערך: ${title}`}
+          aria-describedby={describedBy}
           onClick={(event) => {
             event.stopPropagation();
             void save({ confirmed: true }, false);
@@ -141,6 +150,13 @@ export function FieldCell({ title, field, editable, onSave, options }: FieldCell
         >
           ✓ אישור ערך
         </button>
+      )}
+      {issues && (
+        <ul id={issuesId} className="review-issues">
+          {cell.issues.map((message) => (
+            <li key={message}>{message}</li>
+          ))}
+        </ul>
       )}
       {error && (
         <span className="review-cell-error" role="alert">
