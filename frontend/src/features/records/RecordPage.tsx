@@ -1,6 +1,7 @@
 // One record in full (PLAN-DEV-B 3.1): what the model read next to the value now,
 // the evidence, the confidence and every issue, with the original page beside it.
-// The same edit, confirm, approve and delete as in the review table (B1.7).
+// The same edit, confirm, approve and delete as in the review table (B1.7). The row
+// under the pointer or in focus is boxed on the page, where it was read (field boxes).
 // Owner: B
 
 import { useCallback, useEffect, useState, type ReactNode } from "react";
@@ -9,6 +10,7 @@ import { ApiError, apiFetch } from "../../api/client";
 import type { components } from "../../api/schema";
 import { useSenders } from "../../shared/useSenders";
 import { DocumentPreview } from "../preview/DocumentPreview";
+import { fieldHighlight } from "../preview/previewPages";
 import { ApproveButton } from "../review/ApproveButton";
 import { DeleteButton } from "../review/DeleteButton";
 import { FieldCell } from "../review/FieldCell";
@@ -117,6 +119,11 @@ function RecordDetails({ record, backLink, back, onRecord }: DetailsProps) {
       onSave: (edit: FieldEdit) => saveCentrals(record, keepCentrals(record.central_numbers, { [i]: edit })),
     })),
   ];
+  const [focused, setFocused] = useState<string | null>(null); // a row's title
+  const focusedRow = rows.find((row) => row.title === focused);
+  const highlight = focusedRow
+    ? fieldHighlight(`${record.record_id}:${focusedRow.title}`, focusedRow.title, [focusedRow.field])
+    : null;
 
   return (
     <div className="record-page">
@@ -168,7 +175,12 @@ function RecordDetails({ record, backLink, back, onRecord }: DetailsProps) {
             </thead>
             <tbody>
               {rows.map(({ title, field, onSave }) => (
-                <tr key={title} className={field.needs_review ? "is-flagged" : undefined}>
+                <tr
+                  key={title}
+                  className={field.needs_review ? "is-flagged" : undefined}
+                  onMouseEnter={() => setFocused(title)}
+                  onFocus={() => setFocused(title)}
+                >
                   <th scope="row">{title}</th>
                   <FieldCell
                     title={title}
@@ -190,7 +202,7 @@ function RecordDetails({ record, backLink, back, onRecord }: DetailsProps) {
           </table>
         </div>
       </div>
-      <DocumentPreview record={record} />
+      <DocumentPreview record={record} highlight={highlight} />
     </div>
   );
 }

@@ -1,17 +1,19 @@
 // The record picked in the review list, open for review (PLAN-DEV-B 3.1): its
 // original page on top, small until asked to grow, then each field edited in place,
-// then approve, delete and "next to fix".
+// then approve, delete and "next to fix". The field under the pointer or in focus is
+// boxed on the page, where the model read it (field boxes).
 // Owner: B
 
 import { useState } from "react";
 import { useSenders } from "../../shared/useSenders";
 import { DocumentPreview } from "../preview/DocumentPreview";
+import { fieldHighlight } from "../preview/previewPages";
 import { ApproveButton } from "./ApproveButton";
 import { CentralNumbersCell } from "./CentralNumbersCell";
 import { DeleteButton } from "./DeleteButton";
 import { FieldCell } from "./FieldCell";
 import { useRecordMutations, type ApiRecord } from "./recordMutations";
-import { FIELD_COLUMNS, FORM_TYPE_TEXT, nextToFix } from "./reviewRows";
+import { FIELD_COLUMNS, FORM_TYPE_TEXT, nextToFix, type FieldName } from "./reviewRows";
 import "./RecordPanel.css";
 
 interface RecordPanelProps {
@@ -29,6 +31,8 @@ export function RecordPanel({ record, records, onSelect, onRecords, onRemoved }:
   const { saveField, saveCentrals, approve, remove } = useRecordMutations(onRecords);
   const senders = useSenders();
   const [expanded, setExpanded] = useState(false);
+  // Kept with its record, so the next record opens with nothing boxed.
+  const [focus, setFocus] = useState<{ recordId: string; name: FieldName | "central_numbers" } | null>(null);
 
   if (record === null) {
     return (
@@ -41,6 +45,18 @@ export function RecordPanel({ record, records, onSelect, onRecords, onRemoved }:
   const name = [record.fields.first_name.value, record.fields.last_name.value].filter(Boolean).join(" ");
   const position = records.findIndex((r) => r.record_id === record.record_id) + 1;
   const next = nextToFix(records, record.record_id);
+  const pick = (name: FieldName | "central_numbers") => setFocus({ recordId: record.record_id, name });
+  const focused = focus?.recordId === record.record_id ? focus.name : null;
+  const highlight =
+    focused === null
+      ? null
+      : focused === "central_numbers"
+        ? fieldHighlight(`${record.record_id}:${focused}`, "מספרים מרכזיים", record.central_numbers)
+        : fieldHighlight(
+            `${record.record_id}:${focused}`,
+            FIELD_COLUMNS.find((c) => c.name === focused)?.title ?? "",
+            [record.fields[focused]],
+          );
 
   return (
     <aside className="record-panel" aria-labelledby="record-panel-title">
@@ -54,7 +70,7 @@ export function RecordPanel({ record, records, onSelect, onRecords, onRemoved }:
       </div>
 
       <div className={expanded ? "record-panel-preview is-expanded" : "record-panel-preview"}>
-        <DocumentPreview record={record} />
+        <DocumentPreview record={record} highlight={highlight} />
         <button
           type="button"
           className="record-panel-toggle"
@@ -69,7 +85,7 @@ export function RecordPanel({ record, records, onSelect, onRecords, onRemoved }:
       <table key={record.record_id} className="record-panel-fields">
         <tbody>
           {FIELD_COLUMNS.map((c) => (
-            <tr key={c.name}>
+            <tr key={c.name} onMouseEnter={() => pick(c.name)} onFocus={() => pick(c.name)}>
               <th scope="row">{c.title}</th>
               <FieldCell
                 title={c.title}
@@ -80,7 +96,7 @@ export function RecordPanel({ record, records, onSelect, onRecords, onRemoved }:
               />
             </tr>
           ))}
-          <tr>
+          <tr onMouseEnter={() => pick("central_numbers")} onFocus={() => pick("central_numbers")}>
             <th scope="row">מספרים מרכזיים</th>
             <CentralNumbersCell
               items={record.central_numbers}
