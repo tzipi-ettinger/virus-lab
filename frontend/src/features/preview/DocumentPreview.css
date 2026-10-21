@@ -94,3 +94,45 @@
   color: var(--color-text-muted, #52606d);
   text-align: center;
 }
+
+/* Field boxes. The canvas is the image's own box: the boxes are placed on it in
+   percents of the image, with physical top / left (the page is not mirrored). */
+.preview-canvas {
+  position: relative;
+}
+
+.preview-canvas .preview-image {
+  inline-size: 100%;
+}
+
+.preview-box {
+  position: absolute;
+  /* Drawn just outside the value, so it frames the digits and never hides them. */
+  outline: 3px solid var(--color-accent, #0b6e79);
+  outline-offset: 3px;
+  border-radius: 2px;
+  background: rgb(11 110 121 / 10%);
+  /* A light ring past the outline keeps the box seen on dark ink and dark scans. */
+  box-shadow: 0 0 0 8px rgb(255 255 255 / 70%);
+  pointer-events: none;
+  animation: preview-box-in 240ms ease-out;
+}
+
+@keyframes preview-box-in {
+  from {
+    opacity: 0;
+    transform: scale(1.15);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .preview-box {
+    animation: none;
+  }
+}
+
+.preview-highlight {
+  margin: 0;
+  color: var(--color-accent-strong, #08515a);
+  font-weight: 600;
+}
