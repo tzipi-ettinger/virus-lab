@@ -10,6 +10,7 @@ import { RecordPage } from "./features/records/RecordPage";
 import { RecordsPage } from "./features/records/RecordsPage";
 import { ReviewPage } from "./features/review/ReviewPage";
 import { Layout } from "./shared/layout/Layout";
+import { usePageTitle } from "./shared/usePageTitle";
 import { ErrorBoundary } from "./shared/ui/ErrorBoundary";
 
 export function AppRoutes() {
@@ -36,6 +37,7 @@ function App() {
 }
 
 function NotFound() {
+  usePageTitle("הדף לא נמצא");
   return (
     <div className="app-status">
       <p>הדף לא נמצא.</p>

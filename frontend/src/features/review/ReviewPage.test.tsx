@@ -201,4 +201,11 @@ describe("ReviewPage", () => {
 
     expect(within(panel()).getByText("גורם שולח לא מוכר")).toBeTruthy();
   });
+
+  test("the screen has a heading and names itself in the tab", () => {
+    render(<ReviewPage />);
+
+    expect(screen.getByRole("heading", { level: 1, name: "העלאה ובדיקה" })).toBeTruthy();
+    expect(document.title).toBe("העלאה ובדיקה · virus-lab");
+  });
 });
