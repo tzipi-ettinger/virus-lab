@@ -5,11 +5,19 @@
   flex-direction: column;
   gap: 12px;
   min-inline-size: 0;
-  padding: 20px;
+  padding: 16px;
   background: var(--color-surface, #ffffff);
   border: 1px solid var(--color-border, #dde3e9);
   border-radius: var(--radius-lg, 12px);
   color: var(--color-text, #0f1b2a);
+}
+
+.review-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
 }
 
 .review-title {
@@ -50,12 +58,13 @@
   padding-inline: 10px;
   border-block-end: 1px solid var(--color-border, #dde3e9);
   text-align: start;
-  vertical-align: top;
+  vertical-align: middle;
   white-space: nowrap;
 }
 
 .review-table thead th {
   color: var(--color-text-muted, #52606d);
+  font-size: 0.75rem;
   font-weight: 600;
 }
 
@@ -63,18 +72,56 @@
   cursor: pointer;
 }
 
+.review-table tbody tr:hover {
+  background: var(--color-surface-muted, #f7f9fb);
+}
+
 .review-table tbody tr.is-selected {
   background: var(--color-accent-soft, #e5f1f2);
 }
 
 .review-select {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
   padding: 0;
   border: 0;
   background: none;
   color: inherit;
   font: inherit;
   font-weight: 600;
+  text-align: start;
   cursor: pointer;
+}
+
+.review-page-number {
+  color: var(--color-text-muted, #52606d);
+  font-size: 0.75rem;
+  font-weight: normal;
+}
+
+.review-number {
+  font-variant-numeric: tabular-nums;
+}
+
+/* A row's status: text first, the color only backs it up. */
+.review-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.review-badge.is-flagged {
+  color: var(--color-warning, #8a5300);
+  background: var(--color-warning-soft, #fff4db);
+  border: 1px solid var(--color-warning-border, #d9a514);
+}
+
+.review-badge.is-ready {
+  color: var(--color-accent-strong, #08515a);
+  background: var(--color-accent-soft, #e5f1f2);
 }
 
 .review-select:focus-visible {
@@ -97,8 +144,7 @@
 }
 
 /* Needs review: orange corner mark plus the label's text, never color alone. */
-.review-cell.is-flagged,
-.review-status.is-flagged {
+.review-cell.is-flagged {
   background: var(--color-warning-soft, #fff4db);
 }
 
@@ -111,8 +157,7 @@
   border-inline-start: 10px solid transparent;
 }
 
-.review-cell.is-flagged .review-confidence,
-.review-status.is-flagged {
+.review-cell.is-flagged .review-confidence {
   color: var(--color-warning, #8a5300);
   font-weight: 600;
 }

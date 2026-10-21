@@ -1,12 +1,13 @@
 // Upload and review screen: the one place that holds the records and the selected
-// row. UploadPanel (A) sends records up, DocumentPreview (A) gets the selected one
-// down (#32). The selection is kept as an id, so a newer copy of the record shows.
+// row. UploadPanel (A) sends records up; the list picks one and RecordPanel opens it,
+// with A's DocumentPreview inside (#32). The selection is kept as an id, so a newer
+// copy of the record shows.
 // Owner: B
 
 import { useCallback, useState } from "react";
-import { DocumentPreview } from "../preview/DocumentPreview";
 import { UploadPanel } from "../upload/UploadPanel";
 import type { ApiRecord } from "./recordMutations";
+import { RecordPanel } from "./RecordPanel";
 import { ReviewTable } from "./ReviewTable";
 import { findRecord, mergeRecords, replaceRecords } from "./reviewRows";
 import "./ReviewPage.css";
@@ -14,14 +15,17 @@ import "./ReviewPage.css";
 export function ReviewPage() {
   const [records, setRecords] = useState<ApiRecord[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  // Stable, so the table's save functions keep their identity between renders.
+  // Nothing picked (yet, or the picked one was deleted): the first record is open,
+  // so the panel isn't empty while there is something to review.
+  const selected = findRecord(records, selectedId) ?? records[0] ?? null;
+  // Stable, so the save functions keep their identity between renders.
   const onRecords = useCallback(
     (changed: ApiRecord[]) => setRecords((current) => replaceRecords(current, changed)),
     [],
   );
   const onRemoved = useCallback((recordId: string) => {
     setRecords((current) => current.filter((r) => r.record_id !== recordId));
-    setSelectedId((selected) => (selected === recordId ? null : selected));
+    setSelectedId((picked) => (picked === recordId ? null : picked));
   }, []);
 
   return (
@@ -30,12 +34,17 @@ export function ReviewPage() {
       <div className="review-page-work">
         <ReviewTable
           records={records}
-          selectedId={selectedId}
+          selectedId={selected?.record_id ?? null}
+          onSelect={setSelectedId}
+          onRecords={onRecords}
+        />
+        <RecordPanel
+          record={selected}
+          records={records}
           onSelect={setSelectedId}
           onRecords={onRecords}
           onRemoved={onRemoved}
         />
-        <DocumentPreview record={findRecord(records, selectedId)} />
       </div>
     </div>
   );
