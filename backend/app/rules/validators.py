@@ -30,7 +30,8 @@ def validate_national_id(value: str | None) -> list[Issue]:
         return []
     if len(value) != 9 or not value.isdigit():
         return [make_issue("ID_LENGTH_INVALID")]
-    if not israeli_id_checksum_ok(value):
+    # All zeros passes the check digit (the sum is 0) but is never a real ID.
+    if not israeli_id_checksum_ok(value) or not value.strip("0"):
         return [make_issue("ID_CHECKSUM_INVALID")]
     return []
 
