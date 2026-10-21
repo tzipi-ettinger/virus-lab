@@ -76,4 +76,44 @@ describe("DocumentPreview with a highlight", () => {
 
     expect(screen.getAllByTestId("preview-box")).toHaveLength(2);
   });
+
+  test("the note's line is there before any field is picked, so nothing below moves", () => {
+    const { container, rerender } = render(<DocumentPreview record={twoPages} />);
+    const line = container.querySelector(".preview-highlight");
+    expect(line?.textContent).toBe("");
+
+    const highlight = fieldHighlight("r1:national_id", "ת״ז", [field("011223344", { box: box(3) })]);
+    rerender(<DocumentPreview record={twoPages} highlight={highlight} />);
+
+    expect(container.querySelector(".preview-highlight")).toBe(line);
+  });
+
+  test("a box on a page without an image is not said to be marked", () => {
+    const noImage = record({ page_number: 3, continuation_pages: [4], continuation_page_ids: [] });
+    const highlight = fieldHighlight("r1:received_date", "תאריך קבלה", [field("2026-10-09", { box: box(4) })]);
+    render(<DocumentPreview record={noImage} highlight={highlight} />);
+
+    expect(screen.getByText(/התמונה של העמוד הזה לא זמינה/)).not.toBeNull();
+    expect(screen.queryByText(/מסומן בתמונה/)).toBeNull();
+    expect(screen.getByText(/אין סימון בתמונה/).textContent).toBe("אין סימון בתמונה לתאריך קבלה");
+  });
+
+  test("a box on a page the form doesn't have sends the reviewer nowhere", () => {
+    const highlight = fieldHighlight("r1:received_date", "תאריך קבלה", [field("2026-10-09", { box: box(9) })]);
+    render(<DocumentPreview record={twoPages} highlight={highlight} />);
+
+    expect(screen.queryByText(/נקרא בעמוד/)).toBeNull();
+    expect(screen.getByText(/אין סימון בתמונה/)).not.toBeNull();
+  });
+
+  test("the same form refreshed with fewer pages shows its last page instead of failing", () => {
+    const highlight = fieldHighlight("r1:received_date", "תאריך קבלה", [field("2026-10-09", { box: box(4) })]);
+    const { rerender } = render(<DocumentPreview record={twoPages} highlight={highlight} />);
+    expect(shownPage()).toBe("עמוד 4 של הטופס");
+
+    const onePage = record({ page_number: 3, continuation_pages: [], continuation_page_ids: [] });
+    rerender(<DocumentPreview record={onePage} highlight={highlight} />);
+
+    expect(shownPage()).toBe("עמוד 3 של הטופס");
+  });
 });

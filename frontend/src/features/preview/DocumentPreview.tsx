@@ -2,7 +2,7 @@
 // highlight, it turns to the page the value was read on and boxes the value there.
 // Owner: A
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type HTMLAttributes } from "react";
 import {
   MAX_ZOOM,
   boxStyle,
@@ -12,6 +12,7 @@ import {
   zoomOut,
   type ApiRecord,
   type Highlight,
+  type PreviewPage,
   type Zoom,
 } from "./previewPages";
 import "./DocumentPreview.css";
@@ -21,11 +22,13 @@ interface DocumentPreviewProps {
   record: ApiRecord | null;
   // The field under the pointer or in focus next to the preview (field boxes).
   highlight?: Highlight | null;
+  // Pointer handlers for the whole preview (useFieldFocus's areaProps).
+  pointerArea?: Pick<HTMLAttributes<HTMLElement>, "onMouseEnter" | "onMouseLeave">;
 }
 
-export function DocumentPreview({ record, highlight = null }: DocumentPreviewProps) {
+export function DocumentPreview({ record, highlight = null, pointerArea }: DocumentPreviewProps) {
   return (
-    <section className="preview" aria-labelledby="preview-title">
+    <section className="preview" aria-labelledby="preview-title" {...pointerArea}>
       <h2 id="preview-title" className="preview-title">הטופס המקורי</h2>
       {record ? (
         // A different form starts on its first page, fitted to the width. Records of
@@ -56,8 +59,11 @@ function Pages({ record, highlight }: { record: ApiRecord; highlight: Highlight 
     if (turnTo !== null) setIndex(turnTo);
   }
 
-  const page = pages[index];
+  // A refreshed record of the same form can have fewer pages than the one turned to.
+  const at = Math.min(index, pages.length - 1);
+  const page = pages[at];
   const boxes = highlight?.boxes.filter((box) => box.page_number === page.pageNumber) ?? [];
+  const drawn = page.imageUrl !== null && failed !== page.imageUrl && boxes.length > 0;
 
   // Scroll the frame, never the window, so the first box is in view. Again once the
   // image loads: before that it has no height, and the box no place.
@@ -71,15 +77,18 @@ function Pages({ record, highlight }: { record: ApiRecord; highlight: Highlight 
     if (i.left < o.left || i.right > o.right) outer.scrollLeft += i.left - o.left - o.width / 3;
   }
   // eslint-disable-next-line react-hooks/exhaustive-deps -- a new field, page or zoom only
-  useEffect(scrollToMark, [key, index, zoom]);
+  useEffect(scrollToMark, [key, at, zoom]);
 
   return (
     <>
       <p className="preview-source">
         <bdi>{record.source_file}</bdi>, עמוד {page.pageNumber}
-        {pages.length > 1 && ` (${index + 1} מתוך ${pages.length} בטופס)`}
+        {pages.length > 1 && ` (${at + 1} מתוך ${pages.length} בטופס)`}
       </p>
-      {highlight && <HighlightNote highlight={highlight} onThisPage={boxes.length > 0} />}
+      {/* Always there, a line high, so a note coming or going never moves what is below. */}
+      <p className="preview-highlight">
+        {highlight && <HighlightNote highlight={highlight} pages={pages} page={page} drawn={drawn} />}
+      </p>
 
       <div className="preview-toolbar" role="group" aria-label="תצוגת העמוד">
         {pages.length > 1 && (
@@ -89,7 +98,7 @@ function Pages({ record, highlight }: { record: ApiRecord; highlight: Highlight 
                 key={p.pageNumber}
                 type="button"
                 className="preview-button"
-                aria-pressed={i === index}
+                aria-pressed={i === at}
                 onClick={() => setIndex(i)}
               >
                 עמוד {p.pageNumber}
@@ -169,24 +178,30 @@ function Pages({ record, highlight }: { record: ApiRecord; highlight: Highlight 
   );
 }
 
-// The box in words, so it is never told by color (or by sight) alone.
-function HighlightNote({ highlight, onThisPage }: { highlight: Highlight; onThisPage: boolean }) {
+interface NoteProps {
+  highlight: Highlight;
+  pages: PreviewPage[];
+  page: PreviewPage; // the one shown
+  drawn: boolean; // a box is drawn on it
+}
+
+// The box in words, so it is never told by color (or by sight) alone. No aria-live:
+// it would speak on every pointer move. With the keyboard, the field's own button
+// already says which field it is.
+function HighlightNote({ highlight, pages, page, drawn }: NoteProps) {
   const label = <bdi>{highlight.label}</bdi>;
-  return (
-    // No aria-live: it would speak on every pointer move. With the keyboard, the
-    // field's own button already says which field it is.
-    <p className="preview-highlight">
-      {highlight.boxes.length === 0 ? (
-        <>אין סימון בתמונה ל{label}</>
-      ) : onThisPage ? (
-        <>מסומן בתמונה: {label}</>
-      ) : (
-        <>
-          {label} נקרא בעמוד {highlight.boxes[0].page_number}
-        </>
-      )}
-    </p>
-  );
+  if (drawn) return <>מסומן בתמונה: {label}</>;
+  // Sent elsewhere only to a page the reviewer can turn to and see the box on.
+  const turnTo = highlightPageIndex(pages, highlight);
+  const elsewhere = turnTo === null ? null : pages[turnTo];
+  if (elsewhere && elsewhere !== page && elsewhere.imageUrl !== null) {
+    return (
+      <>
+        {label} נקרא בעמוד {elsewhere.pageNumber}
+      </>
+    );
+  }
+  return <>אין סימון בתמונה ל{label}</>;
 }
 
 export default DocumentPreview;

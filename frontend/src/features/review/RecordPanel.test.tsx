@@ -7,7 +7,7 @@ import { act, cleanup, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import type { FieldBox } from "../preview/previewPages";
-import { HOVER_DELAY_MS } from "../preview/useFieldFocus";
+import { HOVER_DELAY_MS, LEAVE_DELAY_MS } from "../preview/useFieldFocus";
 import { RecordPanel } from "./RecordPanel";
 import { field, record } from "./testRecords";
 
@@ -75,6 +75,31 @@ describe("RecordPanel field boxes", () => {
     await rest();
 
     expect(drawnTop()).toBeNull();
+  });
+
+  test("the box goes once the pointer leaves the fields", async () => {
+    panel();
+    const pointer = user();
+    await pointer.hover(row("ת״ז"));
+    await rest();
+
+    await pointer.hover(screen.getByRole("button", { name: /אישור/ }));
+    await act(() => vi.advanceTimersByTime(LEAVE_DELAY_MS));
+
+    expect(drawnTop()).toBeNull();
+    expect(screen.queryByText(/מסומן בתמונה/)).toBeNull();
+  });
+
+  test("the box stays while the pointer moves on to the page to look at it", async () => {
+    panel();
+    const pointer = user();
+    await pointer.hover(row("ת״ז"));
+    await rest();
+
+    await pointer.hover(screen.getByRole("region", { name: /תמונת העמוד/ }));
+    await act(() => vi.advanceTimersByTime(LEAVE_DELAY_MS));
+
+    expect(drawnTop()).toBe("10%");
   });
 
   test("reaching a field with the keyboard boxes it at once", () => {
