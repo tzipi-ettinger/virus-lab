@@ -1,6 +1,5 @@
 # One image for the live server (Dev-B plan 2.7): FastAPI serves the API and the
-# built frontend from one origin, so production needs no CORS and the session
-# cookie is first-party.
+# built frontend from one origin, so production needs no CORS.
 #
 #   docker build -t virus-lab .
 #   docker run --rm -p 8000:8000 -e DATABASE_URL=... -e FRONTEND_ORIGIN=http://localhost:8000 virus-lab
