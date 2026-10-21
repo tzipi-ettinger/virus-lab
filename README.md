@@ -211,7 +211,7 @@ docker run --rm -p 8000:8000 -e EXTRACTION_PROVIDER=fake -e FRONTEND_ORIGIN=http
 | `GEMINI_API_KEY` | — | השם הישן למפתח יחיד. עדיין נקרא, ונוסף אחרי `GEMINI_API_KEYS` |
 | `GEMINI_MODEL` | — | **חובה** כש־`EXTRACTION_PROVIDER=gemini`. ב־`.env.example` וב־`render.yaml`: `gemini-3.8-flash`. החלפת מודל בלי שינוי קוד |
 | `EXTRACTION_PROVIDER` | `fake` | `fake`: תשובות שמורות מ־`tests/fixtures/`, בלי מפתח ובלי מכסה. `gemini`: קריאה אמיתית, בשרת החי (`render.yaml`) |
-| `PROVIDER_TIMEOUT_S` | `60` | זמן מקסימלי לקריאה אחת למודל, בלי הניסיונות החוזרים |
+| `PROVIDER_TIMEOUT_S` | `180` | זמן מקסימלי לקריאה אחת למודל, בלי הניסיונות החוזרים |
 | `EXTRACTION_CACHE` | `false` | מטמון לפיתוח בלבד, על קובצי דוגמה בלבד: עמוד ש־Gemini כבר קרא (אותו מודל ואותו prompt) נלקח מ־`backend/.cache/` בלי פנייה חדשה. לא בשרת החי |
 | `FRONTEND_ORIGIN` | `http://localhost:5173` | הכתובת של הדף: CORS בפיתוח, ובדיקת ה־`Origin` (CSRF) על בקשה שמשנה נתונים. בשרת החי: הכתובת הציבורית |
 | `ENV` | `development` | `production` בשרת החי (מ־`render.yaml`): HSTS, ובלי `/docs` ו־`/openapi.json` |
