@@ -14,9 +14,11 @@ interface Props {
   items: FormField[];
   editable: boolean;
   onSave: (items: ListItemEdit[]) => Promise<Saved>;
+  /** Each number's issues as text under it, not only in the cell's title. */
+  showIssues?: boolean;
 }
 
-export function CentralNumbersCell({ items, editable, onSave }: Props) {
+export function CentralNumbersCell({ items, editable, onSave, showIssues = false }: Props) {
   const summary = listCell(items);
   const [drafts, setDrafts] = useState<ListDraft[] | null>(null); // null: not editing
   const [busy, setBusy] = useState(false);
@@ -43,7 +45,7 @@ export function CentralNumbersCell({ items, editable, onSave }: Props) {
   return (
     <td
       className={summary.flagged ? "review-cell is-flagged" : "review-cell"}
-      title={summary.issues.join("\n") || undefined}
+      title={showIssues ? undefined : summary.issues.join("\n") || undefined}
       onClick={drafts !== null ? (event) => event.stopPropagation() : undefined}
     >
       {drafts !== null ? (
@@ -108,6 +110,9 @@ export function CentralNumbersCell({ items, editable, onSave }: Props) {
                     >
                       ✓ אישור ערך
                     </button>
+                  )}
+                  {showIssues && cell.issues.length > 0 && (
+                    <span className="review-issues">{cell.issues.join(" · ")}</span>
                   )}
                 </li>
               );

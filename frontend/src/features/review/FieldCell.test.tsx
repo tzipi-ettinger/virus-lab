@@ -171,4 +171,29 @@ describe("FieldCell", () => {
     expect(screen.queryByRole("button")).toBeNull();
     expect(screen.getByText("011223344")).toBeTruthy();
   });
+
+  test("with showIssues, the reason is text under the value and describes its buttons", () => {
+    render(
+      <table>
+        <tbody>
+          <tr>
+            <FieldCell
+              title="ת״ז"
+              field={field("1122", flagged("1122", "מספר ת״ז לא תקין"))}
+              editable
+              onSave={vi.fn<(edit: FieldEdit) => Promise<Saved>>()}
+              showIssues
+            />
+          </tr>
+        </tbody>
+      </table>,
+    );
+
+    const reason = screen.getByText("מספר ת״ז לא תקין");
+    expect(screen.getByRole("cell").getAttribute("title")).toBeNull();
+    expect(screen.getByRole("button", { name: /^ת״ז:/ }).getAttribute("aria-describedby")).toBe(reason.parentElement?.id);
+    expect(screen.getByRole("button", { name: "אישור ערך: ת״ז" }).getAttribute("aria-describedby")).toBe(
+      reason.parentElement?.id,
+    );
+  });
 });

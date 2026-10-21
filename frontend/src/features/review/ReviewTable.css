@@ -162,6 +162,22 @@
   font-weight: 600;
 }
 
+/* The reason a value was flagged, as text: a title alone misses touch and keyboard. */
+.review-issues {
+  display: block;
+  margin: 4px 0 0;
+  padding: 0;
+  list-style: none;
+  color: var(--color-text-muted, #52606d);
+  font-size: 0.75rem;
+  white-space: normal;
+}
+
+.review-cell.is-flagged .review-issues,
+.review-list li.is-flagged .review-issues {
+  color: var(--color-warning, #8a5300);
+}
+
 /* The whole cell opens the editor: a button, so the keyboard reaches it too. */
 .review-cell-value {
   display: block;

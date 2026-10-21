@@ -91,6 +91,7 @@ export function RecordPanel({ record, records, onSelect, onRecords, onRemoved, r
                 editable={editable}
                 onSave={(edit) => saveField(record, c.name, edit)}
                 options={c.name === "sender" && senders.length > 0 ? senders : undefined}
+                showIssues
               />
             </tr>
           ))}
@@ -100,6 +101,7 @@ export function RecordPanel({ record, records, onSelect, onRecords, onRemoved, r
               items={record.central_numbers}
               editable={editable}
               onSave={(items) => saveCentrals(record, items)}
+              showIssues
             />
           </tr>
         </tbody>

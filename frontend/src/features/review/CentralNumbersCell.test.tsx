@@ -78,4 +78,26 @@ describe("CentralNumbersCell", () => {
 
     expect(screen.queryByRole("button")).toBeNull();
   });
+
+  test("with showIssues, each number's reason is text under it", () => {
+    render(
+      <table>
+        <tbody>
+          <tr>
+            <CentralNumbersCell
+              items={[field("948062"), field("12345", flagged("12345", "מספר מרכזי בפורמט חריג"))]}
+              editable
+              onSave={vi.fn<(items: ListItemEdit[]) => Promise<Saved>>()}
+              showIssues
+            />
+          </tr>
+        </tbody>
+      </table>,
+    );
+
+    const [clean, odd] = screen.getAllByRole("listitem");
+    expect(odd.textContent).toContain("מספר מרכזי בפורמט חריג");
+    expect(clean.textContent).not.toContain("חריג");
+    expect(screen.getByRole("cell").getAttribute("title")).toBeNull();
+  });
 });

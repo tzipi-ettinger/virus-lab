@@ -195,4 +195,10 @@ describe("ReviewPage", () => {
     expect(toggle.getAttribute("aria-expanded")).toBe("true");
     expect(toggle.textContent).toBe("הקטנת הטופס");
   });
+
+  test("the panel says why a field is flagged, in text", async () => {
+    await upload([record({ fields: { ...record().fields, sender: field("x", flagged("x", "גורם שולח לא מוכר")) } })]);
+
+    expect(within(panel()).getByText("גורם שולח לא מוכר")).toBeTruthy();
+  });
 });
