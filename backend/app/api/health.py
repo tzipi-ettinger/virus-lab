@@ -7,6 +7,9 @@ readings, and one with the cache on would keep patients' readings on its disk.
 The number of keys, never a key: a server showing 1 has not picked up
 GEMINI_API_KEYS.
 
+Open without the site password (app/site_password.py): Render's health check
+and the keep-alive ping call it without one.
+
 Owner: A
 """
 
@@ -31,4 +34,7 @@ def health(settings: Annotated[Settings, Depends(get_settings)]) -> dict[str, st
         "gemini_keys": len(settings.gemini_keys())
         if settings.extraction_provider == "gemini"
         else 0,
+        # Whether the site asks for SITE_PASSWORD, never the password: a live server
+        # showing false is open to anyone with the link.
+        "site_password": bool(settings.site_password.get_secret_value()),
     }

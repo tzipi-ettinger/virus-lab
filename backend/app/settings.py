@@ -33,6 +33,10 @@ class Settings(BaseSettings):
     # Postgres (Dev-B plan B0.3): docker compose locally, Render's internal URL on the
     # live server. SecretStr, since the URL holds the password.
     database_url: SecretStr = SecretStr("")
+    # One password for the whole site (app/site_password.py, D22). Empty: the site
+    # is open, as in development and tests. The live server sets it in Render.
+    site_username: str = "lab"
+    site_password: SecretStr = SecretStr("")
     # The built frontend (frontend/dist), served by FastAPI on the live server. Set
     # only in the Docker image; in development Vite serves the page (app/spa.py).
     static_dir: str = ""

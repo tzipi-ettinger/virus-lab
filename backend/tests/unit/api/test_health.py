@@ -19,6 +19,7 @@ def test_health_returns_ok_and_the_provider():
         "extraction_provider": "fake",
         "extraction_cache": False,
         "gemini_keys": 0,
+        "site_password": False,
     }
 
 

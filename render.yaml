@@ -39,6 +39,11 @@ services:
       # refuses a change whose Origin is anything else.
       - key: FRONTEND_ORIGIN
         sync: false
+      # One password for the whole site (app/site_password.py, D22). The username is
+      # "lab" unless SITE_USERNAME says otherwise. Not set: the site is open, and
+      # /api/health shows "site_password": false.
+      - key: SITE_PASSWORD
+        sync: false
 
 databases:
   # The free database expires 30 days after it is created (D2).

@@ -20,6 +20,7 @@ from app.security import (
     keep_patient_data_out_of_server_logs,
 )
 from app.settings import Settings, get_settings
+from app.site_password import SitePassword
 from app.spa import mount_spa
 from app.storage.db import open_pool
 
@@ -72,6 +73,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         allow_headers=["*"],
     )
     app.add_middleware(HideUnexpectedErrors)
+    site_password = settings.site_password.get_secret_value()
+    if site_password:
+        # Outside everything but the headers: no route, page or image runs without it.
+        app.add_middleware(SitePassword, username=settings.site_username, password=site_password)
+    elif settings.production:
+        logger.warning("SITE_PASSWORD is not set: anyone with the link sees the records")
     # Added last, so it wraps everything: errors and CORS answers get the headers too.
     app.add_middleware(SecurityHeaders, production=settings.production)
     add_problem_handler(app)
