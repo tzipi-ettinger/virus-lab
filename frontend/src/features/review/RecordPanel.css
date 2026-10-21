@@ -115,3 +115,10 @@
 .record-panel-title:focus {
   outline: none; /* focused by script, not a control */
 }
+
+@media (pointer: coarse) {
+  .record-panel-toggle,
+  .record-panel-next {
+    min-block-size: 44px;
+  }
+}

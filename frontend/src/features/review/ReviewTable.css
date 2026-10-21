@@ -373,3 +373,33 @@
 .review-confidence.is-confirmed {
   color: var(--color-success, #1e6b3a);
 }
+
+/* Small buttons still meet the 24px target minimum (WCAG 2.5.8); on a touch screen,
+   the 44px a finger needs. */
+.review-confirm,
+.review-delete,
+.review-list-edit,
+.review-list-item button,
+.review-list-actions button,
+.review-approve button {
+  min-block-size: 28px;
+  min-inline-size: 28px;
+}
+
+@media (pointer: coarse) {
+  .review-confirm,
+  .review-delete,
+  .review-list-edit,
+  .review-list-item button,
+  .review-list-actions button,
+  .review-approve button,
+  .review-approve-all button {
+    min-block-size: 44px;
+    min-inline-size: 44px;
+  }
+
+  .review-table th,
+  .review-table td {
+    padding-block: 12px;
+  }
+}

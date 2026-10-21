@@ -269,3 +269,14 @@
   color: var(--color-accent, #0b6e79);
   font-size: 0.75rem;
 }
+
+/* On a touch screen, buttons and fields get the 44px a finger needs. */
+@media (pointer: coarse) {
+  .records button,
+  .record-page button,
+  .records-filters input,
+  .records-filters select,
+  .records-export a {
+    min-block-size: 44px;
+  }
+}
