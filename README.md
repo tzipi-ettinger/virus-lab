@@ -209,9 +209,9 @@ docker run --rm -p 8000:8000 -e EXTRACTION_PROVIDER=fake -e FRONTEND_ORIGIN=http
 |---|---|---|
 | `GEMINI_API_KEYS` | — | **חובה** כש־`EXTRACTION_PROVIDER=gemini`. מפתח אחד לכל פרויקט ב־Google, מופרדים בפסיקים. כשהמכסה היומית של מפתח נגמרת, עוברים למפתח הבא. לא נכנס ל־Git |
 | `GEMINI_API_KEY` | — | השם הישן למפתח יחיד. עדיין נקרא, ונוסף אחרי `GEMINI_API_KEYS` |
-| `GEMINI_MODEL` | `gemini-3.8-flash` | החלפת מודל בלי שינוי קוד |
-| `GEMINI_THINKING` | `low` | `low` / `medium` / `high` |
-| `EXTRACTION_PROVIDER` | `gemini` | `gemini` / `fake` 🚧 |
+| `GEMINI_MODEL` | — | **חובה** כש־`EXTRACTION_PROVIDER=gemini`. ב־`.env.example` וב־`render.yaml`: `gemini-3.8-flash`. החלפת מודל בלי שינוי קוד |
+| `EXTRACTION_PROVIDER` | `fake` | `fake`: תשובות שמורות מ־`tests/fixtures/`, בלי מפתח ובלי מכסה. `gemini`: קריאה אמיתית, בשרת החי (`render.yaml`) |
+| `PROVIDER_TIMEOUT_S` | `60` | זמן מקסימלי לקריאה אחת למודל, בלי הניסיונות החוזרים |
 | `EXTRACTION_CACHE` | `false` | מטמון לפיתוח בלבד, על קובצי דוגמה בלבד: עמוד ש־Gemini כבר קרא (אותו מודל ואותו prompt) נלקח מ־`backend/.cache/` בלי פנייה חדשה. לא בשרת החי |
 | `FRONTEND_ORIGIN` | `http://localhost:5173` | הכתובת של הדף: CORS בפיתוח, ובדיקת ה־`Origin` (CSRF) על בקשה שמשנה נתונים. בשרת החי: הכתובת הציבורית |
 | `ENV` | `development` | `production` בשרת החי (מ־`render.yaml`): HSTS, ובלי `/docs` ו־`/openapi.json` |
@@ -220,7 +220,10 @@ docker run --rm -p 8000:8000 -e EXTRACTION_PROVIDER=fake -e FRONTEND_ORIGIN=http
 | `KEEP_ALIVE_URL` | ריק | הכתובת הציבורית שהשרת פונה אליה (`/api/health`) כדי ש־Render לא ירדים אותו. כשהוא ריק משתמשים ב־`RENDER_EXTERNAL_URL`, ש־Render מגדיר בעצמו. בלי שניהם (מקומית ובטסטים) הפנייה כבויה |
 | `KEEP_ALIVE_INTERVAL_S` | `600` | כל כמה שניות לפנות. לפחות 60. Render מרדים שרת חינמי אחרי 15 דקות בלי בקשות מבחוץ |
 | `MAX_FILE_MB` | `20` | גודל קובץ מקסימלי |
-| `MAX_CONCURRENCY` | `4` | עמודים שמעובדים במקביל |
+| `MAX_REQUEST_MB` | `60` | גודל ההעלאה כולה, כל הקבצים יחד. היא נשמרת בזיכרון ולא בדיסק |
+| `MAX_FILES_PER_REQUEST` | `20` | קבצים בבקשה אחת |
+| `MAX_PAGES_PER_REQUEST` | `60` | עמודים בבקשה אחת |
+| `MAX_CONCURRENCY` | `4` | עמודים שנקראים במקביל. אותה מגבלה חלה על כל השרת, גם כששתי העלאות רצות יחד |
 
 ### `frontend/.env.local`
 
