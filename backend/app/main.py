@@ -11,7 +11,7 @@ from pathlib import Path
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api import auth, extract, health, records
+from app.api import extract, health, records
 from app.api.errors import add_problem_handler
 from app.keep_alive import start_keep_alive, stop_keep_alive
 from app.security import (
@@ -29,12 +29,12 @@ logger = logging.getLogger(__name__)
 def _lifespan(settings: Settings):
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
-        # Without DATABASE_URL the app still starts; login and records answer 503.
+        # Without DATABASE_URL the app still starts; uploads and records answer 503.
         # With it, a database that is unreachable or on another schema stops the start.
         url = settings.database_url.get_secret_value()
         app.state.pool = await open_pool(url) if url else None
         if app.state.pool is None:
-            logger.warning("DATABASE_URL is not set: login and records answer 503")
+            logger.warning("DATABASE_URL is not set: uploads and records answer 503")
         keep_alive = start_keep_alive(settings.keep_alive_base_url, settings.keep_alive_interval_s)
         try:
             yield
@@ -76,7 +76,6 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.add_middleware(SecurityHeaders, production=settings.production)
     add_problem_handler(app)
     app.include_router(health.router)
-    app.include_router(auth.router)
     app.include_router(extract.router)
     app.include_router(records.router)
     if settings.static_dir:

@@ -15,7 +15,6 @@ from app.schemas.api import (
     Form,
     RecordPatch,
     RecordSort,
-    User,
 )
 from app.storage import repo, review
 from app.storage.review import RecordProblem
@@ -24,17 +23,6 @@ from app.storage.service import save_extracted_page
 FIXTURES = Path(__file__).parents[2] / "fixtures" / "rules"
 TODAY = date(2026, 10, 19)
 NOW = datetime(2026, 10, 19, 9, 0, tzinfo=UTC)
-USER = User(id="u1", username="dana", display_name="דנה")
-
-
-@pytest.fixture(autouse=True)
-def user(db):
-    with db.connect() as conn:
-        conn.execute(
-            "INSERT INTO users (id, username, password_hash, display_name, created_at)"
-            " VALUES (%s, %s, 'x', %s, %s)",
-            (USER.id, USER.username, USER.display_name, NOW),
-        )
 
 
 def save(db, name="clean", *, file_id="f1", now=NOW, **update):
@@ -56,7 +44,7 @@ def save(db, name="clean", *, file_id="f1", now=NOW, **update):
 
     async def go():
         async with await db.connect_async() as conn:
-            return await save_extracted_page(conn, form, images, USER, now=now)
+            return await save_extracted_page(conn, form, images, now=now)
 
     return db.run(go())
 
@@ -71,12 +59,12 @@ def call(db, fn, *args, **kwargs):
 
 def patch(db, record, **body):
     body = RecordPatch.model_validate({"version": record.version, **body})
-    return call(db, review.patch_record, record.record_id, body, USER, today=TODAY, now=NOW)
+    return call(db, review.patch_record, record.record_id, body, today=TODAY, now=NOW)
 
 
 def approve(db, record):
     body = ApproveRequest(version=record.version)
-    return call(db, review.approve_record, record.record_id, body, USER, today=TODAY, now=NOW)
+    return call(db, review.approve_record, record.record_id, body, today=TODAY, now=NOW)
 
 
 def problem(db, fn, *args, **kwargs) -> RecordProblem:
@@ -195,7 +183,6 @@ def test_a_correction_reruns_the_rules_and_keeps_raw(db):
     assert field.raw == record.fields.national_id.raw
     assert (field.corrected, field.confirmed, field.needs_review) == (True, False, False)
     assert response.record.version == record.version + 1
-    assert response.record.updated_by == "dana"
     assert response.siblings == []  # one record in this form
 
 
@@ -263,19 +250,19 @@ def test_central_numbers_are_replaced_as_a_list(db):
     assert problem(db, patch, response.record, central_numbers=[{"idx": 7}]).status == 422
 
 
-def test_a_patch_logs_who_changed_which_field_without_values(db):
+def test_a_patch_logs_which_field_changed_without_values(db):
     [record] = save(db)
     patch(db, record, fields={"sender": {"value": "מכבי"}, "first_name": {"confirmed": True}})
 
     with db.connect() as conn:
         events = conn.execute(
-            "SELECT action, field, user_id FROM record_event WHERE record_id = %s"
+            "SELECT action, field FROM record_event WHERE record_id = %s"
             " AND action <> 'created' ORDER BY field",
             (record.record_id,),
         ).fetchall()
     assert events == [
-        {"action": "confirmed", "field": "first_name", "user_id": "u1"},
-        {"action": "corrected", "field": "sender", "user_id": "u1"},
+        {"action": "confirmed", "field": "first_name"},
+        {"action": "corrected", "field": "sender"},
     ]
 
 
@@ -321,7 +308,7 @@ def test_approve_after_confirming_the_empty_field(db):
     approved = approve(db, confirmed)
 
     assert approved.status == "approved"
-    assert (approved.approved_by, approved.approved_at) == ("dana", NOW)
+    assert approved.approved_at == NOW
 
 
 def test_approve_many_approves_the_ready_and_skips_the_rest(db):
@@ -332,7 +319,7 @@ def test_approve_many_approves_the_ready_and_skips_the_rest(db):
         BulkApproveItem(record_id=flagged.record_id, version=flagged.version),
         BulkApproveItem(record_id="nope", version=1),
     ]
-    result = call(db, review.approve_many, items, USER, today=TODAY, now=NOW)
+    result = call(db, review.approve_many, items, today=TODAY, now=NOW)
 
     assert [r.record_id for r in result.approved] == [ready.record_id]
     assert [(s.record_id, s.type) for s in result.skipped] == [
@@ -365,12 +352,12 @@ def test_an_approved_record_is_not_deleted(db):
 
 
 def export(db, export_format="csv", **filters):
-    return call(db, review.export_records, USER, export_format=export_format, now=NOW, **filters)
+    return call(db, review.export_records, export_format=export_format, now=NOW, **filters)
 
 
 def export_log(db):
     with db.connect() as conn:
-        return conn.execute("SELECT user_id, format, record_count FROM export_log").fetchall()
+        return conn.execute("SELECT format, record_count FROM export_log").fetchall()
 
 
 def test_export_has_the_full_records_of_the_list_without_paging(db):
@@ -411,8 +398,8 @@ def test_every_export_is_logged_without_values(db):
     export(db, "json", status="approved")
 
     assert export_log(db) == [
-        {"user_id": USER.id, "format": "csv", "record_count": 2},
-        {"user_id": USER.id, "format": "json", "record_count": 0},
+        {"format": "csv", "record_count": 2},
+        {"format": "json", "record_count": 0},
     ]
 
 
@@ -420,6 +407,6 @@ def test_too_many_records_is_refused_and_not_logged(db, monkeypatch):
     monkeypatch.setattr(review, "MAX_EXPORT", 1)
     save(db, "multi_values")
 
-    refused = problem(db, review.export_records, USER, export_format="csv", now=NOW)
+    refused = problem(db, review.export_records, export_format="csv", now=NOW)
     assert (refused.status, refused.type) == (422, "export_too_large")
     assert export_log(db) == []

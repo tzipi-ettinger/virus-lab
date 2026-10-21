@@ -168,10 +168,6 @@ class Record(BaseModel):
     created_at: datetime
     updated_at: datetime
     approved_at: datetime | None
-    approved_by: str | None = Field(default=None, description="Username; null until approved.")
-    updated_by: str | None = Field(
-        default=None, description="Username of the last edit; null if never edited."
-    )
 
 
 class RecordSummary(BaseModel):
@@ -330,22 +326,6 @@ class BulkApproveResponse(BaseModel):
 
     approved: list[Record]
     skipped: list[SkippedRecord]
-
-
-# --- Auth (Dev-B plan 2.6): users are created only by scripts/create_user.py
-
-
-class User(BaseModel):
-    """The signed-in user, as require_user gives it to the endpoints."""
-
-    id: str
-    username: str
-    display_name: str
-
-
-class LoginRequest(BaseModel):
-    username: str = Field(min_length=1, max_length=100)
-    password: str = Field(min_length=1, max_length=1024)
 
 
 # --- Errors (application/problem+json, SPEC 9.5)

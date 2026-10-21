@@ -25,7 +25,7 @@ def client_for(static_dir: str) -> TestClient:
     return TestClient(create_app(Settings(_env_file=None, static_dir=static_dir)))
 
 
-@pytest.mark.parametrize("path", ["/", "/records", "/records/r_123", "/login"])
+@pytest.mark.parametrize("path", ["/", "/records", "/records/r_123", "/nope"])
 def test_app_paths_get_the_page(dist, path):
     response = client_for(str(dist)).get(path)
 

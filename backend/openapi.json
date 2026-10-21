@@ -37,135 +37,6 @@
         }
       }
     },
-    "/api/v1/auth/login": {
-      "post": {
-        "tags": [
-          "auth"
-        ],
-        "summary": "Login",
-        "description": "Sign in and set the session cookie (HttpOnly, Secure, SameSite=Strict).",
-        "operationId": "login_api_v1_auth_login_post",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/LoginRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/User"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Wrong username or password (\"invalid_credentials\")",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
-          },
-          "429": {
-            "description": "Locked after 5 failed logins (\"too_many_attempts\"), see Retry-After",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Not from our page (\"origin_not_allowed\")",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/auth/logout": {
-      "post": {
-        "tags": [
-          "auth"
-        ],
-        "summary": "Logout",
-        "description": "End the session on the server too, so the token is useless even if it leaked.",
-        "operationId": "logout_api_v1_auth_logout_post",
-        "responses": {
-          "204": {
-            "description": "Successful Response"
-          },
-          "403": {
-            "description": "Not from our page (\"origin_not_allowed\")",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/auth/me": {
-      "get": {
-        "tags": [
-          "auth"
-        ],
-        "summary": "Me",
-        "description": "The signed-in user. The app calls it on load to decide: login screen or app.",
-        "operationId": "me_api_v1_auth_me_get",
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/User"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "No valid session (\"unauthenticated\")",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/api/v1/extract": {
       "post": {
         "summary": "Extract",
@@ -207,16 +78,6 @@
           },
           "400": {
             "description": "No files (\"no_files\"), more than MAX_FILES_PER_REQUEST (\"too_many_files\"), or an upload that is cut off or broken (\"invalid_upload\")",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Not signed in (\"unauthenticated\"). Nothing was read, so the file can be sent again",
             "content": {
               "application/json": {
                 "schema": {
@@ -476,8 +337,8 @@
               }
             }
           },
-          "401": {
-            "description": "No valid session (\"unauthenticated\")",
+          "403": {
+            "description": "A change that did not come from our own page (\"origin_not_allowed\")",
             "content": {
               "application/json": {
                 "schema": {
@@ -525,8 +386,8 @@
               }
             }
           },
-          "401": {
-            "description": "No valid session (\"unauthenticated\")",
+          "403": {
+            "description": "A change that did not come from our own page (\"origin_not_allowed\")",
             "content": {
               "application/json": {
                 "schema": {
@@ -743,8 +604,8 @@
               "application/json": {}
             }
           },
-          "401": {
-            "description": "No valid session (\"unauthenticated\")",
+          "403": {
+            "description": "A change that did not come from our own page (\"origin_not_allowed\")",
             "content": {
               "application/json": {
                 "schema": {
@@ -792,8 +653,8 @@
               }
             }
           },
-          "401": {
-            "description": "No valid session (\"unauthenticated\")",
+          "403": {
+            "description": "A change that did not come from our own page (\"origin_not_allowed\")",
             "content": {
               "application/json": {
                 "schema": {
@@ -860,8 +721,8 @@
               }
             }
           },
-          "401": {
-            "description": "No valid session (\"unauthenticated\")",
+          "403": {
+            "description": "A change that did not come from our own page (\"origin_not_allowed\")",
             "content": {
               "application/json": {
                 "schema": {
@@ -921,8 +782,8 @@
           "204": {
             "description": "Successful Response"
           },
-          "401": {
-            "description": "No valid session (\"unauthenticated\")",
+          "403": {
+            "description": "A change that did not come from our own page (\"origin_not_allowed\")",
             "content": {
               "application/json": {
                 "schema": {
@@ -1001,8 +862,8 @@
               }
             }
           },
-          "401": {
-            "description": "No valid session (\"unauthenticated\")",
+          "403": {
+            "description": "A change that did not come from our own page (\"origin_not_allowed\")",
             "content": {
               "application/json": {
                 "schema": {
@@ -1064,8 +925,8 @@
               }
             }
           },
-          "401": {
-            "description": "No valid session (\"unauthenticated\")",
+          "403": {
+            "description": "A change that did not come from our own page (\"origin_not_allowed\")",
             "content": {
               "application/json": {
                 "schema": {
@@ -1100,8 +961,8 @@
               "image/jpeg": {}
             }
           },
-          "401": {
-            "description": "No valid session (\"unauthenticated\")",
+          "403": {
+            "description": "A change that did not come from our own page (\"origin_not_allowed\")",
             "content": {
               "application/json": {
                 "schema": {
@@ -1553,28 +1414,6 @@
         "type": "object",
         "title": "ListItemEdit"
       },
-      "LoginRequest": {
-        "properties": {
-          "username": {
-            "type": "string",
-            "maxLength": 100,
-            "minLength": 1,
-            "title": "Username"
-          },
-          "password": {
-            "type": "string",
-            "maxLength": 1024,
-            "minLength": 1,
-            "title": "Password"
-          }
-        },
-        "type": "object",
-        "required": [
-          "username",
-          "password"
-        ],
-        "title": "LoginRequest"
-      },
       "Problem": {
         "properties": {
           "type": {
@@ -1730,30 +1569,6 @@
               }
             ],
             "title": "Approved At"
-          },
-          "approved_by": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Approved By",
-            "description": "Username; null until approved."
-          },
-          "updated_by": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Updated By",
-            "description": "Username of the last edit; null if never edited."
           }
         },
         "type": "object",
@@ -2194,30 +2009,6 @@
           "type"
         ],
         "title": "SkippedRecord"
-      },
-      "User": {
-        "properties": {
-          "id": {
-            "type": "string",
-            "title": "Id"
-          },
-          "username": {
-            "type": "string",
-            "title": "Username"
-          },
-          "display_name": {
-            "type": "string",
-            "title": "Display Name"
-          }
-        },
-        "type": "object",
-        "required": [
-          "id",
-          "username",
-          "display_name"
-        ],
-        "title": "User",
-        "description": "The signed-in user, as require_user gives it to the endpoints."
       },
       "ValidationError": {
         "properties": {

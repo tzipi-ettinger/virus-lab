@@ -14,13 +14,8 @@ JPEG = b"\xff\xd8\xff\xe0 not really a jpeg \xff\xd9"
 def page(db):
     with db.connect() as conn:
         conn.execute(
-            "INSERT INTO users (id, username, password_hash, display_name, created_at)"
-            " VALUES ('u1', 'tester', 'x', 'Tester', %s)",
-            (NOW,),
-        )
-        conn.execute(
-            "INSERT INTO page (id, file_id, source_filename, page_number, created_at, created_by)"
-            " VALUES ('p1', 'f1', 'a.pdf', 1, %s, 'u1')",
+            "INSERT INTO page (id, file_id, source_filename, page_number, created_at)"
+            " VALUES ('p1', 'f1', 'a.pdf', 1, %s)",
             (NOW,),
         )
     return "p1"

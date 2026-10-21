@@ -21,66 +21,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/auth/login": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Login
-         * @description Sign in and set the session cookie (HttpOnly, Secure, SameSite=Strict).
-         */
-        post: operations["login_api_v1_auth_login_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/auth/logout": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Logout
-         * @description End the session on the server too, so the token is useless even if it leaked.
-         */
-        post: operations["logout_api_v1_auth_logout_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/auth/me": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Me
-         * @description The signed-in user. The app calls it on load to decide: login screen or app.
-         */
-        get: operations["me_api_v1_auth_me_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/v1/extract": {
         parameters: {
             query?: never;
@@ -428,13 +368,6 @@ export interface components {
             /** Confirmed */
             confirmed?: boolean | null;
         };
-        /** LoginRequest */
-        LoginRequest: {
-            /** Username */
-            username: string;
-            /** Password */
-            password: string;
-        };
         /** Problem */
         Problem: {
             /** Type */
@@ -507,16 +440,6 @@ export interface components {
             updated_at: string;
             /** Approved At */
             approved_at: string | null;
-            /**
-             * Approved By
-             * @description Username; null until approved.
-             */
-            approved_by?: string | null;
-            /**
-             * Updated By
-             * @description Username of the last edit; null if never edited.
-             */
-            updated_by?: string | null;
         };
         /**
          * RecordCounts
@@ -654,18 +577,6 @@ export interface components {
              */
             blocking_fields?: string[] | null;
         };
-        /**
-         * User
-         * @description The signed-in user, as require_user gives it to the endpoints.
-         */
-        User: {
-            /** Id */
-            id: string;
-            /** Username */
-            username: string;
-            /** Display Name */
-            display_name: string;
-        };
         /** ValidationError */
         ValidationError: {
             /** Location */
@@ -710,122 +621,6 @@ export interface operations {
             };
         };
     };
-    login_api_v1_auth_login_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["LoginRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["User"];
-                };
-            };
-            /** @description Wrong username or password ("invalid_credentials") */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Problem"];
-                };
-            };
-            /** @description Not from our page ("origin_not_allowed") */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Problem"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-            /** @description Locked after 5 failed logins ("too_many_attempts"), see Retry-After */
-            429: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Problem"];
-                };
-            };
-        };
-    };
-    logout_api_v1_auth_logout_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Not from our page ("origin_not_allowed") */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Problem"];
-                };
-            };
-        };
-    };
-    me_api_v1_auth_me_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["User"];
-                };
-            };
-            /** @description No valid session ("unauthenticated") */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Problem"];
-                };
-            };
-        };
-    };
     extract_api_v1_extract_post: {
         parameters: {
             query?: never;
@@ -853,15 +648,6 @@ export interface operations {
             };
             /** @description No files ("no_files"), more than MAX_FILES_PER_REQUEST ("too_many_files"), or an upload that is cut off or broken ("invalid_upload") */
             400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Problem"];
-                };
-            };
-            /** @description Not signed in ("unauthenticated"). Nothing was read, so the file can be sent again */
-            401: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -941,8 +727,8 @@ export interface operations {
                     "application/json": components["schemas"]["RecordList"];
                 };
             };
-            /** @description No valid session ("unauthenticated") */
-            401: {
+            /** @description A change that did not come from our own page ("origin_not_allowed") */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -983,8 +769,8 @@ export interface operations {
                     "application/json": components["schemas"]["BulkApproveResponse"];
                 };
             };
-            /** @description No valid session ("unauthenticated") */
-            401: {
+            /** @description A change that did not come from our own page ("origin_not_allowed") */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -1037,8 +823,8 @@ export interface operations {
                     "application/json": unknown;
                 };
             };
-            /** @description No valid session ("unauthenticated") */
-            401: {
+            /** @description A change that did not come from our own page ("origin_not_allowed") */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -1077,8 +863,8 @@ export interface operations {
                     "application/json": components["schemas"]["Record"];
                 };
             };
-            /** @description No valid session ("unauthenticated") */
-            401: {
+            /** @description A change that did not come from our own page ("origin_not_allowed") */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -1124,8 +910,8 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description No valid session ("unauthenticated") */
-            401: {
+            /** @description A change that did not come from our own page ("origin_not_allowed") */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -1186,8 +972,8 @@ export interface operations {
                     "application/json": components["schemas"]["RecordPatchResponse"];
                 };
             };
-            /** @description No valid session ("unauthenticated") */
-            401: {
+            /** @description A change that did not come from our own page ("origin_not_allowed") */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -1248,8 +1034,8 @@ export interface operations {
                     "application/json": components["schemas"]["Record"];
                 };
             };
-            /** @description No valid session ("unauthenticated") */
-            401: {
+            /** @description A change that did not come from our own page ("origin_not_allowed") */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -1304,8 +1090,8 @@ export interface operations {
                     "application/json": string[];
                 };
             };
-            /** @description No valid session ("unauthenticated") */
-            401: {
+            /** @description A change that did not come from our own page ("origin_not_allowed") */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -1335,8 +1121,8 @@ export interface operations {
                     "image/jpeg": unknown;
                 };
             };
-            /** @description No valid session ("unauthenticated") */
-            401: {
+            /** @description A change that did not come from our own page ("origin_not_allowed") */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
