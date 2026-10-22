@@ -314,13 +314,50 @@ def test_the_record_saved_first_is_not_flagged_by_a_later_copy(db):
     assert approve(db, edited).status == "approved"
 
 
-def test_changing_to_a_number_another_record_has_flags_it(db):
-    [taken] = save(db, "clean", file_id="f1")
-    [record] = save(db, "no_commitment", file_id="f2")
+def test_changing_only_the_number_to_one_another_record_has_does_not_flag(db):
+    [taken] = save(db, "clean", file_id="f1")  # central 948062
+    [record] = save(db, "no_commitment", file_id="f2")  # central 948070
     number = taken.fields.commitment_number.value
 
     edited = patch(db, record, fields={"commitment_number": {"value": number}}).record
-    assert [i.code for i in edited.fields.commitment_number.issues] == ["DUPLICATE_RECORD"]
+    assert not edited.fields.commitment_number.issues
+
+
+def test_changing_the_central_numbers_to_match_flags_it(db):
+    [taken] = save(db, "clean", file_id="f1")
+    [record] = save(db, "no_commitment", file_id="f2")
+    number = taken.fields.commitment_number.value
+    record = patch(db, record, fields={"commitment_number": {"value": number}}).record
+
+    edited = patch(db, record, central_numbers=[{"idx": 0, "value": "948062"}]).record
+
+    [issue] = edited.fields.commitment_number.issues
+    assert issue.code == "DUPLICATE_RECORD"
+    assert [d.record_id for d in issue.duplicate_of] == [taken.record_id]
+    assert edited.needs_review
+
+
+def test_changing_the_central_numbers_away_clears_the_flag(db):
+    save(db, "clean", file_id="f1")
+    [duplicate] = save(db, "clean", file_id="f2")
+
+    edited = patch(db, duplicate, central_numbers=[{"idx": 0, "value": "948070"}]).record
+
+    assert not edited.fields.commitment_number.issues
+    assert approve(db, edited).status == "approved"
+
+
+def test_every_earlier_copy_is_named_oldest_first(db):
+    later = datetime(2026, 10, 20, 9, 0, tzinfo=UTC)
+    [first] = save(db, "clean", file_id="f1", now=later)
+    [older] = save(db, "clean", file_id="f2", now=NOW)
+    [record] = save(db, "clean", file_id="f3")
+
+    [issue] = record.fields.commitment_number.issues
+    assert [(d.record_id, d.created_at, d.created_by) for d in issue.duplicate_of] == [
+        (older.record_id, NOW, "דנה"),
+        (first.record_id, later, "דנה"),
+    ]
 
 
 # --- Approve

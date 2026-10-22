@@ -14,7 +14,7 @@ from app.pipeline.service import ExtractedForm, SaveForm
 from app.rules.issues import make_issue
 from app.rules.records import RecordDraft, build_records
 from app.rules.text import fold_text
-from app.schemas.api import Form, Record, User
+from app.schemas.api import DuplicateOf, Form, FormField, Record, User
 from app.storage import repo
 
 
@@ -34,9 +34,10 @@ async def save_extracted_page(
     whose extraction failed (A7), is a bug in the caller and not in the upload:
     ValueError, and nothing is saved. If anything fails, nothing of the form is saved.
 
-    A commitment number that another record already has is flagged
-    DUPLICATE_RECORD (A4). The form's numbers are locked first, so two uploads
-    saving the same number at once can't both miss each other.
+    A record that is already in the DB, with the same commitment number and the same
+    central numbers, is flagged DUPLICATE_RECORD with who saved each earlier one and
+    when (A4). The form's numbers are locked first, so two uploads saving the same
+    record at once can't both miss each other.
     """
     _check_images(form, images)
     now = now or datetime.now(UTC)
@@ -47,7 +48,6 @@ async def save_extracted_page(
 
     async with conn.transaction():
         await repo.lock_commitments(conn, numbers)
-        existing = await repo.existing_commitments(conn, numbers)
         for page_id, image in zip(page_ids, images, strict=True):
             await repo.insert_page(
                 conn,
@@ -64,8 +64,10 @@ async def save_extracted_page(
 
         records = []
         for draft in drafts:
-            if draft.fields.commitment_number.value in existing:
-                draft = _flag_duplicate(draft)
+            if number := draft.fields.commitment_number.value:
+                same = await repo.same_records(conn, number, central_values(draft.central_numbers))
+                if same:
+                    draft = _flag_duplicate(draft, same)
             record = _to_record(draft, form, first_page_id, page_ids[1:], now)
             await _insert(conn, record, user.id)
             records.append(record)
@@ -94,14 +96,24 @@ def _check_images(form: Form, images: list[PageImage]) -> None:
         raise ValueError(f"form {form.form_id}: every image must come from file {form.file_id}")
 
 
-def _flag_duplicate(draft: RecordDraft) -> RecordDraft:
-    field = draft.fields.commitment_number
-    flagged = field.model_copy(
-        update={
-            "issues": [*field.issues, make_issue("DUPLICATE_RECORD")],
-            "needs_review": not field.confirmed,
-        }
+def central_values(items: list[FormField]) -> list[str]:
+    """The central numbers' effective values, as record.central_values keeps them."""
+    return [item.value for item in items if item.value]
+
+
+def flag_duplicate(field: FormField, same: list[dict]) -> FormField:
+    """The commitment number flagged DUPLICATE_RECORD, naming the earlier records.
+    Confirming the field resolves it."""
+    issue = make_issue("DUPLICATE_RECORD").model_copy(
+        update={"duplicate_of": [DuplicateOf(**row) for row in same]}
     )
+    return field.model_copy(
+        update={"issues": [*field.issues, issue], "needs_review": not field.confirmed}
+    )
+
+
+def _flag_duplicate(draft: RecordDraft, same: list[dict]) -> RecordDraft:
+    flagged = flag_duplicate(draft.fields.commitment_number, same)
     return draft.model_copy(
         update={
             "fields": draft.fields.model_copy(update={"commitment_number": flagged}),
@@ -136,7 +148,6 @@ def _to_record(
 
 async def _insert(conn: AsyncConnection, record: Record, user_id: str) -> None:
     fields = record.fields
-    central_values = [item.value for item in record.central_numbers if item.value]
     await repo.insert_record(
         conn,
         record_id=record.record_id,
@@ -149,7 +160,7 @@ async def _insert(conn: AsyncConnection, record: Record, user_id: str) -> None:
         issues=[issue.model_dump(mode="json") for issue in record.issues],
         national_id=fields.national_id.value,
         commitment_number=fields.commitment_number.value,
-        central_values=central_values,
+        central_values=central_values(record.central_numbers),
         first_name=fields.first_name.value,
         last_name=fields.last_name.value,
         sender=fields.sender.value,

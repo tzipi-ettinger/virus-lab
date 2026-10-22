@@ -1354,6 +1354,32 @@
         "title": "BulkApproveResponse",
         "description": "Each record is checked on its own: one that is skipped doesn't stop the others."
       },
+      "DuplicateOf": {
+        "properties": {
+          "record_id": {
+            "type": "string",
+            "title": "Record Id"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "created_by": {
+            "type": "string",
+            "title": "Created By",
+            "description": "Who saved it, by display name."
+          }
+        },
+        "type": "object",
+        "required": [
+          "record_id",
+          "created_at",
+          "created_by"
+        ],
+        "title": "DuplicateOf",
+        "description": "An earlier record with the same commitment number and the same central numbers."
+      },
       "ErrorInfo": {
         "properties": {
           "code": {
@@ -1720,6 +1746,21 @@
           "message": {
             "type": "string",
             "title": "Message"
+          },
+          "duplicate_of": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/DuplicateOf"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Duplicate Of",
+            "description": "DUPLICATE_RECORD only: every earlier record that is the same, oldest first."
           }
         },
         "type": "object",

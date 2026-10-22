@@ -80,10 +80,22 @@ IssueCode = Literal[
 ErrorCode = Literal["EXTRACTION_FAILED", "INVALID_FILE", "QUOTA_EXHAUSTED"]
 
 
+class DuplicateOf(BaseModel):
+    """An earlier record with the same commitment number and the same central numbers."""
+
+    record_id: str
+    created_at: datetime
+    created_by: str = Field(description="Who saved it, by display name.")
+
+
 class Issue(BaseModel):
     code: IssueCode
     severity: Severity
     message: str
+    duplicate_of: list[DuplicateOf] | None = Field(
+        default=None,
+        description="DUPLICATE_RECORD only: every earlier record that is the same, oldest first.",
+    )
 
 
 BoxEdge = Annotated[int, Field(ge=0, le=1000)]
