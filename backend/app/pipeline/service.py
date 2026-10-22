@@ -44,6 +44,7 @@ from app.pipeline.orient import OrientedPage, extract_upright
 from app.pipeline.split import form_boxes
 from app.rules.engine import apply_rules
 from app.schemas.api import ErrorCode, ErrorInfo, FailedPage, FileResult, Form, Record
+from app.schemas.extraction import RawExtraction
 
 logger = logging.getLogger(__name__)
 
@@ -185,22 +186,14 @@ async def extract_files(
         page_id = form_id(page.file_id, page.page_number)
         started = time.perf_counter()
         try:
-            oriented = await extract_upright(provider, page, stop_at_several_forms=split)
+            oriented = await extract_upright(provider, page, stop=_to_cut if split else None)
             boxes = form_boxes(oriented.extraction) if split else []
             if boxes:
-                try:
-                    rotation = oriented.applied_rotation
-                    parts = [
-                        await page.crop_async(rotation, box, part)
-                        for part, box in enumerate(boxes, start=1)
-                    ]
-                except Exception as exc:
-                    # Read as one form instead, flagged (assemble): the reading is paid for.
-                    logger.error("page not cut: %s (%s)", page_id, type(exc).__name__)
-                else:
-                    logger.info("page split: %s into %d forms", page_id, len(parts))
-                    seconds = time.perf_counter() - started
-                    return _Split(parts=parts, calls=oriented.calls, seconds=seconds)
+                logger.info("page split: %s into %d forms", page_id, len(boxes))
+                rotation = oriented.applied_rotation
+                parts = [page.crop(rotation, box, part) for part, box in enumerate(boxes, start=1)]
+                seconds = time.perf_counter() - started
+                return _Split(parts=parts, calls=oriented.calls, seconds=seconds)
             # Not before the cut: a page about to be cut has its names read form by form.
             oriented = await read_name_closer(provider, page, oriented)
         except QuotaExhausted as exc:
@@ -379,6 +372,11 @@ def _failed(page: SourcePage, message: str, *, code: ErrorCode = "EXTRACTION_FAI
         page_number=page.page_number,
         error=ErrorInfo(code=code, message=message),
     )
+
+
+def _to_cut(extraction: RawExtraction) -> bool:
+    """The page holds several forms to cut apart: each is turned on its own."""
+    return bool(form_boxes(extraction))
 
 
 def _unexpected(page: SourcePage, exc: Exception) -> FailedPage:

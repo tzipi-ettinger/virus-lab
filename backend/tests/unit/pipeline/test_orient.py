@@ -185,7 +185,7 @@ class TwoFormsProvider:
 def test_a_page_with_several_forms_is_not_turned_when_asked_to_stop(source_page):
     provider = TwoFormsProvider()
 
-    result = run(provider, source_page, stop_at_several_forms=True)
+    result = run(provider, source_page, stop=lambda extraction: bool(extraction.forms_on_page))
 
     # Each form is turned on its own once it is cut out: no call spent on the page.
     assert (result.calls, result.applied_rotation, provider.seen_rotations) == (1, 0, [0])

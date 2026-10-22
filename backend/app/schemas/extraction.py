@@ -63,6 +63,14 @@ class RawFormBox(BaseModel):
 
 
 class RawExtraction(BaseModel):
+    # v8. First: Gemini writes the answer in this order, and the prompt has it decide
+    # whether there are several forms before it reads any field (then only the
+    # first form's). Default empty: readings cached or kept as fixtures before v8
+    # have none, and empty means one form, as before. split.py decides whether to cut.
+    forms_on_page: list[RawFormBox] = Field(
+        default_factory=list,
+        description="One item per separate form on the image, when there are two or more.",
+    )
     page_rotation_degrees: int = Field(
         description="Clockwise rotation needed to make the text upright: 0, 90, 180 or 270."
     )
@@ -74,12 +82,6 @@ class RawExtraction(BaseModel):
     sender: RawField
     central_numbers: list[RawField]
     commitment_numbers: list[RawField]
-    # v8. Default empty: readings cached or kept as fixtures before v8 have none, and
-    # empty means one form, as before. pipeline/split.py decides whether to split.
-    forms_on_page: list[RawFormBox] = Field(
-        default_factory=list,
-        description="One item per separate form on the image, when there are two or more.",
-    )
 
     @field_validator("forms_on_page", mode="wrap")
     @classmethod

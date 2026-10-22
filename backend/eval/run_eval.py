@@ -19,7 +19,7 @@ from pathlib import Path
 from app.api.extract import get_provider
 from app.clock import israel_today
 from app.extraction.provider import ExtractionProvider
-from app.pipeline.service import ExtractionResult, UploadedFile, extract_files
+from app.pipeline.service import ExtractedForm, ExtractionResult, UploadedFile, extract_files
 from app.settings import Settings, get_settings
 from eval.metrics import (
     PageTiming,
@@ -57,11 +57,20 @@ async def read_files(
 def report_for(results: list[ExtractionResult], truth: list[Row]) -> str:
     forms = [extracted for result in results for extracted in result.forms]
     rows = [row for extracted in forms for row in rows_from_form(extracted.form)]
-    timings = [
-        PageTiming(pages=1 + len(f.form.continuation_pages), seconds=f.seconds) for f in forms
-    ]
     failed = sum(len(result.failed_pages) for result in results)
-    return render_markdown(evaluate(truth, rows, failed_pages=failed, timings=timings))
+    return render_markdown(evaluate(truth, rows, failed_pages=failed, timings=page_timings(forms)))
+
+
+def page_timings(forms: list[ExtractedForm]) -> list[PageTiming]:
+    """One per form, but one for all the forms cut out of a page: it is one page
+    uploaded, and the call that found its forms is counted with the first of them."""
+    timings: dict[tuple[str, int], PageTiming] = {}
+    for extracted in forms:
+        form = extracted.form
+        key = (form.source_file, form.page_number)  # only forms cut out of a page share one
+        seconds = extracted.seconds + (timings[key].seconds if key in timings else 0.0)
+        timings[key] = PageTiming(pages=1 + len(form.continuation_pages), seconds=seconds)
+    return list(timings.values())
 
 
 def main(argv: list[str] | None = None, *, provider: ExtractionProvider | None = None) -> int:

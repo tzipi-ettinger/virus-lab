@@ -640,7 +640,12 @@ def test_a_cut_form_without_a_central_number_is_flagged():
 @pytest.mark.usefixtures("instant_render")
 def test_a_split_page_has_its_forms_read_and_saved_in_its_own_turn():
     # Not behind the pages waiting after it: nothing could be saved until they were read.
-    provider = SplitScript(split={("forms.pdf", 1)}, parts=PARTS)
+    class Script(SplitScript):
+        async def extract(self, page):
+            await asyncio.sleep(0.001)  # a call takes time, and the other pages go on meanwhile
+            return await super().extract(page)
+
+    provider = Script(split={("forms.pdf", 1)}, parts=PARTS)
     called_at_first_save = []
 
     async def save(extracted):
@@ -715,19 +720,22 @@ def test_a_page_after_several_forms_that_werent_cut_is_never_attached():
     assert [i.code for i in result.forms[1].form.issues] == ["PAGE_GROUPING_UNCERTAIN"]
 
 
-def test_a_page_that_fails_to_be_cut_keeps_its_reading_flagged(monkeypatch, caplog):
-    async def crop_async(self, rotation, box, part):
-        raise RuntimeError("ישראל ישראלי: bad rect")
+def test_a_bug_drawing_one_cut_form_fails_only_that_form(monkeypatch, caplog):
+    render_async = SourcePage.render_async
 
-    monkeypatch.setattr(SourcePage, "crop_async", crop_async)
-    provider = SplitScript(split={("forms.pdf", 1)}, parts=PARTS)
+    async def failing(self, rotation=0, **size):
+        if self.file_id.endswith("-f2"):
+            raise RuntimeError("ישראל ישראלי: bad rect")
+        return await render_async(self, rotation, **size)
+
+    monkeypatch.setattr(SourcePage, "render_async", failing)
 
     with caplog.at_level(logging.INFO, logger="app.pipeline.service"):
-        result = run([upload(1)], provider)
+        result = run([upload(1)], SplitScript(split={("forms.pdf", 1)}, parts=PARTS))
 
-    [form] = result.forms
-    assert [i.code for i in form.form.issues] == ["SEVERAL_FORMS_ON_PAGE"]
-    assert (form.calls, result.failed_pages) == (1, [])  # the call already made is kept
+    assert [f.form.file_id.rpartition("-")[2] for f in result.forms] == ["f1"]
+    [failed] = result.failed_pages
+    assert failed.error.message == f"טופס 2 מתוך 2 בעמוד הזה. {UNEXPECTED_ERROR}"
     assert "RuntimeError" in caplog.text
     assert "ישראל" not in caplog.text
 

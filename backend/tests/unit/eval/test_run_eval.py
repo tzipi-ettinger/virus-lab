@@ -1,11 +1,13 @@
 """The command from end to end, with the FakeProvider and a generated PDF (no sample data)."""
 
 import csv
+from dataclasses import replace
 
 import pymupdf
 
 from app.extraction.fake_provider import FakeProvider
 from eval import run_eval
+from eval.metrics import PageTiming
 
 COLUMNS = [
     "source_file",
@@ -70,3 +72,18 @@ def test_a_ground_truth_equal_to_the_output_scores_full_marks(tmp_path, capsys):
     assert f"| ת״ז | 100% ({len(rows)}/{len(rows)})" in report
     assert "**שגיאות שלא סומנו, בסך הכול: 0**" in report
     assert "| עמודים בלי טבלת אמת (לא נמדדו) | 1 |" in report
+
+
+def test_the_forms_cut_out_of_a_page_are_timed_as_one_page(tmp_path):
+    path = pdf(tmp_path / "forms.pdf", 1)
+    [result] = run_eval.asyncio.run(
+        run_eval.read_files([path], FakeProvider(), run_eval.get_settings())
+    )
+    [form] = result.forms
+    page_2 = form.form.model_copy(update={"page_number": 2})
+    # Two forms cut out of page 1, the first with the call that found them.
+    forms = [replace(form, seconds=3.0), replace(form, seconds=1.0)]
+
+    timings = run_eval.page_timings([*forms, replace(form, form=page_2, seconds=2.0)])
+
+    assert timings == [PageTiming(pages=1, seconds=4.0), PageTiming(pages=1, seconds=2.0)]

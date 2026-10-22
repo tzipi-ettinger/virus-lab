@@ -1,6 +1,7 @@
 import pytest
 
-from app.pipeline.split import MARGIN, MAX_FORMS, FormBox, form_boxes
+from app.pipeline.boxes import Box
+from app.pipeline.split import MARGIN, MAX_FORMS, form_boxes
 from app.schemas.extraction import RawExtraction, RawField
 
 EMPTY = RawField(value=None, status="not_found", evidence=None)
@@ -32,8 +33,8 @@ def test_two_forms_one_above_the_other_top_first_with_a_margin():
     boxes = form_boxes(reading(BOTTOM_HALF, TOP_HALF))
 
     assert boxes == [
-        FormBox(top=20 - MARGIN, left=30 - MARGIN, bottom=480 + MARGIN, right=970 + MARGIN),
-        FormBox(top=520 - MARGIN, left=30 - MARGIN, bottom=980 + MARGIN, right=970 + MARGIN),
+        Box(top=20 - MARGIN, left=30 - MARGIN, bottom=480 + MARGIN, right=970 + MARGIN),
+        Box(top=520 - MARGIN, left=30 - MARGIN, bottom=980 + MARGIN, right=970 + MARGIN),
     ]
 
 
@@ -42,13 +43,35 @@ def test_side_by_side_forms_are_read_right_to_left():
 
     boxes = form_boxes(reading(left, right))
 
-    assert [box.left for box in boxes] == [510 - MARGIN, 30 - MARGIN]
+    # The right one first. Their margins would share 490-510: each keeps its own half.
+    assert [(box.left, box.right) for box in boxes] == [(500, 970 + MARGIN), (30 - MARGIN, 500)]
 
 
 def test_the_margin_never_leaves_the_page():
     [first, _] = form_boxes(reading([0, 0, 500, 1000], [500, 0, 1000, 1000]))
 
     assert (first.top, first.left, first.right) == (0, 0, 1000)
+
+
+def test_no_part_of_the_page_is_cut_into_two_forms():
+    # The model's edges are loose: 460-540 is in both boxes. A sticker there would be
+    # read into both patients' records.
+    top, bottom = form_boxes(reading([0, 0, 540, 1000], [460, 0, 1000, 1000]))
+
+    assert top.bottom == bottom.top == 500
+
+
+def test_four_forms_in_a_grid_share_nothing():
+    boxes = form_boxes(
+        reading([0, 0, 520, 520], [0, 480, 520, 1000], [480, 0, 1000, 520], [480, 480, 1000, 1000])
+    )
+
+    assert len(boxes) == 4
+    for i, a in enumerate(boxes):
+        for b in boxes[i + 1 :]:
+            shared_height = min(a.bottom, b.bottom) - max(a.top, b.top)
+            shared_width = min(a.right, b.right) - max(a.left, b.left)
+            assert shared_height <= 0 or shared_width <= 0
 
 
 @pytest.mark.parametrize(

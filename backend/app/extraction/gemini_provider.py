@@ -131,7 +131,9 @@ class GeminiProvider:
     def _fingerprint(
         self, config: types.GenerateContentConfig, prompt: str, schema: type[BaseModel]
     ) -> str:
-        schema_json = json.dumps(schema.model_json_schema(), sort_keys=True)
+        # Not sort_keys: Gemini writes the answer in the order of the properties, so a
+        # new order is a new answer, and the cache must not hand back the old one.
+        schema_json = json.dumps(schema.model_json_schema())
         thinking = config.thinking_config.thinking_level
         resolution = config.media_resolution
         return "\n".join((self._model, str(thinking), str(resolution), prompt, schema_json))
