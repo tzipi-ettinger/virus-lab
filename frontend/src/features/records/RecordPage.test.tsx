@@ -231,7 +231,7 @@ describe("RecordPage", () => {
     expect(screen.getByRole("link", { name: /חזרה לרשומות/ }).getAttribute("href")).toBe("/records");
   });
 
-  test("the header says who received and last changed it, and the window lists every action", async () => {
+  test("the history button beside approve opens a window that lists every action", async () => {
     history = [
       { at: "2026-10-19T09:00:00Z", action: "created", field: null, username: "legacy", display_name: "לפני הכניסה" },
       { at: "2026-10-22T07:14:00Z", action: "corrected", field: "national_id", username: "dana", display_name: "דנה" },
@@ -240,9 +240,8 @@ describe("RecordPage", () => {
     serve(200, record());
     renderPage();
 
-    const open = await screen.findByRole("button", { name: "היסטוריה מלאה (3)" });
-    expect(screen.getByText("נקלט על ידי", { exact: false }).textContent).toBe("נקלט על ידי לפני הכניסה");
-    expect(screen.getByText("שונה לאחרונה על ידי", { exact: false }).textContent).toBe("שונה לאחרונה על ידי רחל");
+    const open = await screen.findByRole("button", { name: "היסטוריה (3)" });
+    expect(open.closest(".record-actions")).not.toBeNull(); // no line of its own: the page fits the screen
     expect(screen.queryByRole("dialog")).toBeNull();
 
     await userEvent.click(open);
