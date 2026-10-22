@@ -1,6 +1,6 @@
 // The record picked in the review list, open for review (PLAN-DEV-B 3.1): its
-// original page on top, small until asked to grow, then each field edited in place,
-// then approve, delete and "next to fix". The field under the pointer or in focus is
+// original page, whole, then each field edited in place, then approve, delete and
+// "next to fix". Side by side when the panel is wide, one under the other when not. The field under the pointer or in focus is
 // boxed on the page, where the model read it (field boxes).
 // Owner: B
 
@@ -67,52 +67,56 @@ export function RecordPanel({ record, records, onSelect, onRecords, onRemoved }:
         </span>
       </div>
 
-      <div className={expanded ? "record-panel-preview is-expanded" : "record-panel-preview"} {...areaProps}>
-        <DocumentPreview record={record} highlight={highlight} />
-        <button
-          type="button"
-          className="record-panel-toggle"
-          aria-expanded={expanded}
-          onClick={() => setExpanded((open) => !open)}
-        >
-          {expanded ? "הקטנת הטופס" : "הגדלת הטופס"}
-        </button>
-      </div>
-
-      {/* Keyed by the record, so an editor left open doesn't carry over to the next one. */}
-      <table key={record.record_id} className="record-panel-fields" {...areaProps}>
-        <tbody>
-          {FIELD_COLUMNS.map((c) => (
-            <tr key={c.name} {...rowProps(c.name)}>
-              <th scope="row">{c.title}</th>
-              <FieldCell
-                title={c.title}
-                field={record.fields[c.name]}
-                editable={editable}
-                onSave={(edit) => saveField(record, c.name, edit)}
-                options={c.name === "sender" && senders.length > 0 ? senders : undefined}
-              />
-            </tr>
-          ))}
-          <tr {...rowProps("central_numbers")}>
-            <th scope="row">מספרים מרכזיים</th>
-            <CentralNumbersCell
-              items={record.central_numbers}
-              editable={editable}
-              onSave={(items) => saveCentrals(record, items)}
-            />
-          </tr>
-        </tbody>
-      </table>
-
-      <div key={`actions-${record.record_id}`} className="record-panel-actions">
-        <ApproveButton record={record} onApprove={approve} />
-        <DeleteButton record={record} onDelete={remove} onDeleted={(gone) => onRemoved(gone.record_id)} />
-        {next && (
-          <button type="button" className="record-panel-next" onClick={() => onSelect(next.record_id)}>
-            הבאה לתיקון ←
+      <div className="record-panel-body">
+        <div className={expanded ? "record-panel-preview is-expanded" : "record-panel-preview"} {...areaProps}>
+          <DocumentPreview record={record} highlight={highlight} fit="page" />
+          <button
+            type="button"
+            className="record-panel-toggle"
+            aria-expanded={expanded}
+            onClick={() => setExpanded((open) => !open)}
+          >
+            {expanded ? "הקטנת הטופס" : "הגדלת הטופס"}
           </button>
-        )}
+        </div>
+
+        <div className="record-panel-side">
+          {/* Keyed by the record, so an editor left open doesn't carry over to the next one. */}
+          <table key={record.record_id} className="record-panel-fields" {...areaProps}>
+            <tbody>
+              {FIELD_COLUMNS.map((c) => (
+                <tr key={c.name} {...rowProps(c.name)}>
+                  <th scope="row">{c.title}</th>
+                  <FieldCell
+                    title={c.title}
+                    field={record.fields[c.name]}
+                    editable={editable}
+                    onSave={(edit) => saveField(record, c.name, edit)}
+                    options={c.name === "sender" && senders.length > 0 ? senders : undefined}
+                  />
+                </tr>
+              ))}
+              <tr {...rowProps("central_numbers")}>
+                <th scope="row">מספרים מרכזיים</th>
+                <CentralNumbersCell
+                  items={record.central_numbers}
+                  editable={editable}
+                  onSave={(items) => saveCentrals(record, items)}
+                />
+              </tr>
+            </tbody>
+          </table>
+
+          <div key={`actions-${record.record_id}`} className="record-panel-actions">
+            <ApproveButton record={record} onApprove={approve} />
+            <DeleteButton record={record} onDelete={remove} onDeleted={(gone) => onRemoved(gone.record_id)} />
+            {next && (
+              <button type="button" className="record-panel-next" onClick={() => onSelect(next.record_id)}>
+                הבאה לתיקון ←
+              </button>
+            )}
+          </div>
+        </div>
       </div>
     </aside>
   );
