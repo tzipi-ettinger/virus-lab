@@ -38,8 +38,10 @@ class ExtractionProvider(Protocol):
 
 @runtime_checkable
 class NameReader(Protocol):
-    async def read_name(self, crop: PageImage) -> NameReading:
-        """The patient's name from an enlarged crop around it. Raises like extract."""
+    async def read_name(self, crop: PageImage, *, deep: bool = False) -> NameReading:
+        """The patient's name from an enlarged crop around it. Raises like extract.
+        `deep`: think longer (Gemini: thinking level high), for a name the first
+        look at the crop wasn't sure of."""
         ...
 
 

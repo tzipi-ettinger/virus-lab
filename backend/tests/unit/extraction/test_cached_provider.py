@@ -141,9 +141,11 @@ class Names(Script):
     def __init__(self, *answers) -> None:
         super().__init__(*answers)
         self.name_calls = 0
+        self.deep_calls = 0
 
-    async def read_name(self, crop: PageImage) -> NameReading:
+    async def read_name(self, crop: PageImage, *, deep: bool = False) -> NameReading:
         self.name_calls += 1
+        self.deep_calls += deep
         return NAME.model_copy(deep=True)
 
 
@@ -176,6 +178,17 @@ def test_a_new_name_prompt_reads_the_crops_again(tmp_path):
     run(CachedProvider(inner, "fp", tmp_path, name_fingerprint="name v2").read_name(PAGE))
 
     assert inner.name_calls == 2
+
+
+def test_the_deep_look_at_a_crop_is_cached_apart_from_the_first(tmp_path):
+    inner = Names()
+    cache = CachedProvider(inner, "fp", tmp_path, name_fingerprint="name fp")
+
+    run(cache.read_name(PAGE))
+    run(cache.read_name(PAGE, deep=True))
+    run(cache.read_name(PAGE, deep=True))
+
+    assert (inner.name_calls, inner.deep_calls) == (2, 1)
 
 
 def test_without_a_name_fingerprint_crops_are_not_cached(tmp_path):

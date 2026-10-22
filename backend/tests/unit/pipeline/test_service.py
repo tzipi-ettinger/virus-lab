@@ -505,7 +505,7 @@ class NameScript(PageScript):
         super().__init__()
         self.crops: list[PageImage] = []
 
-    async def read_name(self, crop: PageImage) -> NameReading:
+    async def read_name(self, crop: PageImage, *, deep: bool = False) -> NameReading:
         self.crops.append(crop)
         return NameReading(
             first_name=NamePart(

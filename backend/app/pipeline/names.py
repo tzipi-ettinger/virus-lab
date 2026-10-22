@@ -21,6 +21,11 @@ it sees, and a name counts as found only when those letters spell it, every one
 read and Hebrew (spelled()). A model that slides into a common name that looks
 alike says "found" about it, but rarely lists its letters to match.
 
+A name the crop leaves unclear gets one more, deeper look at the same crop
+(thinking level high): one more call, only for those pages. The deeper look
+must pass the same check, and a part it isn't sure of keeps the first look's
+reading: thinking longer finds letters, it never lowers the bar.
+
 Owner: A
 """
 
@@ -31,7 +36,7 @@ from app.extraction.provider import ExtractionProvider, NameReader, ProviderErro
 from app.pipeline.assemble import form_id
 from app.pipeline.ingest import SourcePage
 from app.pipeline.orient import OrientedPage
-from app.schemas.extraction import NamePart, RawExtraction, RawField
+from app.schemas.extraction import NamePart, NameReading, RawExtraction, RawField
 
 logger = logging.getLogger(__name__)
 
@@ -62,13 +67,49 @@ async def read_name_closer(
         page_id = form_id(page.file_id, page.page_number)
         logger.warning("name not read again: %s (%s)", page_id, type(exc).__name__)
         return replace(oriented, calls=oriented.calls + 1)
-    merged = extraction.model_copy(
+    calls = oriented.calls + 1
+    merged = _merge_both(extraction, closer)
+    if _needs_review(merged):
+        calls += 1
+        try:
+            deeper = await provider.read_name(crop, deep=True)
+        except (ProviderError, QuotaExhausted) as exc:
+            # The first look stands: it was read, and is already sent to review.
+            page_id = form_id(page.file_id, page.page_number)
+            logger.warning("name not read deeper: %s (%s)", page_id, type(exc).__name__)
+        else:
+            merged = _merge_both(extraction, _surer(closer, deeper))
+    return replace(oriented, extraction=merged, calls=calls)
+
+
+def _merge_both(extraction: RawExtraction, closer: NameReading) -> RawExtraction:
+    return extraction.model_copy(
         update={
             "first_name": merge(extraction.first_name, closer.first_name),
             "last_name": merge(extraction.last_name, closer.last_name),
         }
     )
-    return replace(oriented, extraction=merged, calls=oriented.calls + 1)
+
+
+def _needs_review(extraction: RawExtraction) -> bool:
+    return "unclear" in (extraction.first_name.status, extraction.last_name.status)
+
+
+def _surer(first: NameReading, deeper: NameReading) -> NameReading:
+    """Each part from the deeper look where it is sure, else from the first look."""
+    return NameReading(
+        first_name=deeper.first_name if is_sure(deeper.first_name) else first.first_name,
+        last_name=deeper.last_name if is_sure(deeper.last_name) else first.last_name,
+    )
+
+
+def is_sure(closer: NamePart) -> bool:
+    """A crop's name part that counts as found: said found, and its letters spell it."""
+    return closer.status == "found" and spelled(_tidy(closer.value), closer.letters)
+
+
+def _tidy(value: str | None) -> str:
+    return " ".join((value or "").split())
 
 
 def name_area(extraction: RawExtraction) -> Box | None:
@@ -92,10 +133,9 @@ def name_area(extraction: RawExtraction) -> Box | None:
 def merge(page_read: RawField, closer: NamePart) -> RawField:
     """One name part after both reads. The box stays the page read's: the crop's
     coordinates mean nothing on the page."""
-    value = " ".join((closer.value or "").split())
-    if closer.status == "found" and spelled(value, closer.letters):
+    if is_sure(closer):
         return page_read.model_copy(
-            update={"value": value, "status": "found", "evidence": closer.evidence}
+            update={"value": _tidy(closer.value), "status": "found", "evidence": closer.evidence}
         )
     if closer.status == "not_found" and page_read.status != "found":
         return page_read  # nothing new: the page read wasn't sure of a name either

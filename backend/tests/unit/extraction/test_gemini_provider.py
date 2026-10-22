@@ -602,6 +602,22 @@ def test_the_name_prompt_reads_the_handwriting_and_never_guesses():
     assert "upside down" in prompt  # the page read can take an upside-down page as upright
 
 
+def test_a_deep_look_at_a_crop_thinks_high_and_changes_nothing_else():
+    client = FakeClient(NAME_ANSWER, NAME_ANSWER)
+    gemini = provider(client)
+
+    run(gemini.read_name(CROP))
+    run(gemini.read_name(CROP, deep=True))
+
+    first, deep = (call["config"] for call in client.calls)
+    assert first.thinking_config.thinking_level == types.ThinkingLevel.LOW
+    assert deep.thinking_config.thinking_level == types.ThinkingLevel.HIGH
+    assert deep.response_schema is NameReading
+    assert deep.media_resolution == first.media_resolution
+    assert client.calls[1]["contents"][1] == "NAME PROMPT"
+    assert "deep: " in gemini.name_fingerprint  # a new deep level reads the crops again
+
+
 def test_the_name_read_has_its_own_fingerprint():
     base = provider(FakeClient(ANSWER))
     new_name_prompt = provider(FakeClient(ANSWER), name_prompt="NAME PROMPT v2")

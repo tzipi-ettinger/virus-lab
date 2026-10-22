@@ -58,15 +58,17 @@ class CachedProvider:
         key = _key(self._fingerprint, page)
         return await self._cached(key, RawExtraction, lambda: self._inner.extract(page))
 
-    async def read_name(self, crop: PageImage) -> NameReading:
-        """For an inner provider that reads names (Gemini, the only one cached)."""
+    async def read_name(self, crop: PageImage, *, deep: bool = False) -> NameReading:
+        """For an inner provider that reads names (Gemini, the only one cached). The
+        deep look at a crop is kept apart from the first one."""
         reader = self._inner
         if not isinstance(reader, NameReader):
             raise TypeError(f"{type(reader).__name__} does not read names")
         if self._name_fingerprint is None:
-            return await reader.read_name(crop)
-        key = _key(self._name_fingerprint, crop)
-        return await self._cached(key, NameReading, lambda: reader.read_name(crop))
+            return await reader.read_name(crop, deep=deep)
+        fingerprint = f"{self._name_fingerprint}\ndeep" if deep else self._name_fingerprint
+        key = _key(fingerprint, crop)
+        return await self._cached(key, NameReading, lambda: reader.read_name(crop, deep=deep))
 
     async def _cached[T: BaseModel](
         self, key: str, schema: type[T], call: Callable[[], Awaitable[T]]

@@ -116,6 +116,10 @@ class GeminiProvider:
         )
         # The same settings, answering in the name's schema.
         self._name_config = self._config.model_copy(update={"response_schema": NameReading})
+        # A second look at a name the first one wasn't sure of: slower, so only then.
+        self._name_deep_config = self._name_config.model_copy(
+            update={"thinking_config": types.ThinkingConfig(thinking_level="high")}
+        )
 
     @property
     def fingerprint(self) -> str:
@@ -125,8 +129,11 @@ class GeminiProvider:
 
     @property
     def name_fingerprint(self) -> str:
-        """The same for read_name: its own prompt and schema."""
-        return self._fingerprint(self._name_config, self._name_prompt, NameReading)
+        """The same for read_name: its own prompt and schema, and the deep look's
+        thinking level (CachedProvider keeps the two looks apart)."""
+        deep = self._name_deep_config.thinking_config.thinking_level
+        base = self._fingerprint(self._name_config, self._name_prompt, NameReading)
+        return f"{base}\ndeep: {deep}"
 
     def _fingerprint(
         self, config: types.GenerateContentConfig, prompt: str, schema: type[BaseModel]
@@ -140,9 +147,10 @@ class GeminiProvider:
         image = types.Part.from_bytes(data=page.jpeg, mime_type="image/jpeg")
         return await self._ask([image, self._prompt], self._config, RawExtraction)
 
-    async def read_name(self, crop: PageImage) -> NameReading:
+    async def read_name(self, crop: PageImage, *, deep: bool = False) -> NameReading:
         image = types.Part.from_bytes(data=crop.jpeg, mime_type="image/jpeg")
-        return await self._ask([image, self._name_prompt], self._name_config, NameReading)
+        config = self._name_deep_config if deep else self._name_config
+        return await self._ask([image, self._name_prompt], config, NameReading)
 
     async def _ask[T: BaseModel](
         self, contents: list, config: types.GenerateContentConfig, schema: type[T]

@@ -60,17 +60,22 @@ class PagesOnly:
 
 
 class Names(PagesOnly):
-    """Answers every crop with `answer`: a NameReading, or an exception to raise."""
+    """Answers a crop with `answer`, and a deep look at it with `deeper` (default
+    `answer`): a NameReading, or an exception to raise."""
 
-    def __init__(self, answer) -> None:
+    def __init__(self, answer, deeper=None) -> None:
         self.answer = answer
+        self.deeper = answer if deeper is None else deeper
         self.crops: list[PageImage] = []
+        self.looks: list[bool] = []  # deep or not, per call
 
-    async def read_name(self, crop: PageImage) -> NameReading:
+    async def read_name(self, crop: PageImage, *, deep: bool = False) -> NameReading:
         self.crops.append(crop)
-        if isinstance(self.answer, BaseException):
-            raise self.answer
-        return self.answer
+        self.looks.append(deep)
+        answer = self.deeper if deep else self.answer
+        if isinstance(answer, BaseException):
+            raise answer
+        return answer
 
 
 def run(provider, page, read):
@@ -96,6 +101,61 @@ def test_a_name_the_page_could_not_read_comes_from_the_crop(source_page):
     [crop] = provider.crops
     assert crop.jpeg.startswith(b"\xff\xd8")
     assert crop.page_number == 1
+
+
+def test_a_name_the_crop_is_sure_of_takes_no_deeper_look(source_page):
+    page_read = oriented(reading(name("יוסף"), EMPTY))
+    provider = Names(NameReading(first_name=closer("ישראל"), last_name=closer(None, "not_found")))
+
+    result = run(provider, source_page, page_read)
+
+    assert provider.looks == [False]  # no name anywhere for the last name: nothing to review
+    assert result.calls == 2
+
+
+def test_a_name_the_crop_is_not_sure_of_gets_a_deeper_look(source_page):
+    page_read = oriented(reading(name("יוסף"), name("סואעד", box=LAST_BOX)))
+    provider = Names(
+        NameReading(first_name=closer(None, "unclear"), last_name=closer("ישראלי")),
+        deeper=NameReading(first_name=closer("ישראל"), last_name=closer(None, "unclear")),
+    )
+
+    result = run(provider, source_page, page_read)
+
+    assert provider.looks == [False, True]
+    assert provider.crops[0] is provider.crops[1]  # the same crop, looked at longer
+    first, last = result.extraction.first_name, result.extraction.last_name
+    # Each part from the look that is sure of it: the deeper look never undoes the first.
+    assert (first.value, first.status) == ("ישראל", "found")
+    assert (last.value, last.status) == ("ישראלי", "found")
+    assert result.calls == 3
+
+
+@pytest.mark.parametrize(
+    "deeper",
+    [
+        # Sure, but its letters don't spell it: the same bar as the first look.
+        NameReading(
+            first_name=closer("יוסף", letters=list("ישראל")),
+            last_name=closer(None, "not_found"),
+        ),
+        NameReading(first_name=closer(None, "unclear"), last_name=closer(None, "not_found")),
+        ProviderError("x"),
+        QuotaExhausted("x"),
+    ],
+)
+def test_a_deeper_look_that_is_not_sure_leaves_the_name_for_review(source_page, deeper):
+    page_read = oriented(reading(name("יוסף"), EMPTY))
+    provider = Names(
+        NameReading(first_name=closer(None, "unclear"), last_name=closer(None, "not_found")),
+        deeper=deeper,
+    )
+
+    result = run(provider, source_page, page_read)
+
+    first = result.extraction.first_name
+    assert (first.value, first.status) == (None, "unclear")
+    assert result.calls == 3  # a failed call counts against the quota too
 
 
 def test_the_crop_is_cut_from_the_page_as_the_model_saw_it(source_page):
