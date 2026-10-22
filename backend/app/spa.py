@@ -1,7 +1,7 @@
 """Serve the built frontend (frontend/dist) from FastAPI (Dev-B plan 2.7).
 
-On the live server the page and the API share one origin, so there is no CORS.
-Only when STATIC_DIR is set, so in the Docker image;
+On the live server the page and the API share one origin: no CORS, and the
+session cookie is first-party. Only when STATIC_DIR is set, so in the Docker image;
 in development Vite serves the page and forwards /api.
 
 Owner: B

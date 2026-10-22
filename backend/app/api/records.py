@@ -15,7 +15,7 @@ from typing import Annotated, Literal
 from fastapi import APIRouter, Depends, Query, Response
 from psycopg_pool import AsyncConnectionPool
 
-from app.api.deps import get_pool, same_origin, utc_now
+from app.api.deps import get_pool, require_user, utc_now
 from app.api.errors import ProblemError
 from app.clock import israel_today
 from app.export import records_export
@@ -32,25 +32,22 @@ from app.schemas.api import (
     RecordPatchResponse,
     RecordSort,
     RecordStatus,
+    User,
 )
 from app.storage import repo, review
 
-# No sign-in (removed 21.10). A change must still come from our own page.
+# Every records endpoint needs a signed-in user (Dev-B plan 2.6).
 router = APIRouter(
     prefix="/api/v1",
-    dependencies=[Depends(same_origin)],
-    responses={
-        403: {
-            "model": Problem,
-            "description": 'A change that did not come from our own page ("origin_not_allowed")',
-        }
-    },
+    dependencies=[Depends(require_user)],
+    responses={401: {"model": Problem, "description": 'No valid session ("unauthenticated")'}},
 )
 
 _NOT_FOUND = {404: {"model": Problem, "description": "No such record"}}
 
 
 PoolDep = Annotated[AsyncConnectionPool, Depends(get_pool)]
+UserDep = Annotated[User, Depends(require_user)]  # the same call as the router's
 NowDep = Annotated[datetime, Depends(utc_now)]
 
 
@@ -109,14 +106,16 @@ async def list_records(
 
 
 @router.post("/records/approve")
-async def approve_many(body: BulkApproveRequest, pool: PoolDep, now: NowDep) -> BulkApproveResponse:
+async def approve_many(
+    body: BulkApproveRequest, pool: PoolDep, user: UserDep, now: NowDep
+) -> BulkApproveResponse:
     """Approve all ready (D20): each record is checked and saved on its own.
 
     Always 200. A record with a field still flagged, a stale version or one already
     approved is listed in `skipped` with the reason, and the others are approved.
     """
     async with pool.connection() as conn:
-        return await review.approve_many(conn, body.items, today=israel_today(now), now=now)
+        return await review.approve_many(conn, body.items, user, today=israel_today(now), now=now)
 
 
 _MEDIA_TYPES = {"csv": "text/csv; charset=utf-8", "json": "application/json"}
@@ -142,6 +141,7 @@ async def export_records(
     filters: FiltersDep,
     export_format: Annotated[ExportFormat, Query(alias="format")],
     pool: PoolDep,
+    user: UserDep,
     now: NowDep,
 ) -> Response:
     """Every record that matches the screen's filters, without paging (D19).
@@ -151,7 +151,7 @@ async def export_records(
     """
     async with pool.connection() as conn:
         records = await _run(
-            review.export_records(conn, export_format=export_format, now=now, **vars(filters))
+            review.export_records(conn, user, export_format=export_format, now=now, **vars(filters))
         )
     filename = records_export.export_filename(export_format, israel_today(now))
     return Response(
@@ -185,7 +185,7 @@ async def get_record(record_id: str, pool: PoolDep) -> Record:
     },
 )
 async def patch_record(
-    record_id: str, body: RecordPatch, pool: PoolDep, now: NowDep
+    record_id: str, body: RecordPatch, pool: PoolDep, user: UserDep, now: NowDep
 ) -> RecordPatchResponse:
     """Correct or confirm fields, rerun apply_rules (SPEC 7.4) and save.
 
@@ -194,7 +194,7 @@ async def patch_record(
     """
     async with pool.connection() as conn:
         return await _run(
-            review.patch_record(conn, record_id, body, today=israel_today(now), now=now)
+            review.patch_record(conn, record_id, body, user, today=israel_today(now), now=now)
         )
 
 
@@ -210,12 +210,12 @@ async def patch_record(
     },
 )
 async def approve_record(
-    record_id: str, body: ApproveRequest, pool: PoolDep, now: NowDep
+    record_id: str, body: ApproveRequest, pool: PoolDep, user: UserDep, now: NowDep
 ) -> Record:
     """Rerun the rules; approve only if no field still needs review (D3)."""
     async with pool.connection() as conn:
         return await _run(
-            review.approve_record(conn, record_id, body, today=israel_today(now), now=now)
+            review.approve_record(conn, record_id, body, user, today=israel_today(now), now=now)
         )
 
 

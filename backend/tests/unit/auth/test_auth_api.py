@@ -7,7 +7,7 @@ from datetime import UTC, datetime, timedelta
 import pytest
 from fastapi.testclient import TestClient
 
-from app.auth.deps import utc_now
+from app.api.deps import utc_now
 from app.auth.passwords import hash_password
 from app.main import create_app
 from app.settings import Settings, get_settings

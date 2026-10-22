@@ -10,7 +10,7 @@ import pytest
 from app.extraction.provider import PageImage
 from app.pipeline.service import ExtractedForm
 from app.rules.engine import apply_rules
-from app.schemas.api import Form
+from app.schemas.api import Form, User
 from app.storage import repo
 from app.storage.db import open_pool
 from app.storage.service import form_saver, save_extracted_page
@@ -18,6 +18,7 @@ from app.storage.service import form_saver, save_extracted_page
 FIXTURES = Path(__file__).parents[2] / "fixtures" / "rules"
 TODAY = date(2026, 10, 19)
 NOW = datetime(2026, 10, 19, 9, 0, tzinfo=UTC)
+USER = User(id="u1", username="tester", display_name="Tester")
 
 
 def make_form(name="clean", *, file_id="f1", page_number=1, continuation_pages=(), **update):
@@ -47,11 +48,22 @@ def images_for(form, file_id=None):
     ]
 
 
-def save(db, form, images=None):
+@pytest.fixture
+def user(db):
+    with db.connect() as conn:
+        conn.execute(
+            "INSERT INTO users (id, username, password_hash, display_name, created_at)"
+            " VALUES (%s, %s, 'x', %s, %s)",
+            (USER.id, USER.username, USER.display_name, NOW),
+        )
+    return USER
+
+
+def save(db, form, images=None, user=USER):
     async def go():
         async with await db.connect_async() as conn:
             return await save_extracted_page(
-                conn, form, images_for(form) if images is None else images, now=NOW
+                conn, form, images_for(form) if images is None else images, user, now=NOW
             )
 
     return db.run(go())
@@ -62,7 +74,7 @@ def rows(db, sql, params=()):
         return conn.execute(sql, params).fetchall()
 
 
-def test_saves_one_record_per_commitment_with_the_form_values(db):
+def test_saves_one_record_per_commitment_with_the_form_values(db, user):
     form = make_form("multi_values")
 
     records = save(db, form)
@@ -76,7 +88,7 @@ def test_saves_one_record_per_commitment_with_the_form_values(db):
     ]
 
 
-def test_returned_records_match_what_is_stored(db):
+def test_returned_records_match_what_is_stored(db, user):
     form = make_form("multi_values")
 
     records = save(db, form)
@@ -88,9 +100,10 @@ def test_returned_records_match_what_is_stored(db):
         assert row["central_numbers"] == [c.model_dump(mode="json") for c in record.central_numbers]
         assert row["issues"] == [i.model_dump(mode="json") for i in record.issues]
         assert row["needs_review"] == record.needs_review
+        assert row["created_by"] == "u1"
 
 
-def test_effective_columns_for_search_and_filters(db):
+def test_effective_columns_for_search_and_filters(db, user):
     form = make_form("clean")
 
     [record] = save(db, form)
@@ -106,7 +119,7 @@ def test_effective_columns_for_search_and_filters(db):
     assert fields.commitment_number.value in row["search_text"]
 
 
-def test_leading_zeros_survive(db):
+def test_leading_zeros_survive(db, user):
     form = make_form("clean")
     national_id = form.fields.national_id.model_copy(update={"value": "000000018"})
     form = form.model_copy(
@@ -121,7 +134,7 @@ def test_leading_zeros_survive(db):
     assert row["fields"]["national_id"]["value"] == "000000018"
 
 
-def test_invalid_date_is_kept_in_fields_but_not_in_the_date_column(db):
+def test_invalid_date_is_kept_in_fields_but_not_in_the_date_column(db, user):
     form = make_form("clean")
     bad = form.fields.received_date.model_copy(update={"value": "31/02/26"})
     form = form.model_copy(update={"fields": form.fields.model_copy(update={"received_date": bad})})
@@ -133,7 +146,7 @@ def test_invalid_date_is_kept_in_fields_but_not_in_the_date_column(db):
     assert row["fields"]["received_date"]["value"] == "31/02/26"
 
 
-def test_saves_every_page_of_the_form_with_its_image(db):
+def test_saves_every_page_of_the_form_with_its_image(db, user):
     form = make_form("clean", page_number=3, continuation_pages=[4, 5])
 
     [record] = save(db, form)
@@ -155,18 +168,19 @@ def test_saves_every_page_of_the_form_with_its_image(db):
     assert {p["mime"] for p in pages} == {"image/jpeg"}
 
 
-def test_a_one_page_form_has_no_continuation_page_ids(db):
+def test_a_one_page_form_has_no_continuation_page_ids(db, user):
     [record] = save(db, make_form("clean"))
 
     assert record.continuation_page_ids == []
 
 
-def test_writes_a_created_event_per_record_without_values(db):
+def test_writes_a_created_event_per_record_without_values(db, user):
     records = save(db, make_form("multi_values"))
 
-    events = rows(db, "SELECT record_id, action, field FROM record_event ORDER BY id")
+    events = rows(db, "SELECT record_id, user_id, action, field FROM record_event ORDER BY id")
     assert events == [
-        {"record_id": r.record_id, "action": "created", "field": None} for r in records
+        {"record_id": r.record_id, "user_id": "u1", "action": "created", "field": None}
+        for r in records
     ]
 
 
@@ -178,7 +192,7 @@ def test_writes_a_created_event_per_record_without_values(db):
         pytest.param(lambda form: images_for(form, file_id="other"), id="another file"),
     ],
 )
-def test_wrong_images_raise_and_save_nothing(db, images):
+def test_wrong_images_raise_and_save_nothing(db, user, images):
     form = make_form("clean", continuation_pages=[2])
 
     with pytest.raises(ValueError, match=form.form_id):
@@ -187,7 +201,7 @@ def test_wrong_images_raise_and_save_nothing(db, images):
     assert rows(db, "SELECT COUNT(*) AS n FROM page") == [{"n": 0}]
 
 
-def test_failed_extraction_is_never_saved(db):
+def test_failed_extraction_is_never_saved(db, user):
     form = make_form("clean").model_copy(update={"processing_status": "error"})
 
     with pytest.raises(ValueError, match="A7"):
@@ -196,7 +210,7 @@ def test_failed_extraction_is_never_saved(db):
     assert rows(db, "SELECT COUNT(*) AS n FROM page") == [{"n": 0}]
 
 
-def test_a_failure_midway_saves_nothing(db, monkeypatch):
+def test_a_failure_midway_saves_nothing(db, user, monkeypatch):
     async def broken(*args, **kwargs):
         raise RuntimeError("disk full")
 
@@ -209,7 +223,7 @@ def test_a_failure_midway_saves_nothing(db, monkeypatch):
         assert rows(db, f"SELECT COUNT(*) AS n FROM {table}") == [{"n": 0}]
 
 
-def test_commitment_already_saved_is_flagged_duplicate(db):
+def test_commitment_already_saved_is_flagged_duplicate(db, user):
     [first] = save(db, make_form("clean", file_id="f1"))
 
     [second] = save(db, make_form("clean", file_id="f2"))
@@ -222,12 +236,12 @@ def test_commitment_already_saved_is_flagged_duplicate(db):
     assert stored["needs_review"] is True
 
 
-def test_two_saves_at_once_with_the_same_commitment_flag_exactly_one(db):
+def test_two_saves_at_once_with_the_same_commitment_flag_exactly_one(db, user):
     async def both():
         async def one(file_id):
             async with await db.connect_async() as conn:
                 form = make_form("clean", file_id=file_id)
-                return await save_extracted_page(conn, form, images_for(form), now=NOW)
+                return await save_extracted_page(conn, form, images_for(form), USER, now=NOW)
 
         return await asyncio.gather(one("f1"), one("f2"))
 
@@ -240,18 +254,18 @@ def test_two_saves_at_once_with_the_same_commitment_flag_exactly_one(db):
     assert sorted(flagged) == [False, True]
 
 
-def test_form_saver_saves_each_form_from_the_pool(db):
+def test_form_saver_saves_each_form_from_the_pool(db, user):
     form = make_form("clean", continuation_pages=[2])
     extracted = ExtractedForm(form=form, images=images_for(form), calls=1, seconds=0.1)
 
     async def go():
         pool = await open_pool(db.url, max_size=1)
         try:
-            return await form_saver(pool)(extracted)
+            return await form_saver(pool, USER)(extracted)
         finally:
             await pool.close()
 
     [record] = db.run(go())
 
     assert len(record.continuation_page_ids) == 1
-    assert rows(db, "SELECT id FROM record") == [{"id": record.record_id}]
+    assert rows(db, "SELECT created_by FROM record") == [{"created_by": "u1"}]

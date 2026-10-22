@@ -36,6 +36,7 @@ from app.schemas.api import (
     RecordPatchResponse,
     RecordSummary,
     SkippedRecord,
+    User,
 )
 from app.storage import repo
 from app.storage.service import _iso_date, search_text
@@ -83,6 +84,8 @@ def to_record(row: dict) -> Record:
         created_at=row["created_at"],
         updated_at=row["updated_at"],
         approved_at=row["approved_at"],
+        approved_by=row["approved_by_username"],
+        updated_by=row["updated_by_username"],
     )
 
 
@@ -168,6 +171,7 @@ MAX_EXPORT = 5000
 
 async def export_records(
     conn: AsyncConnection,
+    user: User,
     *,
     export_format: str,
     now: datetime,
@@ -206,7 +210,7 @@ async def export_records(
                 f"יותר מ־{MAX_EXPORT:,} רשומות. צמצמי את הסינון ונסי שוב",
             )
         await repo.insert_export_log(
-            conn, export_format=export_format, record_count=len(rows), now=now
+            conn, user_id=user.id, export_format=export_format, record_count=len(rows), now=now
         )
     return [to_record(row) for row in rows]
 
@@ -376,15 +380,18 @@ async def _save(conn: AsyncConnection, record: Record, now: datetime) -> None:
     )
 
 
-async def _log(conn, record_id: str, events: Iterable, now: datetime) -> None:
+async def _log(conn, record_id: str, events: Iterable, user: User, now: datetime) -> None:
     for action, field in events:
-        await repo.insert_event(conn, record_id=record_id, action=action, now=now, field=field)
+        await repo.insert_event(
+            conn, record_id=record_id, action=action, user_id=user.id, now=now, field=field
+        )
 
 
 async def patch_record(
     conn: AsyncConnection,
     record_id: str,
     patch: RecordPatch,
+    user: User,
     *,
     today: date,
     now: datetime,
@@ -404,7 +411,7 @@ async def patch_record(
             )
         ruled = await _rerun(conn, record, patched, today=today)
         await _save(conn, ruled, now)
-        await _log(conn, record_id, events, now)
+        await _log(conn, record_id, events, user, now)
 
         shared_events = [
             (action, field) for action, field in events if field != "commitment_number"
@@ -420,7 +427,7 @@ async def patch_record(
                 }
             )
             await _save(conn, await _rerun(conn, sibling, copied, today=today), now)
-            await _log(conn, sibling.record_id, shared_events, now)
+            await _log(conn, sibling.record_id, shared_events, user, now)
 
         saved = to_record(await repo.get_record(conn, record_id))
         siblings = [to_record(await repo.get_record(conn, s["id"])) for s in sibling_rows]
@@ -431,6 +438,7 @@ async def approve_record(
     conn: AsyncConnection,
     record_id: str,
     body: ApproveRequest,
+    user: User,
     *,
     today: date,
     now: datetime,
@@ -453,14 +461,15 @@ async def approve_record(
             )
         if ruled != record:  # e.g. a received date that is now out of range
             await _save(conn, ruled, now)
-        await repo.approve_record(conn, record_id, now=now)
-        await _log(conn, record_id, [("approved", None)], now)
+        await repo.approve_record(conn, record_id, user_id=user.id, now=now)
+        await _log(conn, record_id, [("approved", None)], user, now)
         return to_record(await repo.get_record(conn, record_id))
 
 
 async def approve_many(
     conn: AsyncConnection,
     items: list[BulkApproveItem],
+    user: User,
     *,
     today: date,
     now: datetime,
@@ -475,6 +484,7 @@ async def approve_many(
                     conn,
                     item.record_id,
                     ApproveRequest(version=item.version),
+                    user,
                     today=today,
                     now=now,
                 )
