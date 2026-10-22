@@ -131,11 +131,11 @@ describe("RecordPage", () => {
     expect(screen.getByText(/דורש בדיקה/)).toBeTruthy();
   });
 
-  test("an approved record says when it was approved", async () => {
-    serve(200, record({ status: "approved", approved_at: "2026-10-19T11:05:00Z" }));
+  test("an approved record says who approved it and when", async () => {
+    serve(200, record({ status: "approved", approved_by: "esty", approved_at: "2026-10-19T11:05:00Z" }));
     renderPage();
 
-    expect(await screen.findByText(/אושר ב־19\/10\/2026 14:05/)).toBeTruthy();
+    expect(await screen.findByText(/אושר על ידי esty ב־19\/10\/2026 14:05/)).toBeTruthy();
   });
 
   test("back to the records keeps the filters", async () => {
@@ -197,7 +197,7 @@ describe("RecordPage", () => {
       needs_review: false,
     });
     serve(200, ready, {
-      POST: () => json(200, { ...ready, status: "approved", approved_at: "2026-10-19T11:05:00Z" }),
+      POST: () => json(200, { ...ready, status: "approved", approved_by: "esty", approved_at: "2026-10-19T11:05:00Z" }),
     });
     renderPage();
     await screen.findByRole("heading", { name: "דנה לוי" });
@@ -205,7 +205,7 @@ describe("RecordPage", () => {
     await userEvent.setup().click(screen.getByRole("button", { name: "אישור" }));
 
     expect(call("POST")?.[0]).toBe("/api/v1/records/r1/approve");
-    expect(await screen.findByText(/אושר ב־19\/10\/2026/)).toBeTruthy();
+    expect(await screen.findByText(/אושר על ידי esty/)).toBeTruthy();
     expect(screen.queryByRole("button", { name: /לעריכה/ })).toBeNull();
   });
 
