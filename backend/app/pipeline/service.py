@@ -68,6 +68,8 @@ class ExtractedForm:
 
 # Saves one form and returns its records. Called once per form, never two at a time.
 SaveForm = Callable[[ExtractedForm], Awaitable[list[Record]]]
+# (pages read, pages in the upload): once the files are split, then after each page.
+OnProgress = Callable[[int, int], None]
 
 
 @dataclass(frozen=True)
@@ -99,13 +101,15 @@ async def extract_files(
     max_pages: int,
     max_concurrency: int,
     save_form: SaveForm | None = None,
+    on_progress: OnProgress | None = None,
 ) -> ExtractionResult:
     """Extract every page of every file. Raises TooManyPages before any model call.
 
     An invalid file is reported in `files` and the others go on. `today` is passed
     to the rules (the caller uses clock.israel_today). When `save_form` fails on a
     form, all its pages are reported failed, so the response never shows unsaved
-    records.
+    records. `on_progress` counts a page once it is read or failed, in the order
+    pages finish, before it is grouped and saved.
     """
     if max_concurrency < 1:  # Semaphore(0) would hang the request without an error
         raise ValueError(f"max_concurrency must be at least 1, got {max_concurrency}")
@@ -115,8 +119,19 @@ async def extract_files(
 
     semaphore = asyncio.Semaphore(max_concurrency)
     quota_message: str | None = None
+    pages_done = 0
+    if on_progress is not None:
+        on_progress(0, len(pages))
 
     async def run(page: SourcePage) -> ReadPage | FailedPage:
+        nonlocal pages_done
+        outcome = await read(page)
+        pages_done += 1
+        if on_progress is not None:
+            on_progress(pages_done, len(pages))
+        return outcome
+
+    async def read(page: SourcePage) -> ReadPage | FailedPage:
         nonlocal quota_message
         page_id = form_id(page.file_id, page.page_number)
         try:

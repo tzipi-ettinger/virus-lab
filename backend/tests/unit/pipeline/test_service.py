@@ -444,3 +444,55 @@ def test_a_join_that_fails_keeps_the_page_as_its_own_form_flagged(monkeypatch, c
     assert saver.saved == [1, 2, 3]  # the upload went on
     assert "KeyError" in caplog.text
     assert "ישראל" not in caplog.text
+
+
+def test_progress_counts_every_page_read_or_failed():
+    seen = []
+    provider = PageScript(errors={("a.pdf", 2): ProviderError("המודל לא ענה")})
+
+    asyncio.run(
+        extract_files(
+            [upload(3, "a.pdf"), upload(1, "b.pdf")],
+            provider,
+            max_concurrency=1,
+            on_progress=lambda done, total: seen.append((done, total)),
+            **LIMITS,
+        )
+    )
+
+    assert seen == [(0, 4), (1, 4), (2, 4), (3, 4), (4, 4)]
+
+
+def test_progress_counts_pages_failed_for_the_quota_without_a_call():
+    seen = []
+    provider = PageScript(errors={("forms.pdf", 1): QuotaExhausted("נגמרה")})
+
+    asyncio.run(
+        extract_files(
+            [upload(3)],
+            provider,
+            max_concurrency=1,
+            on_progress=lambda done, total: seen.append((done, total)),
+            **LIMITS,
+        )
+    )
+
+    assert seen[-1] == (3, 3)
+    assert provider.called == [("forms.pdf", 1)]
+
+
+def test_no_progress_for_an_upload_over_the_page_limit():
+    seen = []
+
+    with pytest.raises(TooManyPages):
+        asyncio.run(
+            extract_files(
+                [upload(2, "a.pdf"), upload(2, "b.pdf")],
+                PageScript(),
+                max_concurrency=1,
+                on_progress=lambda done, total: seen.append((done, total)),
+                **{**LIMITS, "max_pages": 3},
+            )
+        )
+
+    assert seen == []

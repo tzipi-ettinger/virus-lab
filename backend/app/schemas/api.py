@@ -267,6 +267,12 @@ class ExtractResponse(BaseModel):
     )
 
 
+# --- GET /api/v1/extract/progress/{upload_id}
+class ExtractProgress(BaseModel):
+    done: int = Field(description="Pages read so far, failed ones included.")
+    total: int = Field(description="Pages in the upload. 0 until the files are split into pages.")
+
+
 # --- PATCH /api/v1/records/{record_id}
 
 

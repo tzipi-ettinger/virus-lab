@@ -141,6 +141,33 @@
   display: none;
 }
 
+.upload-sending {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* Pages read of the file being sent. */
+.upload-progress {
+  display: block;
+  block-size: 4px;
+  max-inline-size: 200px;
+  border-radius: 2px;
+  background: var(--color-border, #dde3e9);
+  overflow: hidden;
+}
+
+.upload-progress-bar {
+  display: block;
+  block-size: 100%;
+  background: var(--color-accent, #0b6e79);
+  transition: inline-size 0.3s ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .upload-progress-bar { transition: none; }
+}
+
 .upload-retry {
   margin-inline-start: auto;
 }

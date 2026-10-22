@@ -42,29 +42,26 @@
         "summary": "Extract",
         "description": "Read every page of every file and save it as pending records.\n\nA file or page that fails is reported in `files` / `failed_pages`, and the\nothers go on. When the daily quota runs out, the answer says whether sending\nthe file again is safe:\n- nothing was saved: 503 quota_exhausted, and the file can be sent again;\n- some pages were saved: 200 with quota_exhausted=true and those records.\n  Sending the file again would save them twice.\nOtherwise 200, unless the request itself is unusable (4xx).",
         "operationId": "extract_api_v1_extract_post",
-        "requestBody": {
-          "content": {
-            "multipart/form-data": {
-              "schema": {
-                "properties": {
-                  "files": {
-                    "items": {
-                      "type": "string",
-                      "format": "binary"
-                    },
-                    "type": "array",
-                    "description": "PDF, JPG or PNG files."
-                  }
+        "parameters": [
+          {
+            "name": "X-Upload-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
                 },
-                "type": "object",
-                "required": [
-                  "files"
-                ]
-              }
-            }
-          },
-          "required": true
-        },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Optional, made by the page (8-64 letters, digits or -). While the upload runs, GET /api/v1/extract/progress/{upload_id} counts its pages.",
+              "title": "X-Upload-Id"
+            },
+            "description": "Optional, made by the page (8-64 letters, digits or -). While the upload runs, GET /api/v1/extract/progress/{upload_id} counts its pages."
+          }
+        ],
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -122,6 +119,89 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "files"
+                ],
+                "properties": {
+                  "files": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "format": "binary"
+                    },
+                    "description": "PDF, JPG or PNG files."
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/extract/progress/{upload_id}": {
+      "get": {
+        "summary": "Extract Progress",
+        "description": "How many pages of a running upload are read. 404 before it starts, after it\nends, and for an id the upload did not send.",
+        "operationId": "extract_progress_api_v1_extract_progress__upload_id__get",
+        "parameters": [
+          {
+            "name": "upload_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Upload Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExtractProgress"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not running (\"upload_not_found\")",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
                 }
               }
             }
@@ -1093,6 +1173,26 @@
           "message"
         ],
         "title": "ErrorInfo"
+      },
+      "ExtractProgress": {
+        "properties": {
+          "done": {
+            "type": "integer",
+            "title": "Done",
+            "description": "Pages read so far, failed ones included."
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total",
+            "description": "Pages in the upload. 0 until the files are split into pages."
+          }
+        },
+        "type": "object",
+        "required": [
+          "done",
+          "total"
+        ],
+        "title": "ExtractProgress"
       },
       "ExtractResponse": {
         "properties": {
