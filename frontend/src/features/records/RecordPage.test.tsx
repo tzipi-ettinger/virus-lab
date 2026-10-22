@@ -120,6 +120,16 @@ describe("RecordPage", () => {
     expect(fetchMock.mock.calls.some(([url]) => url === "/api/v1/records/r1")).toBe(true);
   });
 
+  test("the evidence, cut short on one line, is whole in the tooltip and keeps its own direction", async () => {
+    serve(200, record({ fields: { ...record().fields, sender: field("מכבי", { evidence: "top header: מכבי" }) } }));
+    renderPage();
+
+    await screen.findByRole("heading", { name: "דנה לוי" });
+    const evidence = rowOf("גורם שולח").getByText("top header: מכבי");
+    expect(evidence.getAttribute("dir")).toBe("auto");
+    expect(evidence.closest("[title]")?.getAttribute("title")).toBe("top header: מכבי");
+  });
+
   test("a flagged field says what's wrong", async () => {
     serve(200, record());
     renderPage();

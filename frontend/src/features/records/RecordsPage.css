@@ -547,28 +547,32 @@
   border-radius: var(--radius-lg, 12px);
 }
 
+/* The fields, compact: a line per field, so the whole record fits without scrolling.
+   The value sits beside its confidence, what was read beside how it was read. */
 .record-fields {
   table-layout: fixed;
+  font-size: 0.8125rem;
+  line-height: 1.35;
 }
 
 .record-fields thead th:nth-child(1) {
-  inline-size: 17%;
+  inline-size: 15%;
 }
 
 .record-fields thead th:nth-child(2) {
-  inline-size: 31%;
+  inline-size: 35%;
 }
 
 .record-fields thead th {
-  padding-block: 8px;
+  padding-block: 6px;
   font-size: 0.75rem;
   color: var(--color-text-muted, #52606d);
 }
 
 .record-fields th,
 .record-fields td {
-  padding: 6px 12px;
-  vertical-align: top;
+  padding: 5px 12px;
+  vertical-align: middle;
   white-space: normal;
   overflow-wrap: anywhere;
 }
@@ -604,14 +608,17 @@
   display: none;
 }
 
-/* The value opens its editor on click: plain text, a frame only on hover and focus. */
-/* The value and its "confirm" button side by side, while there is room. */
+/* The value opens its editor on click: plain text, a frame only on hover and focus.
+   The value, its confidence and the "confirm" button on one line, while there is room. */
 .record-page .record-fields .review-cell-value {
-  display: inline-block;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 8px;
   vertical-align: middle;
-  margin-inline: -6px 10px;
-  padding: 2px 6px;
+  margin-inline: -6px 8px;
+  padding: 1px 6px;
   inline-size: auto;
+  max-inline-size: 100%;
   background: none;
   border: 1px solid transparent;
   border-radius: 6px;
@@ -622,36 +629,66 @@
   border-color: var(--color-border-strong, #9fb3c8);
 }
 
+.record-fields .review-value,
+.record-fields .review-confidence {
+  display: inline;
+}
+
 .record-fields .review-value {
-  font-size: 0.9375rem;
+  font-size: 0.875rem;
   font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.record-fields .review-confidence {
+  font-size: 0.75rem;
+  white-space: nowrap;
 }
 
 .record-page .record-fields .review-confirm {
   vertical-align: middle;
-  margin-block: 2px;
-  padding: 2px 10px;
+  margin-block: 0;
+  padding: 1px 8px;
   font-size: 0.75rem;
+  white-space: nowrap;
 }
 
-/* What was read, how, and what is wrong with it: one column, a line each. */
+/* What was read and how, on one line; the issues on a line under it. */
 .record-read > span {
   display: block;
 }
 
-.record-raw {
-  font-weight: 500;
+.record-read > .record-read-line {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-inline-size: 0;
 }
 
+.record-raw {
+  flex: none;
+  max-inline-size: 45%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
+}
+
+/* As wide as its text, so it stays next to the raw value; cut only when too long. */
 .record-evidence {
-  margin-block-start: 2px;
-  font-size: 0.8125rem;
+  flex: 0 1 auto;
+  min-inline-size: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.75rem;
   color: var(--color-text-muted, #52606d);
 }
 
 .record-field-issues {
-  margin-block-start: 4px;
-  font-size: 0.8125rem;
+  margin-block-start: 1px;
+  font-size: 0.75rem;
+  font-weight: 600;
   color: var(--color-warning, #8a5300);
 }
 
