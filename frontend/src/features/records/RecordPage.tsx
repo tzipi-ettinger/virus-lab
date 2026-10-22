@@ -129,30 +129,38 @@ function RecordDetails({ record, backLink, back, onRecord }: DetailsProps) {
   return (
     <div className="record-page">
       <div className="record-main">
-        {backLink}
-        <h1 className="records-title">
-          <bdi>{name || "ללא שם"}</bdi>
-        </h1>
-        <div className="record-actions">
-          <ApproveButton record={record} onApprove={approve} />
-          <DeleteButton record={record} onDelete={remove} onDeleted={() => navigate(back, { replace: true })} />
+        <div className="record-head">
+          {backLink}
+          <h1 className="records-title">
+            <bdi>{name || "ללא שם"}</bdi>
+          </h1>
+          <p className={`records-status is-${status.tone}`}>
+            <span aria-hidden="true">{status.icon}</span>{" "}
+            {record.status === "approved" && record.approved_at
+              ? `אושר ב־${formatDateTime(record.approved_at)}`
+              : status.text}
+          </p>
+          <div className="record-actions">
+            <ApproveButton record={record} onApprove={approve} />
+            <DeleteButton record={record} onDelete={remove} onDeleted={() => navigate(back, { replace: true })} />
+          </div>
         </div>
-        <p className={`records-status is-${status.tone}`}>
-          <span aria-hidden="true">{status.icon}</span>{" "}
-          {record.status === "approved" && record.approved_at
-            ? `אושר ב־${formatDateTime(record.approved_at)}`
-            : status.text}
-        </p>
         <dl className="record-meta">
-          <dt>קובץ</dt>
-          <dd>
-            <bdi>{record.source_file}</bdi>, עמוד {record.page_number}
-            {more.length > 0 && ` (ועמודים ${more.join(", ")})`}
-          </dd>
-          <dt>סוג טופס</dt>
-          <dd>{FORM_TYPE_TEXT[record.form_type]}</dd>
-          <dt>נקלט</dt>
-          <dd>{formatDateTime(record.created_at)}</dd>
+          <div>
+            <dt>קובץ</dt>
+            <dd>
+              <bdi>{record.source_file}</bdi>, עמוד {record.page_number}
+              {more.length > 0 && ` (ועמודים ${more.join(", ")})`}
+            </dd>
+          </div>
+          <div>
+            <dt>סוג טופס</dt>
+            <dd>{FORM_TYPE_TEXT[record.form_type]}</dd>
+          </div>
+          <div>
+            <dt>נקלט</dt>
+            <dd>{formatDateTime(record.created_at)}</dd>
+          </div>
         </dl>
 
         {record.issues.length > 0 && (

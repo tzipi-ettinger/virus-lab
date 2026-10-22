@@ -161,6 +161,68 @@
   inset-block-start: 16px;
 }
 
+/* On a wide screen the record fits the window, nothing to scroll: the page is as high
+   as what is left under the top bar, the details are packed, and the original page
+   takes the rest of the height (a page taller than that scrolls inside its own frame). */
+@media (min-width: 901px) {
+  .layout:has(.record-page) {
+    display: flex;
+    flex-direction: column;
+    block-size: 100svh;
+  }
+
+  .layout:has(.record-page) .layout-bar {
+    padding-block: 8px;
+  }
+
+  .layout:has(.record-page) .layout-main {
+    flex: 1;
+    min-block-size: 0;
+  }
+
+  .record-page {
+    block-size: 100%;
+    box-sizing: border-box;
+    grid-template-rows: minmax(0, 1fr);
+    align-items: stretch;
+    gap: 12px;
+    padding-block: 8px;
+  }
+
+  .record-page > .preview {
+    position: static;
+    min-block-size: 0;
+    gap: 6px;
+    padding: 12px;
+  }
+
+  .record-page .preview-title {
+    font-size: 1rem;
+  }
+
+  .record-page .preview-source,
+  .record-page .preview-highlight {
+    font-size: 0.875rem;
+  }
+
+  .record-page .preview-button {
+    min-block-size: 28px;
+    font-size: 0.875rem;
+  }
+
+  .record-page .preview-frame {
+    flex: 1;
+    min-block-size: 0;
+    max-block-size: none;
+  }
+
+  /* Only a very short window scrolls the details, and then inside their own column. */
+  .record-main {
+    min-block-size: 0;
+    overflow-y: auto;
+  }
+}
+
 @media (max-width: 900px) {
   .record-page {
     grid-template-columns: minmax(0, 1fr);
@@ -174,7 +236,24 @@
 .record-main {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 8px;
+  font-size: 0.875rem;
+}
+
+/* The way back, the name, the status and the actions on one line. */
+.record-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 16px;
+}
+
+.record-head .records-title {
+  font-size: 1.25rem;
+}
+
+.record-head .records-status {
+  margin: 0;
 }
 
 .record-back {
@@ -185,18 +264,33 @@
   display: flex;
   flex-wrap: wrap;
   align-items: flex-start;
-  gap: 12px;
+  gap: 8px;
+  margin-inline-start: auto;
 }
 
+.record-page .record-actions button {
+  padding: 4px 10px;
+}
+
+/* File, form type and intake time side by side. */
 .record-meta {
-  display: grid;
-  grid-template-columns: max-content 1fr;
-  gap: 4px 16px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 20px;
   margin: 0;
+}
+
+.record-meta div {
+  display: flex;
+  gap: 6px;
 }
 
 .record-meta dt {
   color: var(--color-text-muted, #52606d);
+}
+
+.record-meta dt::after {
+  content: ":";
 }
 
 .record-meta dd {
@@ -205,11 +299,16 @@
 
 .record-issues {
   margin: 0;
-  padding: 8px 12px;
+  padding: 6px 10px;
   list-style: none;
   color: var(--color-warning, #8a5300);
   background: var(--color-warning-soft, #fff4db);
   border-radius: var(--radius-md, 8px);
+}
+
+.record-fields th,
+.record-fields td {
+  padding: 5px 8px;
 }
 
 .record-fields tr.is-flagged td {
@@ -223,7 +322,7 @@
 
 .record-evidence {
   white-space: normal;
-  max-inline-size: 280px;
+  max-inline-size: 240px;
   color: var(--color-text-muted, #52606d);
 }
 
