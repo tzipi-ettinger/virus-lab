@@ -125,11 +125,44 @@
   outline-offset: 2px;
 }
 
+/* The filters fill their own row of the toolbar. Each field's flex-basis is
+   the narrowest width it still reads well at, and the grow factor is its share
+   of any extra room. So the fields shrink together as the screen narrows, and
+   only when one would go below its basis does it wrap to the next row. */
+.records-toolbar > .records-filters {
+  flex: 1 1 100%;
+}
+
 .records-filters {
   display: flex;
   flex-wrap: wrap;
   align-items: end;
   gap: 12px;
+}
+
+.records-filters > * {
+  min-inline-size: 0;
+}
+
+.records-filters .records-search {
+  flex: 3 1 240px;
+}
+
+.records-filters .records-filter-status {
+  flex: 0.5 1 110px;
+}
+
+.records-filters .records-check {
+  flex: 0 0 auto;
+}
+
+.records-filters .records-filter-sender,
+.records-filters .records-filter-form {
+  flex: 1.5 1 140px;
+}
+
+.records-filters .records-dates {
+  flex: 2 1 280px;
 }
 
 .records-filters label {
@@ -144,10 +177,12 @@
   flex-direction: row;
   align-items: center;
   padding-block-end: 8px;
+  white-space: nowrap;
 }
 
 .records-filters input,
 .records-filters select {
+  min-inline-size: 0;
   min-block-size: 38px;
   padding: 6px 10px;
   font: inherit;
@@ -174,10 +209,6 @@
   accent-color: var(--color-accent, #1f6fb2);
 }
 
-.records-search input {
-  min-inline-size: 260px;
-}
-
 /* The received-date range: one title over "from – to". */
 .records-dates {
   margin: 0;
@@ -198,6 +229,10 @@
   align-items: center;
   gap: 6px;
   color: var(--color-text-muted, #52606d);
+}
+
+.records-dates-inputs input {
+  flex: 1 1 0;
 }
 
 .records-banner {

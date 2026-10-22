@@ -23,7 +23,7 @@ export function RecordsFilters({ filters, onChange }: Props) {
   return (
     <form className="records-filters" role="search" onSubmit={(event) => event.preventDefault()}>
       <SearchBox value={filters.q} onSearch={(q) => onChange({ q })} />
-      <label>
+      <label className="records-filter-status">
         סטטוס
         <select
           value={filters.status ?? ""}
@@ -42,7 +42,7 @@ export function RecordsFilters({ filters, onChange }: Props) {
         />
         רק דורשות בדיקה
       </label>
-      <label>
+      <label className="records-filter-sender">
         גורם שולח
         <select value={filters.sender} onChange={(e) => onChange({ sender: e.target.value })}>
           <option value="">הכול</option>
@@ -53,7 +53,7 @@ export function RecordsFilters({ filters, onChange }: Props) {
           ))}
         </select>
       </label>
-      <label>
+      <label className="records-filter-form">
         סוג טופס
         <select
           value={filters.formType ?? ""}
