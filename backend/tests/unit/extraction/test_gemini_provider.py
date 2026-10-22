@@ -1,4 +1,5 @@
 import asyncio
+import json
 import logging
 from datetime import UTC, datetime, timedelta
 
@@ -11,10 +12,17 @@ from app.extraction.fake_provider import FIXTURES_DIR
 from app.extraction.gemini_provider import GeminiProvider, load_prompt
 from app.extraction.provider import PageImage, ProviderError, QuotaExhausted
 from app.rules.senders import sender_names
-from app.schemas.extraction import RawExtraction
+from app.schemas.extraction import NameReading, RawExtraction
 
 ANSWER = (FIXTURES_DIR / "03_maccabi_three_centrals.json").read_text(encoding="utf-8")
 PAGE = PageImage("f1", "forms.pdf", 1, 0, b"\xff\xd8 jpeg bytes")
+NAME_ANSWER = json.dumps(
+    {
+        "first_name": {"value": "ישראל", "status": "found", "evidence": "שם פרטי"},
+        "last_name": {"value": "ישראלי", "status": "found", "evidence": "שם משפחה"},
+    }
+)
+CROP = PageImage("f1", "forms.pdf", 1, 0, b"\xff\xd8 the name, enlarged")
 
 
 def api_error(code: int, status: str, *details: dict) -> errors.APIError:
@@ -104,7 +112,13 @@ class Sleeps:
 def provider(clients, sleep=None, **kwargs):
     """One FakeClient, or a list of them: one per key."""
     clients = clients if isinstance(clients, list) else [clients]
-    options = {"max_concurrency": 4, "timeout_s": 60, "prompt": "PROMPT", **kwargs}
+    options = {
+        "max_concurrency": 4,
+        "timeout_s": 60,
+        "prompt": "PROMPT",
+        "name_prompt": "NAME PROMPT",
+        **kwargs,
+    }
     return GeminiProvider(clients, "gemini-test", sleep=sleep or Sleeps(), **options)
 
 
@@ -533,3 +547,55 @@ def test_the_fingerprint_changes_with_the_model_or_the_prompt():
         [FakeClient(ANSWER)], "gemini-other", max_concurrency=1, timeout_s=60, prompt="PROMPT"
     )
     assert other_model.fingerprint != base
+
+
+def test_a_crop_comes_back_as_a_name_reading():
+    client = FakeClient(NAME_ANSWER)
+
+    result = run(provider(client).read_name(CROP))
+
+    assert isinstance(result, NameReading)
+    assert (result.first_name.value, result.last_name.value) == ("ישראל", "ישראלי")
+    [call] = client.calls
+    image, prompt = call["contents"]
+    assert image.inline_data.data == CROP.jpeg
+    assert prompt == "NAME PROMPT"
+    config: types.GenerateContentConfig = call["config"]
+    assert config.response_schema is NameReading
+    # The same settings as a page's, so the two reads differ only in what they see.
+    assert config.thinking_config.thinking_level == types.ThinkingLevel.LOW
+    assert config.media_resolution == types.MediaResolution.MEDIA_RESOLUTION_HIGH
+    assert config.automatic_function_calling.disable
+
+
+def test_a_name_read_moves_on_to_the_next_key_like_a_page():
+    out_of_quota, answers = FakeClient(DAILY), FakeClient(NAME_ANSWER)
+
+    result = run(provider([out_of_quota, answers], now=Clock(MORNING)).read_name(CROP))
+
+    assert result.first_name.value == "ישראל"
+    assert (len(out_of_quota.calls), len(answers.calls)) == (1, 1)
+
+
+def test_a_name_answer_that_does_not_fit_is_a_provider_error():
+    with pytest.raises(ProviderError):
+        run(provider(FakeClient('{"first_name": "ישראל"}')).read_name(CROP))
+
+
+def test_the_name_prompt_reads_the_handwriting_and_never_guesses():
+    prompt = load_prompt(gemini_provider.NAME_PROMPT_FILE)
+
+    assert "<!--" not in prompt
+    assert "כתב יד רהוט" in prompt  # Hebrew cursive, like the page prompt
+    assert "crossed out" in prompt  # the handwritten name, not the one under the line
+    assert "Never guess" in prompt
+    assert "upside down" in prompt  # the page read can take an upside-down page as upright
+
+
+def test_the_name_read_has_its_own_fingerprint():
+    base = provider(FakeClient(ANSWER))
+    new_name_prompt = provider(FakeClient(ANSWER), name_prompt="NAME PROMPT v2")
+
+    assert new_name_prompt.name_fingerprint != base.name_fingerprint
+    assert new_name_prompt.fingerprint == base.fingerprint  # pages already read stay cached
+    assert base.name_fingerprint != base.fingerprint

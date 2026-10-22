@@ -1,5 +1,6 @@
-"""Runs the stages for one upload: split -> extract upright -> assemble -> apply_rules
--> group pages into forms (group.py) -> save each form.
+"""Runs the stages for one upload: split -> extract upright -> read the name again,
+enlarged (names.py) -> assemble -> apply_rules -> group pages into forms (group.py)
+-> save each form.
 
 A few pages at a time, so the model calls overlap. One page failing never stops
 the others (FR-12): it becomes a FailedPage. A used-up quota is the exception:
@@ -37,6 +38,7 @@ from app.pipeline.ingest import (
     SourcePage,
     split_pages_async,
 )
+from app.pipeline.names import read_name_closer
 from app.pipeline.orient import extract_upright
 from app.rules.engine import apply_rules
 from app.schemas.api import ErrorCode, ErrorInfo, FailedPage, FileResult, Form, Record
@@ -140,6 +142,7 @@ async def extract_files(
                     return _failed(page, quota_message, code="QUOTA_EXHAUSTED")
                 started = time.perf_counter()
                 oriented = await extract_upright(provider, page)
+                oriented = await read_name_closer(provider, page, oriented)
             seconds = time.perf_counter() - started
             # Outside the semaphore: it limits model calls, and this is not one.
             saved = await page.render_async(

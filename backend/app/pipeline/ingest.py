@@ -25,6 +25,10 @@ JPEG_QUALITY = 85
 # smaller, since a person reads it on a screen with zoom, and it is kept.
 SAVE_MAX_SIDE_PX = 1600
 SAVE_JPEG_QUALITY = 80
+# The crop for the name's second read (pipeline/names.py) is drawn from the page itself
+# at twice the model image's scale: the handwriting gets more pixels than the whole
+# page can give it, and up to the scan's own resolution, more detail too.
+CROP_SCALE = 2
 ROTATIONS = (0, 90, 180, 270)
 # A PNG of 126KB can hold a 108MP image, and rendering decodes all of it first. 100MP
 # leaves room for a 48MP phone photo and a 600 DPI A4 scan (35MP).
@@ -101,6 +105,47 @@ class SourcePage:
         loop = asyncio.get_running_loop()
         render = partial(self.render, rotation, max_side=max_side, quality=quality)
         return await loop.run_in_executor(_RENDER_THREAD, render)
+
+    def render_crop(
+        self, rotation: int, box: tuple[int, int, int, int], *, scale: float = CROP_SCALE
+    ) -> PageImage:
+        """Part of the page as render(rotation) draws it, `scale` times larger.
+
+        `box` is (top, left, bottom, right) in 0-1000 of that image: the model's
+        box_2d format, so a box read on the model's image cuts the same place.
+        """
+        if rotation not in ROTATIONS:
+            raise ValueError(f"rotation must be one of {ROTATIONS}, got {rotation}")
+        top, left, bottom, right = box
+        if not (0 <= top < bottom <= 1000 and 0 <= left < right <= 1000):
+            raise ValueError(f"box must be a rectangle within 0-1000, got {box}")
+        with pymupdf.open(stream=self._pdf, filetype="pdf") as doc:
+            page = doc[self.page_number - 1]
+            page.set_rotation((page.rotation + rotation) % 360)
+            rect = page.rect  # as turned: the clip is in the same coordinates
+            clip = pymupdf.Rect(
+                rect.x0 + left / 1000 * rect.width,
+                rect.y0 + top / 1000 * rect.height,
+                rect.x0 + right / 1000 * rect.width,
+                rect.y0 + bottom / 1000 * rect.height,
+            )
+            zoom = scale * MAX_SIDE_PX / max(rect.width, rect.height)
+            pixmap = page.get_pixmap(matrix=pymupdf.Matrix(zoom, zoom), clip=clip)
+            jpeg = pixmap.tobytes("jpeg", jpg_quality=JPEG_QUALITY)
+        return PageImage(
+            file_id=self.file_id,
+            filename=self.filename,
+            page_number=self.page_number,
+            rotation=rotation,
+            jpeg=jpeg,
+        )
+
+    async def render_crop_async(
+        self, rotation: int, box: tuple[int, int, int, int], *, scale: float = CROP_SCALE
+    ) -> PageImage:
+        loop = asyncio.get_running_loop()
+        crop = partial(self.render_crop, rotation, box, scale=scale)
+        return await loop.run_in_executor(_RENDER_THREAD, crop)
 
 
 def detect_type(data: bytes) -> str | None:
