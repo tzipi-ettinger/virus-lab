@@ -1044,6 +1044,70 @@
         }
       }
     },
+    "/api/v1/records/{record_id}/history": {
+      "get": {
+        "summary": "Get History",
+        "description": "Who did what to the record and when, oldest first. Never the values (D13).",
+        "operationId": "get_history_api_v1_records__record_id__history_get",
+        "parameters": [
+          {
+            "name": "record_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Record Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/RecordEvent"
+                  },
+                  "title": "Response Get History Api V1 Records  Record Id  History Get"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid session (\"unauthenticated\")",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such record",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/records/{record_id}/approve": {
       "post": {
         "summary": "Approve Record",
@@ -1953,6 +2017,56 @@
         ],
         "title": "RecordCounts",
         "description": "The counters on the records screen.\n\nCounted over the other filters (q, sender, form_type, dates) but not status or\nneeds_review, so they stay put while the user switches between them."
+      },
+      "RecordEvent": {
+        "properties": {
+          "at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "At"
+          },
+          "action": {
+            "type": "string",
+            "enum": [
+              "created",
+              "corrected",
+              "confirmed",
+              "approved"
+            ],
+            "title": "Action"
+          },
+          "field": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Field",
+            "description": "The field, e.g. \"national_id\" or \"central_numbers[0]\"; null for created and approved."
+          },
+          "username": {
+            "type": "string",
+            "title": "Username"
+          },
+          "display_name": {
+            "type": "string",
+            "title": "Display Name",
+            "description": "\"לפני הכניסה\" for what was saved while the site had no sign-in (21.10-22.10)."
+          }
+        },
+        "type": "object",
+        "required": [
+          "at",
+          "action",
+          "field",
+          "username",
+          "display_name"
+        ],
+        "title": "RecordEvent",
+        "description": "One line of a record's history: who did what, to which field, and when.\nNever the values (D13)."
       },
       "RecordFields": {
         "properties": {

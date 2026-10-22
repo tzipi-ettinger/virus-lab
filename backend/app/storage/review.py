@@ -30,6 +30,7 @@ from app.schemas.api import (
     ListItemEdit,
     Record,
     RecordCounts,
+    RecordEvent,
     RecordFields,
     RecordList,
     RecordPatch,
@@ -121,6 +122,15 @@ async def get_record(conn: AsyncConnection, record_id: str) -> Record:
     if row is None:
         raise _not_found()
     return to_record(row)
+
+
+async def get_history(conn: AsyncConnection, record_id: str) -> list[RecordEvent]:
+    """Who created, corrected, confirmed and approved the record, oldest first."""
+    async with conn.transaction():
+        if await repo.get_record(conn, record_id) is None:
+            raise _not_found()
+        rows = await repo.list_events(conn, record_id)
+    return [RecordEvent(**row) for row in rows]
 
 
 async def list_records(

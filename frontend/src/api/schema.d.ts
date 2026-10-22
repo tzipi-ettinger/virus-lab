@@ -227,6 +227,26 @@ export interface paths {
         patch: operations["patch_record_api_v1_records__record_id__patch"];
         trace?: never;
     };
+    "/api/v1/records/{record_id}/history": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get History
+         * @description Who did what to the record and when, oldest first. Never the values (D13).
+         */
+        get: operations["get_history_api_v1_records__record_id__history_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/records/{record_id}/approve": {
         parameters: {
             query?: never;
@@ -593,6 +613,35 @@ export interface components {
              * @description Pending records with a field still flagged.
              */
             needs_review: number;
+        };
+        /**
+         * RecordEvent
+         * @description One line of a record's history: who did what, to which field, and when.
+         *     Never the values (D13).
+         */
+        RecordEvent: {
+            /**
+             * At
+             * Format: date-time
+             */
+            at: string;
+            /**
+             * Action
+             * @enum {string}
+             */
+            action: "created" | "corrected" | "confirmed" | "approved";
+            /**
+             * Field
+             * @description The field, e.g. "national_id" or "central_numbers[0]"; null for created and approved.
+             */
+            field: string | null;
+            /** Username */
+            username: string;
+            /**
+             * Display Name
+             * @description "לפני הכניסה" for what was saved while the site had no sign-in (21.10-22.10).
+             */
+            display_name: string;
         };
         /** RecordFields */
         RecordFields: {
@@ -1330,6 +1379,55 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    get_history_api_v1_records__record_id__history_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                record_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RecordEvent"][];
+                };
+            };
+            /** @description No valid session ("unauthenticated") */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description No such record */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

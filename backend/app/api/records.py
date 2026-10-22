@@ -27,6 +27,7 @@ from app.schemas.api import (
     FormType,
     Problem,
     Record,
+    RecordEvent,
     RecordList,
     RecordPatch,
     RecordPatchResponse,
@@ -169,6 +170,13 @@ async def export_records(
 async def get_record(record_id: str, pool: PoolDep) -> Record:
     async with pool.connection() as conn:
         return await _run(review.get_record(conn, record_id))
+
+
+@router.get("/records/{record_id}/history", responses=_NOT_FOUND)
+async def get_history(record_id: str, pool: PoolDep) -> list[RecordEvent]:
+    """Who did what to the record and when, oldest first. Never the values (D13)."""
+    async with pool.connection() as conn:
+        return await _run(review.get_history(conn, record_id))
 
 
 @router.patch(

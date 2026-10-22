@@ -181,3 +181,35 @@ def test_export_needs_a_known_format(signed_in):
 def test_every_records_endpoint_needs_a_session(client, method, path):
     response = client.request(method, path, json={"version": 1})
     assert response.status_code == 401
+
+
+def test_the_history_says_who_did_what_and_when(signed_in, records):
+    ready = records["ready"]
+    url = f"/api/v1/records/{ready.record_id}"
+    patched = signed_in.patch(
+        url, json={"version": ready.version, "fields": {"sender": {"value": "מכבי"}}}
+    )
+    signed_in.post(f"{url}/approve", json={"version": patched.json()["record"]["version"]})
+
+    response = signed_in.get(f"{url}/history")
+
+    assert response.status_code == 200
+    events = response.json()
+    assert [(e["action"], e["field"]) for e in events] == [
+        ("created", None),
+        ("corrected", "sender"),
+        ("approved", None),
+    ]
+    assert {(e["username"], e["display_name"]) for e in events} == {("dana", "דנה")}
+    assert "מכבי" not in response.text  # never the values (D13)
+
+
+def test_the_history_of_an_unknown_record_is_a_404(signed_in):
+    response = signed_in.get("/api/v1/records/nope/history")
+    assert response.status_code == 404
+    assert response.json()["type"] == "not_found"
+
+
+def test_the_history_needs_sign_in(client, records):
+    response = client.get(f"/api/v1/records/{records['ready'].record_id}/history")
+    assert response.status_code == 401

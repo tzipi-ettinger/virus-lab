@@ -138,6 +138,18 @@ async def insert_event(
     )
 
 
+async def list_events(conn: AsyncConnection, record_id: str) -> list[dict]:
+    """A record's events with who did each, oldest first."""
+    async with conn.cursor(row_factory=dict_row) as cur:
+        await cur.execute(
+            "SELECT e.at, e.action, e.field, u.username, u.display_name"
+            "  FROM record_event e JOIN users u ON u.id = e.user_id"
+            " WHERE e.record_id = %s ORDER BY e.at, e.id",
+            (record_id,),
+        )
+        return await cur.fetchall()
+
+
 # --- Reading records
 
 # A record with what the contract shows next to it: its form's pages and who

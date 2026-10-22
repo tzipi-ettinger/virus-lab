@@ -361,6 +361,27 @@ class BulkApproveResponse(BaseModel):
     skipped: list[SkippedRecord]
 
 
+# --- GET /api/v1/records/{record_id}/history
+
+EventAction = Literal["created", "corrected", "confirmed", "approved"]
+
+
+class RecordEvent(BaseModel):
+    """One line of a record's history: who did what, to which field, and when.
+    Never the values (D13)."""
+
+    at: datetime
+    action: EventAction
+    field: str | None = Field(
+        description='The field, e.g. "national_id" or "central_numbers[0]"; null for '
+        "created and approved."
+    )
+    username: str
+    display_name: str = Field(
+        description='"לפני הכניסה" for what was saved while the site had no sign-in (21.10-22.10).'
+    )
+
+
 # --- Auth (Dev-B plan 2.6): users are created only by scripts/create_user.py
 
 
