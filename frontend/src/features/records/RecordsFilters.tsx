@@ -78,14 +78,6 @@ export function RecordsFilters({ filters, onChange }: Props) {
           />
         </div>
       </fieldset>
-      <label className="records-check">
-        <input
-          type="checkbox"
-          checked={filters.needsReview}
-          onChange={(e) => onChange({ needsReview: e.target.checked })}
-        />
-        רק דורשות בדיקה
-      </label>
     </form>
   );
 }
