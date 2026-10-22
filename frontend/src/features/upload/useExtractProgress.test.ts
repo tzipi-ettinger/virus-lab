@@ -120,7 +120,7 @@ describe("uploadReducer", () => {
   test("progress shows only on the file being sent", () => {
     const [item] = uploadReducer([], addFiles([pdf()]));
     const progress = { done: 3, total: 9 };
-    const sending = uploadReducer([item], { type: "start", key: item.key, at: 1 });
+    const sending = uploadReducer([item], { type: "start", key: item.key });
     expect(uploadReducer(sending, { type: "progress", key: item.key, progress })[0].progress).toEqual(progress);
     // A late answer, after the file finished, is dropped.
     const done = uploadReducer(sending, { type: "finish", key: item.key, outcome: { kind: "done", result: DONE } });
@@ -130,7 +130,7 @@ describe("uploadReducer", () => {
   test("sending again starts the count over", () => {
     const [item] = uploadReducer([], addFiles([pdf()]));
     const counted = [{ ...item, status: "sending" as const, progress: { done: 4, total: 9 } }];
-    expect(uploadReducer(counted, { type: "start", key: item.key, at: 2 })[0].progress).toBeUndefined();
+    expect(uploadReducer(counted, { type: "start", key: item.key })[0].progress).toBeUndefined();
   });
 });
 

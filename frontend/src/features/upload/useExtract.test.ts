@@ -194,10 +194,10 @@ describe("uploadReducer", () => {
     expect(item).toMatchObject({ status: "failed", canRetry: false });
   });
 
-  test("start records when the request went out", () => {
+  test("start marks the file as being sent", () => {
     let items = queued("a.pdf");
-    items = uploadReducer(items, { type: "start", key: items[0].key, at: 1000 });
-    expect(items[0]).toMatchObject({ status: "sending", startedAt: 1000 });
+    items = uploadReducer(items, { type: "start", key: items[0].key });
+    expect(items[0]).toMatchObject({ status: "sending" });
   });
 
   test("interrupted stops the queue: the waiting files are not sent and can be sent again", () => {
@@ -212,7 +212,7 @@ describe("uploadReducer", () => {
 
   test("partial: the file is not offered again, and the files still waiting are not sent", () => {
     let items = queued("a.pdf", "b.pdf", "c.pdf");
-    items = uploadReducer(items, { type: "start", key: items[0].key, at: 0 });
+    items = uploadReducer(items, { type: "start", key: items[0].key });
     items = uploadReducer(items, { type: "finish", key: items[0].key, outcome: { kind: "partial", result: response({ quota_exhausted: true }) } });
     expect(items.map((i) => [i.status, i.canRetry])).toEqual([
       ["partial", false],
@@ -225,7 +225,7 @@ describe("uploadReducer", () => {
 
   test("503 quota: this file and the waiting ones can be sent again", () => {
     let items = queued("a.pdf", "b.pdf");
-    items = uploadReducer(items, { type: "start", key: items[0].key, at: 0 });
+    items = uploadReducer(items, { type: "start", key: items[0].key });
     items = uploadReducer(items, { type: "finish", key: items[0].key, outcome: { kind: "quota", message: "נגמרה המכסה" } });
     expect(items.map((i) => [i.status, i.canRetry])).toEqual([
       ["not_sent", true],
@@ -242,7 +242,7 @@ describe("uploadReducer", () => {
 
   test("an ended session stops the queue: this file and the waiting ones can be sent again", () => {
     let items = queued("a.pdf", "b.pdf");
-    items = uploadReducer(items, { type: "start", key: items[0].key, at: 0 });
+    items = uploadReducer(items, { type: "start", key: items[0].key });
     items = uploadReducer(items, { type: "finish", key: items[0].key, outcome: { kind: "signed_out" } });
     expect(items.map((i) => [i.status, i.canRetry, i.message])).toEqual([
       ["not_sent", true, SIGNED_OUT],

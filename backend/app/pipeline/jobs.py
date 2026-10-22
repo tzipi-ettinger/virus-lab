@@ -1,7 +1,7 @@
 """Uploads read in the background. POST /extract receives the files, starts a job
 and answers 202 at once; the page asks GET /extract/jobs/{job_id} until it is over.
 
-Why: a page can take up to PROVIDER_TIMEOUT_S and a 26-page file several minutes.
+Why: a page can take minutes (there is no time limit on it) and a 26-page file more.
 One request held open that long breaks on any proxy or network timeout, and then
 the page can't tell what was saved. Now the request ends once the files are in.
 

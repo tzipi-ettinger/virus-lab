@@ -133,7 +133,7 @@ def _fake_provider() -> FakeProvider:
 
 @lru_cache
 def _gemini_provider(
-    api_keys: tuple[SecretStr, ...], model: str, max_concurrency: int, timeout_s: int
+    api_keys: tuple[SecretStr, ...], model: str, max_concurrency: int
 ) -> GeminiProvider:
     # One provider per configuration, so its semaphore limits the whole server.
     # The keys stay SecretStr up to here: a traceback through the cache shows ******.
@@ -141,7 +141,6 @@ def _gemini_provider(
         [genai.Client(api_key=key.get_secret_value()) for key in api_keys],
         model,
         max_concurrency=max_concurrency,
-        timeout_s=timeout_s,
     )
 
 
@@ -162,7 +161,6 @@ def get_provider(settings: SettingsDep) -> ExtractionProvider:
                 settings.gemini_keys(),
                 settings.gemini_model,
                 settings.max_concurrency,
-                settings.provider_timeout_s,
             )
             return _cached(gemini) if settings.extraction_cache else gemini
         case unknown:  # a new provider added to Settings but not here

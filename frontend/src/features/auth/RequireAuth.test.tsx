@@ -35,6 +35,7 @@ function renderAt(path: string, state: AuthState, overrides: Partial<Auth> = {})
             }
           >
             <Route path="/records" element={<p>מסך הרשומות</p>} />
+            <Route path="/records/:recordId" element={<p>מסך הרשומה</p>} />
           </Route>
         </Routes>
       </MemoryRouter>
@@ -44,10 +45,11 @@ function renderAt(path: string, state: AuthState, overrides: Partial<Auth> = {})
 }
 
 describe("RequireAuth", () => {
-  test("without a session goes to login, remembering the screen and its filters", () => {
-    renderAt("/records?status=pending", { status: "signed_out" });
+  test("a record link without a session goes to login first, which is told the record", () => {
+    renderAt("/records/r1", { status: "signed_out" });
 
-    expect(screen.getByText("כניסה, ואחר כך /records?status=pending")).toBeTruthy();
+    expect(screen.getByText("כניסה, ואחר כך /records/r1")).toBeTruthy();
+    expect(screen.queryByText("מסך הרשומה")).toBeNull();
   });
 
   test("with a session shows the screen inside the frame", () => {

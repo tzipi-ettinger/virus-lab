@@ -62,23 +62,17 @@ function StatusIcon({ status }: { status: FileStatus }) {
   }
 }
 
-function elapsed(ms: number) {
-  const s = Math.max(0, Math.floor(ms / 1000));
-  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
-}
-
-// Hidden from screen readers: in the aria-live list, the clock and the page
-// count would be read out at every change.
-function Sending({ progress, ms }: { progress?: Progress; ms: number }) {
+// The pages read so far and a bar; no clock (22.10). Hidden from screen readers:
+// in the aria-live list, the page count would be read out at every change.
+function Sending({ progress }: { progress?: Progress }) {
   const pages = progressText(progress);
+  if (!pages || !progress) return null;
   return (
     <span className="upload-sending" aria-hidden="true">
-      {pages ? `${pages} · ${elapsed(ms)}` : elapsed(ms)}
-      {pages && progress && (
-        <span className="upload-progress">
-          <span className="upload-progress-bar" style={{ inlineSize: `${(100 * progress.done) / progress.total}%` }} />
-        </span>
-      )}
+      {pages}
+      <span className="upload-progress">
+        <span className="upload-progress-bar" style={{ inlineSize: `${(100 * progress.done) / progress.total}%` }} />
+      </span>
     </span>
   );
 }
@@ -99,20 +93,11 @@ export function UploadPanel({ onResult, onBusyChange }: UploadPanelProps) {
   const { items, add, retry } = useExtract(onResult);
   const input = useRef<HTMLInputElement>(null);
   const [dragging, setDragging] = useState(false);
-  const [now, setNow] = useState(() => Date.now());
-  const isSending = items.some((i) => i.status === "sending");
   const isBusy = hasUnsentFiles(items);
 
   useEffect(() => {
     onBusyChange?.(isBusy);
   }, [isBusy, onBusyChange]);
-
-  // A file can take minutes; the clock shows it is still being read.
-  useEffect(() => {
-    if (!isSending) return;
-    const id = setInterval(() => setNow(Date.now()), 1000);
-    return () => clearInterval(id);
-  }, [isSending]);
 
   const onDrop = (e: DragEvent) => {
     e.preventDefault();
@@ -183,8 +168,8 @@ export function UploadPanel({ onResult, onBusyChange }: UploadPanelProps) {
                 </span>
                 <span className="upload-name"><bdi>{item.file.name}</bdi></span>
                 <span className="upload-detail">
-                  {item.status === "sending" && item.startedAt ? (
-                    <Sending progress={item.progress} ms={now - item.startedAt} />
+                  {item.status === "sending" ? (
+                    <Sending progress={item.progress} />
                   ) : (
                     detail(item)
                   )}

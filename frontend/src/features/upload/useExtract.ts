@@ -39,9 +39,6 @@ export interface UploadItem {
   message?: string;
   canRetry: boolean;
   result?: ExtractResponse;
-  // Date.now() when the request went out. A file can take minutes, so the panel
-  // shows the time that passed, and the pages read so far.
-  startedAt?: number;
   // From the job while it runs. total is 0 until the file is split.
   progress?: Progress;
 }
@@ -102,7 +99,7 @@ export function classify(status: number, body: unknown): Outcome {
 }
 
 // "8 of 26 pages read", once the server knows how many pages the file has.
-// A one-page file shows only the clock: "0 of 1" says nothing.
+// A one-page file shows only "נקרא…": "0 of 1" says nothing.
 export function progressText(progress: Progress | undefined): string | null {
   if (!progress || progress.total < 2) return null;
   return `נקראו ${progress.done} מתוך ${progress.total} עמודים`;
@@ -194,7 +191,7 @@ async function followJob(
 
 export type Action =
   | { type: "add"; files: { key: string; file: File }[] }
-  | { type: "start"; key: string; at: number }
+  | { type: "start"; key: string }
   | { type: "progress"; key: string; progress: Progress }
   | { type: "finish"; key: string; outcome: Outcome }
   | { type: "retry"; key: string };
@@ -225,7 +222,7 @@ export function uploadReducer(items: UploadItem[], action: Action): UploadItem[]
     case "start":
       return items.map((i) =>
         i.key === action.key
-          ? { ...i, status: "sending", message: undefined, startedAt: action.at, progress: undefined }
+          ? { ...i, status: "sending", message: undefined, progress: undefined }
           : i,
       );
     case "progress":
@@ -299,7 +296,7 @@ export function useExtract(onResult: (result: ExtractResponse) => void) {
     const next = items.find((i) => i.status === "queued");
     if (!next) return;
     sending.current = true;
-    dispatch({ type: "start", key: next.key, at: Date.now() });
+    dispatch({ type: "start", key: next.key });
     const onProgress = (progress: Progress) => dispatch({ type: "progress", key: next.key, progress });
     void sendFile(next.file, { onProgress }).then((outcome) => {
       sending.current = false;

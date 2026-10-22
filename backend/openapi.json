@@ -33,6 +33,9 @@
                 }
               }
             }
+          },
+          "503": {
+            "description": "The database is set but does not answer (\"database\": \"unavailable\")"
           }
         }
       }
