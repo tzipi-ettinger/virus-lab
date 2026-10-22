@@ -31,3 +31,6 @@ backend/tmp
 **/node_modules
 frontend/dist
 frontend/coverage
+
+# The site's own images (the ministry's logo, the favicon) do go in: only these.
+!frontend/public/*.png
