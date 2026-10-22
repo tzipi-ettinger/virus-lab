@@ -1,44 +1,177 @@
-/* Login screen: one card in the middle. Logical properties only (RTL). Owner: B */
+/* Login screen: it opens the site, so it looks like the landing page. The
+   ministry's logo and what the system does on one side, the sign-in card on the
+   other; one column on narrow screens. Logical properties only (RTL). Owner: B */
 
-.login-page {
-  display: grid;
-  place-items: center;
-  min-height: 100svh;
-}
-
-.login-card {
+.login {
+  position: relative;
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  inline-size: min(360px, 100%);
-  padding: 24px;
-  background: var(--color-surface, #fff);
-  border: 1px solid var(--color-border, #dde3e9);
-  border-radius: var(--radius-lg, 12px);
+  min-block-size: 100svh;
+  overflow: hidden;
+  background:
+    radial-gradient(60rem 40rem at 110% -10%, rgb(14 165 198 / 0.16), transparent 60%),
+    radial-gradient(50rem 36rem at -10% 110%, rgb(156 195 59 / 0.18), transparent 60%),
+    var(--color-page, #f2f6fa);
 }
 
-.login-card h1 {
+/* A soft ring of the logo's colors behind the content. */
+.login-glow {
+  position: absolute;
+  inset-block-start: -16rem;
+  inset-inline-start: 30%;
+  inline-size: 44rem;
+  block-size: 44rem;
+  translate: 50% 0;
+  border-radius: 50%;
+  background: conic-gradient(from 90deg, rgb(31 111 178 / 0.14), rgb(14 165 198 / 0.12), rgb(156 195 59 / 0.14), rgb(31 111 178 / 0.14));
+  filter: blur(60px);
+  pointer-events: none;
+}
+
+.login-main {
+  position: relative;
+  flex: 1;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 400px);
+  align-items: center;
+  gap: clamp(32px, 7vw, 104px);
+  inline-size: min(1080px, 100% - 32px);
+  margin-inline: auto;
+  padding-block: clamp(16px, 4vh, 48px);
+}
+
+/* The brand side */
+
+.login-brand {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: clamp(10px, 2vh, 18px);
+}
+
+.login-logo {
+  inline-size: min(300px, 60vw, 26vh);
+  block-size: auto;
+  animation: login-rise 0.6s ease both;
+}
+
+.login-kicker {
   margin: 0;
-  font-size: 1.4rem;
+  padding: 4px 14px;
+  color: var(--color-accent-strong, #17588f);
+  background: rgb(255 255 255 / 0.7);
+  border: 1px solid var(--color-border, #e1e8ef);
+  border-radius: 999px;
+  font-size: 0.875rem;
+  font-weight: 700;
+  animation: login-rise 0.6s 0.05s ease both;
+}
+
+.login-title {
+  margin: 0;
+  color: var(--color-text, #12233a);
+  font-size: clamp(2rem, min(4.6vw, 6.5vh), 3.5rem);
+  font-weight: 800;
+  line-height: 1.12;
+  animation: login-rise 0.6s 0.1s ease both;
+}
+
+.login-title-accent {
+  background: var(--gradient-brand, #1f6fb2);
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+}
+
+.login-points {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 6px 0 0;
+  padding: 0;
+  color: var(--color-text-muted, #56677a);
+  font-size: 1.0625rem;
+  list-style: none;
+  animation: login-rise 0.6s 0.15s ease both;
+}
+
+.login-points li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.login-point-icon {
+  display: grid;
+  flex: none;
+  place-items: center;
+  inline-size: 24px;
+  block-size: 24px;
+  color: #ffffff;
+  background: linear-gradient(120deg, #6f9a1e, var(--color-brand-green, #9cc33b));
+  border-radius: 50%;
+}
+
+/* The sign-in card */
+
+.login-card {
+  position: relative;
+  box-sizing: border-box; /* its width counts the padding, so it fits a phone */
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: clamp(24px, 4vh, 36px) 32px;
+  overflow: hidden;
+  background: rgb(255 255 255 / 0.92);
+  border: 1px solid var(--color-border, #e1e8ef);
+  border-radius: 20px;
+  box-shadow: var(--shadow-raised, 0 16px 40px rgb(18 35 58 / 0.12));
+  backdrop-filter: blur(8px);
+  animation: login-rise 0.6s 0.2s ease both;
+}
+
+/* A strip of the brand gradient along the card's top. */
+.login-card::before {
+  content: "";
+  position: absolute;
+  inset-block-start: 0;
+  inset-inline: 0;
+  block-size: 5px;
+  background: linear-gradient(270deg, var(--color-brand-blue, #1f6fb2), var(--color-brand-teal, #0ea5c6), var(--color-brand-green, #9cc33b));
+}
+
+.login-card h2 {
+  margin: 0;
+  color: var(--color-text, #12233a);
+  font-size: 1.5rem;
+  font-weight: 800;
 }
 
 .login-hint {
-  margin: 0 0 8px;
-  color: var(--color-text-muted, #52606d);
+  margin: -6px 0 6px;
+  color: var(--color-text-muted, #56677a);
 }
 
 .login-card label {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 6px;
   font-weight: 600;
 }
 
 .login-card input {
-  padding: 8px 10px;
+  min-block-size: 46px;
+  padding: 8px 12px;
   font: inherit;
-  border: 1px solid var(--color-border-strong, #9fb3c8);
-  border-radius: var(--radius-md, 8px);
+  background: var(--color-surface, #ffffff);
+  border: 1px solid var(--color-border-strong, #a9bccf);
+  border-radius: var(--radius-md, 10px);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.login-card input:focus {
+  border-color: var(--color-accent, #1f6fb2);
+  box-shadow: 0 0 0 4px var(--color-accent-soft, #e7f1fa);
 }
 
 .login-card input:focus-visible,
@@ -52,22 +185,37 @@
   padding: 8px 10px;
   color: var(--color-danger, #a12222);
   background: var(--color-danger-soft, #fdecec);
-  border-radius: var(--radius-md, 8px);
+  border-radius: var(--radius-md, 10px);
 }
 
-.login-card button {
-  padding: 10px;
+.login-submit {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-block-size: 50px;
+  margin-block-start: 4px;
+  padding-inline: 20px;
   font: inherit;
-  font-weight: 600;
-  color: #fff;
-  background: var(--color-accent, #0b6e79);
+  font-size: 1.0625rem;
+  font-weight: 700;
+  color: #ffffff;
+  background: var(--gradient-brand, #1f6fb2);
   border: 0;
-  border-radius: var(--radius-md, 8px);
+  border-radius: 999px;
+  box-shadow: 0 8px 24px rgb(31 111 178 / 0.3);
   cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
 }
 
-.login-card button:disabled {
-  opacity: 0.6;
+.login-submit:not(:disabled):hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 28px rgb(31 111 178 / 0.4);
+}
+
+.login-submit:disabled {
+  opacity: 0.55;
+  box-shadow: none;
   cursor: default;
 }
 
@@ -98,16 +246,122 @@
   inline-size: 36px;
   block-size: 36px;
   padding: 0;
-  color: var(--color-text-muted, #52606d);
+  color: var(--color-text-muted, #56677a);
   background: none;
-  border-radius: var(--radius-md, 8px);
+  border: 0;
+  border-radius: var(--radius-md, 10px);
+  cursor: pointer;
 }
 
 .login-card .login-eye:hover {
-  color: var(--color-accent, #0b6e79);
+  color: var(--color-accent, #1f6fb2);
   background: var(--color-surface-muted, #f5f8fb);
 }
 
 .login-card .login-eye[aria-pressed="true"] {
-  color: var(--color-accent, #0b6e79);
+  color: var(--color-accent, #1f6fb2);
+}
+
+.login-footer {
+  position: relative;
+  padding: 8px 16px 12px;
+  color: var(--color-text-muted, #56677a);
+  font-size: 0.8125rem;
+  text-align: center;
+}
+
+@keyframes login-rise {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+}
+
+/* Short laptop windows: a smaller logo, and the list steps aside. */
+@media (max-height: 640px) {
+  .login-logo {
+    inline-size: min(240px, 60vw, 22vh);
+  }
+
+  .login-points {
+    display: none;
+  }
+}
+
+/* Phones and narrow windows: one column, the logo and title above the card. */
+@media (max-width: 860px) {
+  .login-main {
+    grid-template-columns: minmax(0, 1fr);
+    justify-items: center;
+    align-content: center;
+    gap: clamp(16px, 3vh, 28px);
+    padding-block: clamp(12px, 3vh, 32px) 4px;
+  }
+
+  .login-brand {
+    align-items: center;
+    gap: clamp(6px, 1.4vh, 12px);
+    text-align: center;
+  }
+
+  .login-logo {
+    inline-size: min(220px, 55vw, 18vh);
+  }
+
+  .login-kicker {
+    font-size: 0.8125rem;
+  }
+
+  .login-title {
+    font-size: clamp(1.5rem, min(7vw, 4.5vh), 2.25rem);
+  }
+
+  .login-points {
+    display: none;
+  }
+
+  .login-card {
+    inline-size: min(100%, 400px);
+    padding-inline: 22px;
+  }
+
+  .login-footer {
+    padding: 4px 16px 8px;
+    font-size: 0.75rem;
+  }
+}
+
+/* Small phones: a smaller logo and a tighter card, so it all fits one screen. */
+@media (max-width: 860px) and (max-height: 700px) {
+  .login-logo {
+    inline-size: min(180px, 45vw, 14vh);
+  }
+
+  .login-kicker {
+    display: none;
+  }
+
+  .login-card {
+    gap: 10px;
+    padding-block: 20px;
+  }
+}
+
+/* A phone on its side: the title on one line. */
+@media (max-height: 480px) {
+  .login-title br {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .login *,
+  .login-submit {
+    animation: none;
+    transition: none;
+  }
+
+  .login-submit:not(:disabled):hover {
+    transform: none;
+  }
 }
