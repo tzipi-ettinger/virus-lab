@@ -201,3 +201,63 @@
   padding: 4px 12px;
   font-size: 0.875rem;
 }
+
+/* Above the fields: what is left to fix, each a button to it, or that all is good. */
+.record-panel-summary {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: var(--radius-md, 10px);
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.record-panel-summary.is-flagged {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  color: var(--color-warning, #8a5300);
+  background: var(--color-warning-soft, #fff4db);
+  border: 1px solid var(--color-warning-border, #d9a514);
+}
+
+.record-panel-summary.is-ready {
+  color: var(--color-success, #1e6b3a);
+  background: var(--color-success-soft, #e6f4ea);
+  border: 1px solid var(--color-success, #1e6b3a);
+}
+
+.record-panel-summary-title {
+  margin: 0;
+  font-weight: 700;
+}
+
+.record-panel-summary-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.record-panel-summary-chip {
+  min-block-size: 30px;
+  padding-inline: 12px;
+  color: var(--color-warning, #8a5300);
+  background: var(--color-surface, #ffffff);
+  border: 1px solid var(--color-warning-border, #d9a514);
+  border-radius: 999px;
+  font: inherit;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.record-panel-summary-chip:hover {
+  background: var(--color-warning-soft, #fff4db);
+}
+
+.record-panel-summary-chip:focus-visible {
+  outline: 3px solid var(--color-focus, #1d4ed8);
+  outline-offset: 2px;
+}

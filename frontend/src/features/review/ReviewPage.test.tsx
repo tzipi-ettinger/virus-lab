@@ -161,6 +161,15 @@ describe("ReviewPage", () => {
     expect(within(panel()).getByRole("heading", { name: "דנה לוי" })).toBeTruthy();
   });
 
+  test("a flagged record lists what is left, and a click opens that field", async () => {
+    const user = await upload([toFix()]);
+
+    expect(within(panel()).getByText(/נשאר שדה אחד לתיקון/)).toBeTruthy();
+    await user.click(within(panel()).getByRole("button", { name: "ת״ז" }));
+
+    expect(document.activeElement).toBe(within(panel()).getByRole("textbox", { name: "עריכת ת״ז" }));
+  });
+
   test("an approved record is read-only in the panel", async () => {
     await upload([record({ status: "approved" })]);
 
