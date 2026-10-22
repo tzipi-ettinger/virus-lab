@@ -116,9 +116,10 @@ export interface paths {
         };
         /**
          * Extract Job
-         * @description How far the upload got, and its answer once it is over. 404 for another
-         *     user's job, and for any job after a server restart or FINISHED_TTL_S after it
-         *     ended: some forms may be saved, so the page checks the records screen.
+         * @description How far the upload got, and its answer once it is over. Any signed-in user
+         *     may ask, as everyone sees everyone's records. 404 after a server restart, or
+         *     FINISHED_TTL_S after the job ended: some forms may be saved, so the page checks
+         *     the records screen.
          */
         get: operations["extract_job_api_v1_extract_jobs__job_id__get"];
         put?: never;

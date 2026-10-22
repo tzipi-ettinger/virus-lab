@@ -105,12 +105,15 @@ def test_an_unknown_job_is_404(client):
     assert response.json()["type"] == "job_not_found"
 
 
-def test_another_users_job_is_404(client, signed_in):
+def test_another_user_sees_the_job_too(client, signed_in):
+    # As on the records screen: everyone sees everyone's uploads.
     response = client.post("/api/v1/extract", files=upload(("a.pdf", make_pdf(1))))
 
     signed_in["user"] = OTHER
+    polled = job_of(client, response.json()["job_id"])
 
-    assert job_of(client, response.json()["job_id"]).status_code == 404
+    assert polled.status_code == 200
+    assert polled.json()["job_id"] == response.json()["job_id"]
 
 
 def test_too_many_uploads_at_once_are_refused_before_reading(client):
@@ -133,4 +136,4 @@ def test_a_refused_request_starts_no_job(client):
 
     assert refused.status_code == 415
     assert accepted.status_code == 202  # the refused one took no place
-    assert jobs.get(accepted.json()["job_id"], SIGNED_IN.id) is not None
+    assert jobs.get(accepted.json()["job_id"]) is not None
