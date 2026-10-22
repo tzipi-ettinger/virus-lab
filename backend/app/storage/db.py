@@ -119,6 +119,10 @@ async def open_pool(database_url: str, *, max_size: int = 5) -> AsyncConnectionP
         min_size=1,
         max_size=max_size,
         kwargs={"row_factory": dict_row},
+        # Each connection is checked before a request gets it, and a dead one is
+        # replaced. Without this, after a database restart or failover (Render's
+        # maintenance), the next requests got the pool's dead connections and failed.
+        check=AsyncConnectionPool.check_connection,
         open=False,
     )
     await pool.open(wait=True, timeout=10)
