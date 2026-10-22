@@ -14,6 +14,7 @@ import { CentralNumbersCell } from "./CentralNumbersCell";
 import { DeleteButton } from "./DeleteButton";
 import { DuplicateNotice } from "./DuplicateNotice";
 import { FieldCell } from "./FieldCell";
+import { idProblem } from "./nationalId";
 import { useRecordMutations, type ApiRecord } from "./recordMutations";
 import { FIELD_COLUMNS, FORM_TYPE_TEXT, nextToFix, type FieldName } from "./reviewRows";
 import "./RecordPanel.css";
@@ -94,6 +95,7 @@ export function RecordPanel({ record, records, onSelect, onRecords, onRemoved }:
                     editable={editable}
                     onSave={(edit) => saveField(record, c.name, edit)}
                     options={c.name === "sender" && senders.length > 0 ? senders : undefined}
+                    check={c.name === "national_id" ? idProblem : undefined}
                   />
                 </tr>
               ))}

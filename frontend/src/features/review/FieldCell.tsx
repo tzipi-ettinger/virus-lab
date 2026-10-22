@@ -4,7 +4,7 @@
 // sets the new flags.
 // Owner: B
 
-import { useRef, useState, type KeyboardEvent } from "react";
+import { useId, useRef, useState, type KeyboardEvent } from "react";
 import type { components } from "../../api/schema";
 import type { FieldEdit, Saved } from "./recordMutations";
 import { CONFIDENCE_TEXT, fieldCell } from "./reviewRows";
@@ -18,14 +18,18 @@ interface FieldCellProps {
   onSave: (edit: FieldEdit) => Promise<Saved>;
   /** A closed list (the senders): edited with a dropdown that saves on pick. */
   options?: string[];
+  /** A check while typing (the ID's check digit): the problem, or null. Saving still works. */
+  check?: (text: string) => string | null;
 }
 
-export function FieldCell({ title, field, editable, onSave, options }: FieldCellProps) {
+export function FieldCell({ title, field, editable, onSave, options, check }: FieldCellProps) {
   const cell = fieldCell(field);
   const [draft, setDraft] = useState<string | null>(null); // null: not editing
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const cancelled = useRef(false);
+  const hintId = useId();
+  const problem = draft !== null && !options && check ? check(draft) : null;
 
   async function save(edit: FieldEdit, keepOpen: boolean) {
     setBusy(true);
@@ -99,8 +103,10 @@ export function FieldCell({ title, field, editable, onSave, options }: FieldCell
         </select>
       ) : draft !== null ? (
         <input
-          className="review-cell-input"
+          className={problem ? "review-cell-input is-invalid" : "review-cell-input"}
           aria-label={`עריכת ${title}`}
+          aria-invalid={problem ? true : undefined}
+          aria-describedby={check ? hintId : undefined}
           value={draft}
           disabled={busy}
           autoFocus
@@ -126,6 +132,12 @@ export function FieldCell({ title, field, editable, onSave, options }: FieldCell
         </button>
       ) : (
         content
+      )}
+      {check && draft !== null && !options && (
+        // Always there while editing, so screen readers hear a problem as it shows.
+        <span id={hintId} className="review-cell-hint" aria-live="polite">
+          {problem}
+        </span>
       )}
       {draft === null && editable && field.needs_review && (
         // The value is right as it is: the flag goes, the issue stays shown.
