@@ -613,7 +613,6 @@
 .record-page .record-fields .review-cell-value {
   display: inline-flex;
   align-items: baseline;
-  gap: 8px;
   vertical-align: middle;
   margin-inline: -6px 8px;
   padding: 1px 6px;
@@ -640,8 +639,10 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* The space is on the label, so an approved record (no button) keeps it too. */
 .record-fields .review-confidence {
-  font-size: 0.75rem;
+  margin-inline-start: 8px;
+  font-size: 0.85em;
   white-space: nowrap;
 }
 
@@ -681,19 +682,101 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 0.75rem;
+  font-size: 0.85em;
   color: var(--color-text-muted, #52606d);
 }
 
 .record-field-issues {
   margin-block-start: 1px;
-  font-size: 0.75rem;
+  font-size: 0.9em;
   font-weight: 600;
   color: var(--color-warning, #8a5300);
 }
 
 .record-field-issues::before {
   content: "⚠ ";
+}
+
+/* A wide screen: the fields fill what is left of the column, the rows share its
+   height, and the text grows with the window's height. Very short windows still
+   scroll, inside the column. */
+@media (min-width: 901px) {
+  .record-main > .record-card {
+    flex: 1 0 auto;
+  }
+
+  .record-fields {
+    block-size: 100%;
+    font-size: clamp(0.8125rem, 0.34rem + 1.07vh, 1.0625rem);
+  }
+
+  .record-fields .review-value {
+    font-size: clamp(0.875rem, 0.43rem + 1.07vh, 1.1875rem);
+  }
+
+  .record-fields th,
+  .record-fields td {
+    padding-inline: clamp(12px, 1.2vw, 20px);
+  }
+}
+
+/* A phone: each field is a small card. Name and value side by side, what was read
+   under them. The column titles stay for screen readers. */
+@media (max-width: 600px) {
+  .record-fields,
+  .record-fields tbody {
+    display: block;
+  }
+
+  .record-fields thead {
+    position: absolute;
+    inline-size: 1px;
+    block-size: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+
+  .record-fields tbody tr {
+    display: grid;
+    grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
+    align-items: baseline;
+    gap: 4px 12px;
+    padding: 10px 14px;
+    border-block-end: 1px solid var(--color-border, #e1e8ef);
+  }
+
+  .record-fields tbody tr:last-child {
+    border-block-end: 0;
+  }
+
+  /* min-inline-size: a long evidence line is cut, it doesn't widen the card. */
+  .record-fields th,
+  .record-fields td {
+    min-inline-size: 0;
+    padding: 0;
+    border: 0;
+  }
+
+  /* The row carries the color now, not its cells. */
+  .record-fields tbody tr > *,
+  .record-fields tbody tr:hover > *,
+  .record-fields tbody tr.is-flagged > *,
+  .record-fields tbody tr.is-flagged:hover > * {
+    background: none;
+  }
+
+  .record-fields td.record-read {
+    grid-column: 1 / -1;
+  }
+
+  .record-fields tr.is-flagged {
+    background: var(--color-warning-soft, #fff4db);
+    box-shadow: inset -4px 0 0 var(--color-warning-border, #d9a514);
+  }
+
+  .record-fields tr.is-flagged th[scope="row"] {
+    border-inline-start: 0;
+  }
 }
 
 .records-export {
