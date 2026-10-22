@@ -30,9 +30,9 @@ class PageImage:
 
 class ExtractionProvider(Protocol):
     async def extract(self, page: PageImage) -> RawExtraction:
-        """Raises ProviderError or QuotaExhausted, and nothing else: a timeout or a
-        malformed answer is a ProviderError, so the pipeline can keep a page's
-        earlier reading instead of losing it to an unexpected exception."""
+        """Raises ProviderError or QuotaExhausted, and nothing else: a malformed
+        answer is a ProviderError, so the pipeline can keep a page's earlier
+        reading instead of losing it to an unexpected exception."""
         ...
 
 

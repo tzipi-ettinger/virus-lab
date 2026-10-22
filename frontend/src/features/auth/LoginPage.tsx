@@ -1,6 +1,6 @@
 // Sign in with a username and password (PLAN-DEV-B 3.1). There is no sign-up:
-// users are created with scripts/create_user. After signing in, back to the
-// screen that asked for it.
+// users are created with scripts/create_user. After signing in, to the upload;
+// only a link to one record goes back to that record (22.10).
 // It is the first screen anyone sees, so it opens the site: the ministry's
 // logo, what the system does, and the sign-in card beside them.
 // Owner: B
@@ -14,6 +14,13 @@ import "./LoginPage.css";
 
 export type LoginRedirect = { from?: string };
 
+const RECORD_LINK = /^\/records\/[^/?#]+$/;
+
+/** Where to go after signing in: the record a link pointed to, or else the upload. */
+function afterLogin(from: string | undefined): string {
+  return from && RECORD_LINK.test(from) ? from : "/upload";
+}
+
 const POINTS = [
   "קורא שבעה שדות מכל טופס, גם בכתב יד",
   "מסמן לבדיקה כל ערך שאינו ודאי",
@@ -23,7 +30,7 @@ const POINTS = [
 export function LoginPage() {
   const { state, login } = useAuth();
   const navigate = useNavigate();
-  const from = (useLocation().state as LoginRedirect | null)?.from ?? "/";
+  const next = afterLogin((useLocation().state as LoginRedirect | null)?.from);
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -31,7 +38,7 @@ export function LoginPage() {
   const [busy, setBusy] = useState(false);
   const [hello] = useState(() => greeting(new Date().getHours()));
 
-  if (state.status === "signed_in") return <Navigate to={from} replace />;
+  if (state.status === "signed_in") return <Navigate to={next} replace />;
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -39,7 +46,7 @@ export function LoginPage() {
     setError(null);
     try {
       await login(username.trim(), password);
-      navigate(from, { replace: true });
+      navigate(next, { replace: true });
     } catch (failure) {
       setPassword("");
       setError(loginError(failure));
