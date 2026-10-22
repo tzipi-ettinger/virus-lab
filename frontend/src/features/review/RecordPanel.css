@@ -105,7 +105,7 @@
    as the panel. The page is shown whole in its column, so nothing scrolls; only a
    very short window scrolls the fields, inside their own column. */
 @media (min-width: 901px) {
-  @container record-panel (min-width: 720px) {
+  @container record-panel (min-width: 640px) {
     .review-page.is-review .record-panel-body {
       flex: 1;
       min-block-size: 0;
@@ -170,7 +170,7 @@
 
 .record-panel-fields th,
 .record-panel-fields td {
-  padding-block: 6px;
+  padding-block: 4px;
   padding-inline: 8px;
   border-block-end: 1px solid var(--color-border, #dde3e9);
   text-align: start;
@@ -178,7 +178,7 @@
 }
 
 .record-panel-fields th {
-  inline-size: 9rem;
+  inline-size: 7.5rem;
   color: var(--color-text-muted, #52606d);
   font-weight: 600;
 }
@@ -205,16 +205,18 @@
 /* Above the fields: what is left to fix, each a button to it, or that all is good. */
 .record-panel-summary {
   margin: 0;
-  padding: 10px 12px;
+  padding: 6px 10px;
   border-radius: var(--radius-md, 10px);
-  font-size: 0.875rem;
+  font-size: 0.8125rem;
   font-weight: 600;
 }
 
+/* One line when it fits: the count, then the fields, wrapping only on a narrow panel. */
 .record-panel-summary.is-flagged {
   display: flex;
-  flex-direction: column;
-  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
   color: var(--color-warning, #8a5300);
   background: var(--color-warning-soft, #fff4db);
   border: 1px solid var(--color-warning-border, #d9a514);
@@ -234,21 +236,21 @@
 .record-panel-summary-list {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
+  gap: 4px;
   margin: 0;
   padding: 0;
   list-style: none;
 }
 
 .record-panel-summary-chip {
-  min-block-size: 30px;
-  padding-inline: 12px;
+  min-block-size: 24px;
+  padding-inline: 10px;
   color: var(--color-warning, #8a5300);
   background: var(--color-surface, #ffffff);
   border: 1px solid var(--color-warning-border, #d9a514);
   border-radius: 999px;
   font: inherit;
-  font-size: 0.8125rem;
+  font-size: 0.75rem;
   font-weight: 700;
   cursor: pointer;
 }
@@ -278,4 +280,77 @@
 
 .record-panel-actions .review-delete:hover {
   background: var(--color-danger-soft, #fdecec);
+}
+
+/* Each field on one line: the value, its label, then "confirm" beside them, so all
+   the fields fit beside the page without scrolling. */
+.record-panel-fields th,
+.record-panel-fields td {
+  vertical-align: middle;
+}
+
+.record-panel-fields .review-cell-value {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 8px;
+  inline-size: auto;
+}
+
+.record-panel-fields .review-value,
+.record-panel-fields .review-confidence {
+  display: inline;
+}
+
+.record-panel-fields .review-list li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 8px;
+}
+
+.record-panel-fields .review-list li + li {
+  margin-block-start: 2px;
+}
+
+/* At the row's far end, so the confirm buttons line up under each other. */
+.record-panel-fields .review-confirm {
+  float: inline-end;
+  margin-block-start: 0;
+  margin-inline-start: 8px;
+  padding: 1px 8px;
+}
+
+.record-panel-fields .review-list .review-confirm {
+  float: none;
+  margin-inline-start: auto;
+}
+
+/* The box above the fields already names what is left, so not again under approve
+   (the button still points to it for screen readers). */
+.record-panel-actions .review-blocking {
+  display: none;
+}
+
+.record-panel-fields .review-list-edit {
+  margin-block-start: 2px;
+}
+
+/* A field to check, gently: a light tint on the whole row and an orange line at its
+   start, instead of a strong block on the value alone. The label still says why. */
+.record-panel-fields tr:has(> .review-cell.is-flagged) {
+  background: color-mix(in srgb, var(--color-warning-soft, #fff4db) 55%, transparent);
+}
+
+.record-panel-fields tr:has(> .review-cell.is-flagged) > th {
+  color: var(--color-warning, #8a5300);
+  box-shadow: inset -3px 0 0 var(--color-warning-border, #d9a514);
+}
+
+.record-panel-fields .review-cell.is-flagged {
+  background: transparent;
+}
+
+.record-panel-fields .review-cell.is-flagged::before {
+  content: none;
 }
