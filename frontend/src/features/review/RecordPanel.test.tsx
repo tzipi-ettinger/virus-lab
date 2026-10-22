@@ -119,3 +119,17 @@ describe("RecordPanel field boxes", () => {
     expect(drawnTop()).toBeNull();
   });
 });
+
+describe("RecordPanel layout", () => {
+  test("the original page is shown whole, with the fields beside it in their own column", () => {
+    panel();
+
+    // Whole: the frame fits the page, so it doesn't scroll until zoomed in.
+    expect(screen.getByRole("button", { name: "עמוד שלם" }).getAttribute("aria-pressed")).toBe("true");
+    expect(screen.getByRole("region", { name: /תמונת העמוד/ }).className).toContain("is-page");
+    // The fields and the actions sit together, apart from the page.
+    const side = screen.getByRole("table").parentElement!;
+    expect(side.className).toBe("record-panel-side");
+    expect(within(side).getByRole("button", { name: /אישור/ })).toBeTruthy();
+  });
+});
