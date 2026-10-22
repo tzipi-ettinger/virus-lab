@@ -4,7 +4,7 @@
 
 import { act, cleanup, renderHook } from "@testing-library/react";
 import { afterEach, describe, expect, test, vi } from "vitest";
-import { hasUnsentFiles, uploadReducer, addFiles, useExtract, type ExtractResponse } from "./useExtract";
+import { POLL_MS, hasUnsentFiles, uploadReducer, addFiles, useExtract, type ExtractResponse } from "./useExtract";
 
 const pdf = (name = "a.pdf") => new File(["%PDF"], name, { type: "application/pdf" });
 
@@ -16,6 +16,7 @@ function leave(): boolean {
 
 afterEach(() => {
   cleanup();
+  vi.useRealTimers();
   vi.unstubAllGlobals();
 });
 
@@ -31,8 +32,16 @@ describe("hasUnsentFiles", () => {
 
 describe("useExtract", () => {
   test("asks before leaving while a file is being sent, and not after", async () => {
+    vi.useFakeTimers();
     let answer: (response: Response) => void = () => {};
-    vi.stubGlobal("fetch", () => new Promise<Response>((resolve) => (answer = resolve)));
+    const posted = new Promise<Response>((resolve) => (answer = resolve));
+    const running = { job_id: "job-1", status: "running", done: 0, total: 1, result: null, problem: null };
+    let body: ExtractResponse | null = null;
+    vi.stubGlobal("fetch", async (_url: string, init?: RequestInit) =>
+      init?.method === "POST"
+        ? posted
+        : new Response(JSON.stringify({ ...running, status: "done", done: 1, result: body }), { status: 200 }),
+    );
     const { result } = renderHook(() => useExtract(() => {}));
 
     expect(leave()).toBe(false); // nothing added yet
@@ -40,13 +49,18 @@ describe("useExtract", () => {
     act(() => result.current.add([pdf()]));
     expect(leave()).toBe(true);
 
-    const body: ExtractResponse = {
+    body = {
       files: [{ file_id: "f1", filename: "a.pdf", page_count: 1, status: "ok", error: null }],
       records: [],
       failed_pages: [],
       quota_exhausted: false,
     };
-    await act(async () => answer(new Response(JSON.stringify(body), { status: 200 })));
+    await act(async () => answer(new Response(JSON.stringify(running), { status: 202 })));
+    expect(leave()).toBe(true); // still being read
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(POLL_MS);
+    });
 
     expect(result.current.items[0].status).toBe("done");
     expect(leave()).toBe(false);

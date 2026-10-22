@@ -285,10 +285,23 @@ class ExtractResponse(BaseModel):
     )
 
 
-# --- GET /api/v1/extract/progress/{upload_id}
-class ExtractProgress(BaseModel):
+# --- POST /api/v1/extract (202) and GET /api/v1/extract/jobs/{job_id}
+class ExtractJob(BaseModel):
+    """An upload read in the background. Ask again until status is not "running"."""
+
+    job_id: str
+    status: Literal["running", "done", "failed"]
     done: int = Field(description="Pages read so far, failed ones included.")
     total: int = Field(description="Pages in the upload. 0 until the files are split into pages.")
+    result: "ExtractResponse | None" = Field(
+        description='status "done": the saved records and the pages that failed.'
+    )
+    problem: "Problem | None" = Field(
+        description='status "failed": why, with the status POST /extract would have '
+        "answered: 413 too_many_pages; 503 quota_exhausted (nothing was saved, so the "
+        "file can be sent again); 500 extraction_stopped (the job broke or the server "
+        "stopped: some forms may be saved, check the records before sending again)."
+    )
 
 
 # --- PATCH /api/v1/records/{record_id}
@@ -425,3 +438,6 @@ class Problem(BaseModel):
         description='type "review_required" only: fields still flagged, e.g. "national_id", '
         '"central_numbers[1]".',
     )
+
+
+ExtractJob.model_rebuild()  # Problem is defined after it
