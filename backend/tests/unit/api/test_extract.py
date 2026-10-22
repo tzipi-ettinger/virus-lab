@@ -1,5 +1,6 @@
 import secrets
 import tempfile
+from contextlib import ExitStack
 from datetime import UTC, datetime
 
 import pytest
@@ -16,7 +17,7 @@ from app.rules.records import build_records
 from app.schemas.api import Record, User
 from app.settings import Settings, get_settings
 from app.storage.service import _to_record
-from tests.unit.api.uploads import QUOTA, Answers, make_pdf, upload
+from tests.unit.api.uploads import QUOTA, Answers, finish, make_pdf, upload
 
 SIGNED_IN = User(id="u1", username="dana", display_name="דנה")
 
@@ -32,24 +33,31 @@ async def unsaved_records(extracted: ExtractedForm) -> list[Record]:
 
 @pytest.fixture
 def make_client():
-    def build(provider=None, save_form=None, **settings):
-        app = create_app()
-        app.dependency_overrides[get_settings] = lambda: Settings(_env_file=None, **settings)
-        app.dependency_overrides[extract.get_provider] = lambda: provider or Answers()
-        app.dependency_overrides[extract.get_save_form] = lambda: save_form or unsaved_records
-        app.dependency_overrides[require_user] = lambda: SIGNED_IN
-        return TestClient(app)
+    # Entered as a context manager: the jobs run on the client's one event loop.
+    with ExitStack() as stack:
 
-    return build
+        def build(provider=None, save_form=None, **settings):
+            settings = Settings(_env_file=None, **settings)
+            app = create_app(settings)
+            app.dependency_overrides[get_settings] = lambda: settings
+            app.dependency_overrides[extract.get_provider] = lambda: provider or Answers()
+            app.dependency_overrides[extract.get_save_form] = lambda: save_form or unsaved_records
+            app.dependency_overrides[require_user] = lambda: SIGNED_IN
+            return stack.enter_context(TestClient(app))
+
+        yield build
+
+
+def read(client, **request) -> dict:
+    """POST /extract, then the job once it is over."""
+    return finish(client, client.post("/api/v1/extract", **request))
 
 
 def test_every_page_comes_back_as_records(make_client):
-    response = make_client().post(
-        "/api/v1/extract", files=upload(("a.pdf", make_pdf(2)), ("b.pdf", make_pdf(1)))
-    )
+    job = read(make_client(), files=upload(("a.pdf", make_pdf(2)), ("b.pdf", make_pdf(1))))
 
-    assert response.status_code == 200
-    body = response.json()
+    assert (job["status"], job["done"], job["total"]) == ("done", 3, 3)
+    body = job["result"]
     assert [(f["filename"], f["page_count"], f["status"]) for f in body["files"]] == [
         ("a.pdf", 2, "ok"),
         ("b.pdf", 1, "ok"),
@@ -68,23 +76,21 @@ def test_every_page_comes_back_as_records(make_client):
 
 
 def test_a_failed_page_is_listed_and_the_others_saved(make_client):
-    response = make_client(provider=Answers(errors={2})).post(
-        "/api/v1/extract", files=upload(("a.pdf", make_pdf(3)))
-    )
+    job = read(make_client(provider=Answers(errors={2})), files=upload(("a.pdf", make_pdf(3))))
 
-    body = response.json()
+    body = job["result"]
     assert [r["page_number"] for r in body["records"]] == [1, 3]
     [failed] = body["failed_pages"]
     assert (failed["page_number"], failed["error"]["message"]) == (2, "המודל לא ענה")
 
 
-def test_an_invalid_file_is_reported_with_status_200(make_client):
+def test_an_invalid_file_is_reported_in_a_done_job(make_client):
     files = [("files", ("notes.docx", b"PK\x03\x04 a .docx", "application/octet-stream"))]
 
-    response = make_client().post("/api/v1/extract", files=files)
+    job = read(make_client(), files=files)
 
-    assert response.status_code == 200
-    [result] = response.json()["files"]
+    assert job["status"] == "done"
+    [result] = job["result"]["files"]
     assert (result["status"], result["error"]["code"]) == ("error", "INVALID_FILE")
 
 
@@ -95,7 +101,7 @@ def test_each_form_is_saved_through_save_form(make_client):
         saved.append(extracted.form.page_number)
         return []
 
-    make_client(save_form=save).post("/api/v1/extract", files=upload(("a.pdf", make_pdf(2))))
+    read(make_client(save_form=save), files=upload(("a.pdf", make_pdf(2))))
 
     assert sorted(saved) == [1, 2]
 
@@ -109,10 +115,9 @@ def test_files_stay_in_memory(make_client, monkeypatch):
     big = make_pdf(noise_px=1000)
     assert len(big) > 2_000_000
 
-    response = make_client().post("/api/v1/extract", files=upload(("big.pdf", big)))
+    job = read(make_client(), files=upload(("big.pdf", big)))
 
-    assert response.status_code == 200
-    assert response.json()["files"][0]["status"] == "ok"
+    assert job["result"]["files"][0]["status"] == "ok"
 
 
 # --- Requests that can't be used at all: application/problem+json
@@ -147,12 +152,17 @@ def test_a_request_over_the_size_limit_is_refused(make_client):
     assert "1MB" in assert_problem(response, 413, "request_too_large")["title"]
 
 
-def test_too_many_pages_across_files(make_client):
-    response = make_client(max_pages_per_request=2).post(
-        "/api/v1/extract", files=upload(("a.pdf", make_pdf(2)), ("b.pdf", make_pdf(1)))
+def test_too_many_pages_across_files_fails_the_job(make_client):
+    # Known only once the files are split, so after the 202.
+    job = read(
+        make_client(max_pages_per_request=2),
+        files=upload(("a.pdf", make_pdf(2)), ("b.pdf", make_pdf(1))),
     )
 
-    assert "3 עמודים" in assert_problem(response, 413, "too_many_pages")["title"]
+    assert (job["status"], job["result"]) == ("failed", None)
+    problem = job["problem"]
+    assert (problem["status"], problem["type"]) == (413, "too_many_pages")
+    assert "3 עמודים" in problem["title"]
 
 
 def test_too_many_files(make_client):
@@ -217,10 +227,9 @@ def test_a_chunked_request_with_no_content_length_is_still_capped(make_client):
 def test_a_chunked_request_under_the_limit_goes_through(make_client):
     body = multipart(("a.pdf", make_pdf(1)))
 
-    response = make_client().post("/api/v1/extract", content=iter([body]), headers=MULTIPART)
+    job = read(make_client(), content=iter([body]), headers=MULTIPART)
 
-    assert response.status_code == 200
-    assert [f["status"] for f in response.json()["files"]] == ["ok"]
+    assert [f["status"] for f in job["result"]["files"]] == ["ok"]
 
 
 def test_an_upload_cut_off_in_the_middle_is_invalid_not_empty(make_client):
@@ -238,10 +247,10 @@ def test_an_upload_cut_off_in_the_middle_is_invalid_not_empty(make_client):
 def test_a_hebrew_file_name_comes_back_as_sent(make_client):
     name = "התחייבויות - חלק 1.pdf"
 
-    response = make_client().post("/api/v1/extract", files=upload((name, make_pdf(1))))
+    result = read(make_client(), files=upload((name, make_pdf(1))))["result"]
 
-    assert response.json()["files"][0]["filename"] == name
-    assert response.json()["records"][0]["source_file"] == name
+    assert result["files"][0]["filename"] == name
+    assert result["records"][0]["source_file"] == name
 
 
 def test_an_empty_file_input_counts_as_no_files(make_client):
@@ -256,13 +265,14 @@ def test_an_empty_file_input_counts_as_no_files(make_client):
 # --- The daily quota runs out: is sending the file again safe?
 
 
-def test_quota_after_a_page_was_saved_is_200_with_the_saved_records(make_client):
-    response = make_client(provider=Answers(quota_from=2), max_concurrency=1).post(
-        "/api/v1/extract", files=upload(("a.pdf", make_pdf(3)))
+def test_quota_after_a_page_was_saved_is_done_with_the_saved_records(make_client):
+    job = read(
+        make_client(provider=Answers(quota_from=2), max_concurrency=1),
+        files=upload(("a.pdf", make_pdf(3))),
     )
 
-    assert response.status_code == 200
-    body = response.json()
+    assert job["status"] == "done"
+    body = job["result"]
     assert body["quota_exhausted"] is True
     assert [r["page_number"] for r in body["records"]] == [1]
     assert [(p["page_number"], p["error"]["code"]) for p in body["failed_pages"]] == [
@@ -271,22 +281,27 @@ def test_quota_after_a_page_was_saved_is_200_with_the_saved_records(make_client)
     ]
 
 
-def test_quota_before_anything_was_saved_is_503(make_client):
-    response = make_client(provider=Answers(quota_from=1)).post(
-        "/api/v1/extract", files=upload(("a.pdf", make_pdf(2)))
-    )
+def quota_problem(job) -> dict:
+    assert (job["status"], job["result"]) == ("failed", None)
+    problem = job["problem"]
+    assert (problem["status"], problem["type"]) == (503, "quota_exhausted")
+    return problem
 
-    body = assert_problem(response, 503, "quota_exhausted")
-    assert body["title"] == QUOTA  # the provider's Hebrew message
+
+def test_quota_before_anything_was_saved_fails_the_job_with_503(make_client):
+    job = read(make_client(provider=Answers(quota_from=1)), files=upload(("a.pdf", make_pdf(2))))
+
+    assert quota_problem(job)["title"] == QUOTA  # the provider's Hebrew message
 
 
 def test_quota_after_a_page_failed_for_another_reason_is_still_503(make_client):
     # Page 1 failed and page 2 hit the quota: nothing was saved, so sending again is safe.
-    response = make_client(provider=Answers(errors={1}, quota_from=2), max_concurrency=1).post(
-        "/api/v1/extract", files=upload(("a.pdf", make_pdf(3)))
+    job = read(
+        make_client(provider=Answers(errors={1}, quota_from=2), max_concurrency=1),
+        files=upload(("a.pdf", make_pdf(3))),
     )
 
-    assert_problem(response, 503, "quota_exhausted")
+    quota_problem(job)
 
 
 def test_gemini_is_one_provider_for_every_request():

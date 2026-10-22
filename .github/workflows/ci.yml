@@ -8,6 +8,10 @@ on:
   pull_request:
   push:
     branches: [main]
+  # Weekly on main, so a new advisory against a pinned dependency (job audit)
+  # shows up even when nobody opens a PR. Sunday 06:00 UTC.
+  schedule:
+    - cron: "0 6 * * 0"
 
 concurrency:
   group: ci-${{ github.ref }}
@@ -161,6 +165,23 @@ jobs:
           retention-days: 7
       - if: always()
         run: docker logs app || true
+
+  # Known vulnerabilities in the pinned dependencies: PyPI's advisories for
+  # requirements.txt, npm's for package-lock.json. Not a required check.
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - run: pip install pip-audit==2.10.1
+      - run: pip-audit --requirement backend/requirements.txt
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: npm audit --audit-level=moderate
+        working-directory: frontend
 
   # No API key, token or private key in any commit. Scans the full history,
   # so a secret added and then deleted in a later commit still fails.

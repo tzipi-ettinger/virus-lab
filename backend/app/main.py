@@ -14,6 +14,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.api import auth, extract, health, records
 from app.api.errors import add_problem_handler
 from app.keep_alive import start_keep_alive, stop_keep_alive
+from app.pipeline.jobs import ExtractJobs
 from app.security import (
     HideUnexpectedErrors,
     SecurityHeaders,
@@ -40,6 +41,8 @@ def _lifespan(settings: Settings):
             yield
         finally:
             await stop_keep_alive(keep_alive)
+            # Before the pool closes: a job still running saves through it.
+            await app.state.jobs.shutdown()
             if app.state.pool is not None:
                 await app.state.pool.close()
 
@@ -65,6 +68,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         **(hidden if settings.production else {}),
     )
     app.state.pool = None  # until the lifespan opens it
+    app.state.jobs = ExtractJobs()  # uploads read in the background (extract.py)
     app.add_middleware(
         CORSMiddleware,
         allow_origins=[settings.frontend_origin],
