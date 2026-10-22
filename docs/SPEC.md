@@ -356,7 +356,8 @@ records(form) =
 | Method | Path | קלט | פלט |
 |---|---|---|---|
 | `GET` | `/api/health` | — | `{"status": "ok", "extraction_provider": "gemini", "extraction_cache": false}` |
-| `POST` | `/api/v1/extract` | `multipart/form-data`, שדה `files` | `ExtractResponse` (9.3). הרשומות כבר נשמרו כממתינות |
+| `POST` | `/api/v1/extract` | `multipart/form-data`, שדה `files`. אופציונלי: `X-Upload-Id` (8–64 אותיות, ספרות או `-`) | `ExtractResponse` (9.3). הרשומות כבר נשמרו כממתינות |
+| `GET` | `/api/v1/extract/progress/{upload_id}` | — | `{done, total}`: כמה עמודים נקראו (כולל שנכשלו) מתוך כמה. `total` הוא 0 עד שהקבצים פוצלו לעמודים. `404 upload_not_found` לפני שההעלאה התחילה ואחרי שהסתיימה. בזיכרון של השרת בלבד, רק מספרים [החלטה, 22.10] |
 | `GET` | `/api/v1/records` | `q`, `status`, `needs_review`, `sender`, `form_type`, `date_from`, `date_to`, `limit`, `offset` | `RecordList {items: RecordSummary[], total, limit, offset, counts}` |
 | `GET` | `/api/v1/records/{id}` | — | `Record` (9.2) |
 | `PATCH` | `/api/v1/records/{id}` | `RecordPatch` (9.4) | `RecordPatchResponse {record, siblings}` |

@@ -2,7 +2,14 @@
 // Owner: A
 
 import { useEffect, useRef, useState, type DragEvent } from "react";
-import { useExtract, type ExtractResponse, type FileStatus, type UploadItem } from "./useExtract";
+import {
+  progressText,
+  useExtract,
+  type ExtractResponse,
+  type FileStatus,
+  type Progress,
+  type UploadItem,
+} from "./useExtract";
 import "./UploadPanel.css";
 
 interface UploadPanelProps {
@@ -55,6 +62,22 @@ function StatusIcon({ status }: { status: FileStatus }) {
 function elapsed(ms: number) {
   const s = Math.max(0, Math.floor(ms / 1000));
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+}
+
+// Hidden from screen readers: in the aria-live list, the clock and the page
+// count would be read out at every change.
+function Sending({ progress, ms }: { progress?: Progress; ms: number }) {
+  const pages = progressText(progress);
+  return (
+    <span className="upload-sending" aria-hidden="true">
+      {pages ? `${pages} · ${elapsed(ms)}` : elapsed(ms)}
+      {pages && progress && (
+        <span className="upload-progress">
+          <span className="upload-progress-bar" style={{ inlineSize: `${(100 * progress.done) / progress.total}%` }} />
+        </span>
+      )}
+    </span>
+  );
 }
 
 function detail(item: UploadItem) {
@@ -152,9 +175,7 @@ export function UploadPanel({ onResult }: UploadPanelProps) {
                 <span className="upload-name"><bdi>{item.file.name}</bdi></span>
                 <span className="upload-detail">
                   {item.status === "sending" && item.startedAt ? (
-                    // Hidden from screen readers: in the aria-live list, the clock
-                    // would be read out every second.
-                    <span aria-hidden="true">{elapsed(now - item.startedAt)}</span>
+                    <Sending progress={item.progress} ms={now - item.startedAt} />
                   ) : (
                     detail(item)
                   )}

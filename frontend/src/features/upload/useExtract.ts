@@ -9,6 +9,9 @@ type Problem = components["schemas"]["Problem"];
 
 // Relative, so the session cookie goes with it (#15).
 export const EXTRACT_URL = "/api/v1/extract";
+// How many pages of the file being sent are read, asked while waiting for its answer.
+export const progressUrl = (uploadId: string) => `/api/v1/extract/progress/${uploadId}`;
+export const PROGRESS_POLL_MS = 1500;
 
 const ACCEPTED = /\.(pdf|jpe?g|png)$/i;
 // MAX_FILE_MB in backend/app/settings.py (decimal MB, like the server).
@@ -31,8 +34,15 @@ export interface UploadItem {
   canRetry: boolean;
   result?: ExtractResponse;
   // Date.now() when the request went out. The server answers only at the end of
-  // the file, so the panel shows the time that passed instead of a percentage.
+  // the file, so the panel shows the time that passed, and the pages read so far.
   startedAt?: number;
+  // From the progress endpoint while sending. total is 0 until the file is split.
+  progress?: Progress;
+}
+
+export interface Progress {
+  done: number;
+  total: number;
 }
 
 // What one request for one file ended with. Sending again is offered only when
@@ -85,12 +95,31 @@ export function classify(status: number, body: unknown): Outcome {
   return { kind: "failed", message: parts.join(". "), canRetry: RETRYABLE.has(problem.type ?? "") };
 }
 
-export async function sendFile(file: File, fetchImpl: typeof fetch = fetch): Promise<Outcome> {
+// "8 of 26 pages read", once the server knows how many pages the file has.
+// A one-page file shows only the clock: "0 of 1" says nothing.
+export function progressText(progress: Progress | undefined): string | null {
+  if (!progress || progress.total < 2) return null;
+  return `נקראו ${progress.done} מתוך ${progress.total} עמודים`;
+}
+
+// Names the upload, so its progress can be asked for while it runs.
+export function newUploadId(): string {
+  if (typeof crypto !== "undefined" && "randomUUID" in crypto) return crypto.randomUUID();
+  // crypto.randomUUID exists only on https and localhost.
+  return Array.from({ length: 32 }, () => Math.floor(Math.random() * 16).toString(16)).join("");
+}
+
+export async function sendFile(
+  file: File,
+  fetchImpl: typeof fetch = fetch,
+  uploadId?: string,
+): Promise<Outcome> {
   const body = new FormData();
   body.append("files", file);
+  const headers = uploadId ? { "X-Upload-Id": uploadId } : undefined;
   let response: Response;
   try {
-    response = await fetchImpl(EXTRACT_URL, { method: "POST", body });
+    response = await fetchImpl(EXTRACT_URL, { method: "POST", body, headers });
   } catch {
     return { kind: "interrupted" };
   }
@@ -109,9 +138,25 @@ export async function sendFile(file: File, fetchImpl: typeof fetch = fetch): Pro
   }
 }
 
+// null when there is nothing to show: not started yet, already over, or no answer.
+// Only a count, so a failure here never touches the upload itself.
+export async function readProgress(uploadId: string, fetchImpl: typeof fetch = fetch): Promise<Progress | null> {
+  try {
+    const response = await fetchImpl(progressUrl(uploadId));
+    if (!response.ok) return null;
+    const body = (await response.json()) as Partial<Progress>;
+    return typeof body.done === "number" && typeof body.total === "number"
+      ? { done: body.done, total: body.total }
+      : null;
+  } catch {
+    return null;
+  }
+}
+
 export type Action =
   | { type: "add"; files: { key: string; file: File }[] }
   | { type: "start"; key: string; at: number }
+  | { type: "progress"; key: string; progress: Progress }
   | { type: "finish"; key: string; outcome: Outcome }
   | { type: "retry"; key: string };
 
@@ -140,7 +185,14 @@ export function uploadReducer(items: UploadItem[], action: Action): UploadItem[]
       ];
     case "start":
       return items.map((i) =>
-        i.key === action.key ? { ...i, status: "sending", message: undefined, startedAt: action.at } : i,
+        i.key === action.key
+          ? { ...i, status: "sending", message: undefined, startedAt: action.at, progress: undefined }
+          : i,
+      );
+    case "progress":
+      // A late answer for a file already finished is dropped.
+      return items.map((i) =>
+        i.key === action.key && i.status === "sending" ? { ...i, progress: action.progress } : i,
       );
     case "retry":
       return items.map((i) =>
@@ -197,6 +249,7 @@ export function hasUnsentFiles(items: UploadItem[]): boolean {
 export function useExtract(onResult: (result: ExtractResponse) => void) {
   const [items, dispatch] = useReducer(uploadReducer, []);
   const sending = useRef(false);
+  const poll = useRef<ReturnType<typeof setInterval>>(undefined);
   const onResultRef = useRef(onResult);
 
   useEffect(() => {
@@ -209,12 +262,21 @@ export function useExtract(onResult: (result: ExtractResponse) => void) {
     if (!next) return;
     sending.current = true;
     dispatch({ type: "start", key: next.key, at: Date.now() });
-    void sendFile(next.file).then((outcome) => {
+    const uploadId = newUploadId();
+    poll.current = setInterval(() => {
+      void readProgress(uploadId).then((progress) => {
+        if (progress) dispatch({ type: "progress", key: next.key, progress });
+      });
+    }, PROGRESS_POLL_MS);
+    void sendFile(next.file, fetch, uploadId).then((outcome) => {
+      clearInterval(poll.current);
       sending.current = false;
       dispatch({ type: "finish", key: next.key, outcome });
       if ("result" in outcome && outcome.result) onResultRef.current(outcome.result);
     });
   }, [items]);
+
+  useEffect(() => () => clearInterval(poll.current), []);
 
   // The browser's own "leave this page?" dialog, only while there is something to lose.
   const busy = hasUnsentFiles(items);

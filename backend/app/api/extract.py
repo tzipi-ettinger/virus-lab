@@ -11,10 +11,10 @@ Owner: A
 import logging
 import sys
 from collections.abc import AsyncIterator
-from functools import lru_cache
+from functools import lru_cache, partial
 from typing import Annotated, assert_never
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, Header, Request
 from fastapi.responses import JSONResponse
 from google import genai
 from psycopg_pool import AsyncConnectionPool
@@ -24,18 +24,20 @@ from starlette.datastructures import UploadFile
 from starlette.formparsers import MultiPartException, MultiPartParser
 
 from app.api.deps import get_pool, same_origin
+from app.api.errors import ProblemError
 from app.clock import israel_today
 from app.extraction.cached_provider import CachedProvider
 from app.extraction.fake_provider import FakeProvider
 from app.extraction.gemini_provider import GeminiProvider
 from app.extraction.provider import ExtractionProvider
+from app.pipeline.progress import UploadProgress
 from app.pipeline.service import (
     SaveForm,
     TooManyPages,
     UploadedFile,
     extract_files,
 )
-from app.schemas.api import ExtractResponse, Problem
+from app.schemas.api import ExtractProgress, ExtractResponse, Problem
 from app.settings import Settings, get_settings
 from app.storage.service import form_saver
 
@@ -169,6 +171,17 @@ def get_save_form(pool: Annotated[AsyncConnectionPool, Depends(get_pool)]) -> Sa
     return form_saver(pool)
 
 
+_PROGRESS = UploadProgress()
+
+
+def get_progress() -> UploadProgress:
+    """One for the whole server: the upload and the page asking about it are two requests."""
+    return _PROGRESS
+
+
+ProgressDep = Annotated[UploadProgress, Depends(get_progress)]
+
+
 @router.post(
     "/extract",
     response_model=ExtractResponse,
@@ -182,6 +195,15 @@ async def extract(
     settings: SettingsDep,
     provider: Annotated[ExtractionProvider, Depends(get_provider)],
     save_form: Annotated[SaveForm, Depends(get_save_form)],
+    progress: ProgressDep,
+    upload_id: Annotated[
+        str | None,
+        Header(
+            alias="X-Upload-Id",
+            description="Optional, made by the page (8-64 letters, digits or -). While "
+            "the upload runs, GET /api/v1/extract/progress/{upload_id} counts its pages.",
+        ),
+    ] = None,
 ) -> ExtractResponse | JSONResponse:
     """Read every page of every file and save it as pending records.
 
@@ -193,6 +215,9 @@ async def extract(
       Sending the file again would save them twice.
     Otherwise 200, unless the request itself is unusable (4xx).
     """
+    # From before the body is read, so a page asking while a big file still
+    # uploads gets 0 of 0, not "unknown".
+    tracked = upload_id if upload_id is not None and progress.start(upload_id) else None
     try:
         uploads = await _read_uploads(request, settings)
         result = await extract_files(
@@ -203,11 +228,15 @@ async def extract(
             max_pages=settings.max_pages_per_request,
             max_concurrency=settings.max_concurrency,
             save_form=save_form,
+            on_progress=partial(progress.update, tracked) if tracked else None,
         )
     except TooManyPages as exc:
         return _problem(Problem(type="too_many_pages", title=exc.message, status=413))
     except _BadRequest as exc:
         return _problem(exc.problem)
+    finally:
+        if tracked:
+            progress.finish(tracked)
     if result.quota_message is not None and not result.forms:
         return _problem(Problem(type="quota_exhausted", title=result.quota_message, status=503))
     return ExtractResponse(
@@ -216,6 +245,19 @@ async def extract(
         failed_pages=result.failed_pages,
         quota_exhausted=result.quota_exhausted,
     )
+
+
+@router.get(
+    "/extract/progress/{upload_id}",
+    responses={404: {"model": Problem, "description": 'Not running ("upload_not_found")'}},
+)
+def extract_progress(upload_id: str, progress: ProgressDep) -> ExtractProgress:
+    """How many pages of a running upload are read. 404 before it starts, after it
+    ends, and for an id the upload did not send."""
+    found = progress.get(upload_id)
+    if found is None:
+        raise ProblemError(404, "upload_not_found", "ההעלאה לא רצה כרגע")
+    return ExtractProgress(done=found.done, total=found.total)
 
 
 async def _read_uploads(request: Request, settings: Settings) -> list[UploadedFile]:

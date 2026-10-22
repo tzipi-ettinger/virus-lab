@@ -49,6 +49,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/extract/progress/{upload_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Extract Progress
+         * @description How many pages of a running upload are read. 404 before it starts, after it
+         *     ends, and for an id the upload did not send.
+         */
+        get: operations["extract_progress_api_v1_extract_progress__upload_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/records": {
         parameters: {
             query?: never;
@@ -246,6 +267,19 @@ export interface components {
             code: "EXTRACTION_FAILED" | "INVALID_FILE" | "QUOTA_EXHAUSTED";
             /** Message */
             message: string;
+        };
+        /** ExtractProgress */
+        ExtractProgress: {
+            /**
+             * Done
+             * @description Pages read so far, failed ones included.
+             */
+            done: number;
+            /**
+             * Total
+             * @description Pages in the upload. 0 until the files are split into pages.
+             */
+            total: number;
         };
         /** ExtractResponse */
         ExtractResponse: {
@@ -648,7 +682,10 @@ export interface operations {
     extract_api_v1_extract_post: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Optional, made by the page (8-64 letters, digits or -). While the upload runs, GET /api/v1/extract/progress/{upload_id} counts its pages. */
+                "X-Upload-Id"?: string | null;
+            };
             path?: never;
             cookie?: never;
         };
@@ -706,6 +743,15 @@ export interface operations {
                     "application/json": components["schemas"]["Problem"];
                 };
             };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
             /** @description The daily Gemini quota ran out before any page was saved ("quota_exhausted"): nothing was saved, so the file can be sent again. Also when the database is not reachable ("database_unavailable") */
             503: {
                 headers: {
@@ -713,6 +759,46 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    extract_progress_api_v1_extract_progress__upload_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                upload_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExtractProgress"];
+                };
+            };
+            /** @description Not running ("upload_not_found") */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };
