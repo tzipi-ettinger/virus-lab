@@ -137,6 +137,13 @@
   .layout-subtitle {
     display: none;
   }
+
+  /* Three tabs in one row at phone width. */
+  .layout-nav a {
+    gap: 4px;
+    padding: 7px 10px;
+    font-size: 0.875rem;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
