@@ -261,3 +261,21 @@
   outline: 3px solid var(--color-focus, #1d4ed8);
   outline-offset: 2px;
 }
+
+/* Approve leads; delete is a quiet red link beside it, not a second button. */
+.record-panel-actions .review-approve button {
+  min-block-size: 40px;
+  padding-inline: 20px;
+  font-size: 1rem;
+}
+
+.record-panel-actions .review-delete {
+  align-self: center;
+  border-color: transparent;
+  background: transparent;
+  text-decoration: underline;
+}
+
+.record-panel-actions .review-delete:hover {
+  background: var(--color-danger-soft, #fdecec);
+}
