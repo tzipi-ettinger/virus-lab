@@ -231,6 +231,15 @@ describe("RecordsFilters", () => {
     });
   });
 
+  test("the 'needs review only' box comes right after the received-date range", async () => {
+    serve(list([summary()]));
+    renderAt("/records");
+
+    const dates = screen.getByRole("group", { name: "תאריך קבלה" });
+    const check = screen.getByRole("checkbox", { name: "רק דורשות בדיקה" }).closest("label");
+    expect(dates.nextElementSibling).toBe(check);
+  });
+
   test("clearing the filters empties the search box too", async () => {
     serve(list([]));
     renderAt("/records?q=0112");
