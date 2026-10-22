@@ -138,9 +138,9 @@
   margin-inline: auto;
 }
 
-/* Upload mode looks like the landing page: soft blue, turquoise and green light
-   behind the content, and the steps as a centered pill. */
-.layout:has(.review-page.is-upload) {
+/* Both modes look like the landing page: soft blue, turquoise and green light
+   behind the content. In upload mode the steps are also a centered pill. */
+.layout:has(.review-page) {
   background:
     radial-gradient(60rem 40rem at 105% -10%, rgb(14 165 198 / 0.16), transparent 60%),
     radial-gradient(50rem 36rem at -10% 105%, rgb(156 195 59 / 0.18), transparent 60%),
