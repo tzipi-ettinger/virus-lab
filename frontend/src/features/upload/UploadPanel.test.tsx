@@ -33,3 +33,19 @@ test("a file being read shows its pages and a bar, without a clock", async () =>
   expect((container.querySelector(".upload-progress-bar") as HTMLElement).style.inlineSize).toBe("30%");
   expect(screen.queryByText(/\d:\d\d/)).toBeNull();
 });
+
+test("tips show before any file, then the file's row shows its kind", async () => {
+  vi.stubGlobal("fetch", () => new Promise<Response>(() => {})); // still being read
+  const { container } = render(<UploadPanel onResult={() => {}} />);
+
+  expect(screen.getByRole("heading", { name: "העלאת טפסי התחייבות" })).toBeTruthy();
+  expect(container.querySelectorAll(".upload-tip")).toHaveLength(3);
+
+  const jpg = new File(["x"], "scan.JPEG", { type: "image/jpeg" });
+  await act(async () => {
+    fireEvent.change(container.querySelector("input[type=file]")!, { target: { files: [jpg] } });
+  });
+
+  expect(container.querySelector(".upload-tips")).toBeNull();
+  expect(container.querySelector(".upload-item .upload-name-kind")!.textContent).toBe("JPG");
+});
