@@ -70,3 +70,44 @@
   opacity: 0.6;
   cursor: default;
 }
+
+/* The password with its eye inside, at the field's end. */
+.login-password {
+  position: relative;
+  display: flex;
+}
+
+.login-password input {
+  flex: 1;
+  min-inline-size: 0;
+  padding-inline-end: 44px; /* room for the eye */
+}
+
+/* The browser's own reveal button (Edge) would make a second eye. */
+.login-password input::-ms-reveal {
+  display: none;
+}
+
+.login-card .login-eye {
+  position: absolute;
+  inset-block: 0;
+  inset-inline-end: 4px;
+  display: grid;
+  place-items: center;
+  margin-block: auto;
+  inline-size: 36px;
+  block-size: 36px;
+  padding: 0;
+  color: var(--color-text-muted, #52606d);
+  background: none;
+  border-radius: var(--radius-md, 8px);
+}
+
+.login-card .login-eye:hover {
+  color: var(--color-accent, #0b6e79);
+  background: var(--color-surface-muted, #f5f8fb);
+}
+
+.login-card .login-eye[aria-pressed="true"] {
+  color: var(--color-accent, #0b6e79);
+}

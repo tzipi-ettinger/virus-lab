@@ -63,6 +63,23 @@ describe("LoginPage", () => {
     expect((screen.getByLabelText("סיסמה") as HTMLInputElement).value).toBe("");
   });
 
+  test("the eye shows the password, and hides it again", async () => {
+    renderLogin(vi.fn<Auth["login"]>());
+    const user = userEvent.setup();
+    const password = screen.getByLabelText("סיסמה") as HTMLInputElement;
+    await user.type(password, "secret");
+    expect(password.type).toBe("password");
+
+    await user.click(screen.getByRole("button", { name: "הצגת הסיסמה" }));
+    expect(password.type).toBe("text");
+    expect(password.value).toBe("secret");
+
+    const hide = screen.getByRole("button", { name: "הסתרת הסיסמה" });
+    expect(hide.getAttribute("aria-pressed")).toBe("true");
+    await user.click(hide);
+    expect(password.type).toBe("password");
+  });
+
   test("a locked account says when to try again", async () => {
     const login = vi
       .fn<Auth["login"]>()
