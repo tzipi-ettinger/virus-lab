@@ -16,7 +16,7 @@ from fastapi import APIRouter, Depends, Query, Response
 from psycopg_pool import AsyncConnectionPool
 
 from app.api.deps import get_pool, require_user, utc_now
-from app.api.errors import ProblemError
+from app.api.errors import ProblemError, Responses
 from app.clock import israel_today
 from app.export import records_export
 from app.rules.senders import sender_names
@@ -44,7 +44,7 @@ router = APIRouter(
     responses={401: {"model": Problem, "description": 'No valid session ("unauthenticated")'}},
 )
 
-_NOT_FOUND = {404: {"model": Problem, "description": "No such record"}}
+_NOT_FOUND: Responses = {404: {"model": Problem, "description": "No such record"}}
 
 
 PoolDep = Annotated[AsyncConnectionPool, Depends(get_pool)]

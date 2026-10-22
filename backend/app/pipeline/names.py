@@ -21,6 +21,7 @@ Owner: A
 
 import logging
 from dataclasses import replace
+from typing import TypeGuard
 
 from app.extraction.provider import ExtractionProvider, NameReader, ProviderError, QuotaExhausted
 from app.pipeline.assemble import form_id
@@ -104,7 +105,7 @@ def merge(page_read: RawField, closer: NamePart) -> RawField:
     )
 
 
-def _is_box(box: list[int] | None) -> bool:
+def _is_box(box: list[int] | None) -> TypeGuard[list[int]]:
     if box is None or len(box) != 4:
         return False
     top, left, bottom, right = box

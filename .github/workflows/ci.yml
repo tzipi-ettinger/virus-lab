@@ -50,6 +50,7 @@ jobs:
       - run: pip install -r requirements.txt
       - run: ruff check .
       - run: ruff format --check .
+      - run: mypy
       - run: python -m pytest
 
   frontend:

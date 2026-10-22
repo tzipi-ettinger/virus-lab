@@ -88,7 +88,9 @@ async def init_db(conn: AsyncConnection) -> None:
     async with conn.transaction(), conn.cursor(row_factory=tuple_row) as cur:
         await cur.execute("SELECT pg_advisory_xact_lock(%s)", (_INIT_LOCK,))
         await cur.execute("SELECT to_regclass('schema_meta') IS NOT NULL")
-        (exists,) = await cur.fetchone()
+        found = await cur.fetchone()
+        assert found is not None  # to_regclass always returns a row
+        (exists,) = found
         if not exists:
             # No parameters, so psycopg sends it as one script of many statements.
             await cur.execute(_SCHEMA_SQL.read_text(encoding="utf-8"))
