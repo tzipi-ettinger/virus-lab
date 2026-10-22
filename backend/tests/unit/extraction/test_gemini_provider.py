@@ -141,6 +141,7 @@ def test_the_prompt_lists_every_sender_and_drops_its_comment():
     assert "Owner" not in prompt  # the file's header comment is not sent to the model
     assert "התקבל" in prompt  # v4: the received stamp wins
     assert "2825747366-01" in prompt  # v5: what the first measurement found
+    assert "כתב יד רהוט" in prompt  # v7: names in Hebrew cursive
 
 
 def test_a_used_up_daily_quota_stops_at_once():
