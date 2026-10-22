@@ -42,6 +42,7 @@ export function ReviewPage() {
     if (sending) setView("auto");
   }, []);
   const showReview = view === "review" || (view === "auto" && !busy && records.length > 0);
+  const approved = records.filter((r) => r.status === "approved").length;
 
   return (
     <div className={showReview ? "review-page is-review" : "review-page is-upload"}>
@@ -56,6 +57,23 @@ export function ReviewPage() {
             בדיקה ואישור
           </li>
         </ol>
+        {showReview && records.length > 0 && (
+          <div className="review-progress">
+            <span className="review-progress-text">
+              {approved} מתוך {records.length} אושרו
+            </span>
+            <span
+              className="review-progress-bar"
+              role="progressbar"
+              aria-label="רשומות שאושרו"
+              aria-valuemin={0}
+              aria-valuemax={records.length}
+              aria-valuenow={approved}
+            >
+              <span style={{ inlineSize: `${(approved / records.length) * 100}%` }} />
+            </span>
+          </div>
+        )}
         {busy && showReview && (
           <span className="review-page-busy" role="status">
             <span className="review-page-pulse" aria-hidden="true" />
