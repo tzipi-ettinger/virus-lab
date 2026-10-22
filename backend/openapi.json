@@ -169,35 +169,38 @@
     "/api/v1/extract": {
       "post": {
         "summary": "Extract",
-        "description": "Read every page of every file and save it as pending records.\n\nA file or page that fails is reported in `files` / `failed_pages`, and the\nothers go on. When the daily quota runs out, the answer says whether sending\nthe file again is safe:\n- nothing was saved: 503 quota_exhausted, and the file can be sent again;\n- some pages were saved: 200 with quota_exhausted=true and those records.\n  Sending the file again would save them twice.\nOtherwise 200, unless the request itself is unusable (4xx).",
+        "description": "Receive the files and read them in the background: 202 with the job at once.\n\nGET /extract/jobs/{job_id} tells how far it got, and in the end the saved\nrecords, or why there are none. Each form is saved as soon as it is read, so\nclosing the page after this answer loses nothing.\n\nA request that can't be used is refused here, before anything is read (4xx).",
         "operationId": "extract_api_v1_extract_post",
-        "parameters": [
-          {
-            "name": "X-Upload-Id",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "properties": {
+                  "files": {
+                    "items": {
+                      "type": "string",
+                      "format": "binary"
+                    },
+                    "type": "array",
+                    "description": "PDF, JPG or PNG files."
+                  }
                 },
-                {
-                  "type": "null"
-                }
-              ],
-              "description": "Optional, made by the page (8-64 letters, digits or -). While the upload runs, GET /api/v1/extract/progress/{upload_id} counts its pages.",
-              "title": "X-Upload-Id"
-            },
-            "description": "Optional, made by the page (8-64 letters, digits or -). While the upload runs, GET /api/v1/extract/progress/{upload_id} counts its pages."
-          }
-        ],
+                "type": "object",
+                "required": [
+                  "files"
+                ]
+              }
+            }
+          },
+          "required": true
+        },
         "responses": {
-          "200": {
+          "202": {
             "description": "Successful Response",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ExtractResponse"
+                  "$ref": "#/components/schemas/ExtractJob"
                 }
               }
             }
@@ -233,7 +236,7 @@
             }
           },
           "413": {
-            "description": "Request over MAX_REQUEST_MB (\"request_too_large\") or over MAX_PAGES_PER_REQUEST (\"too_many_pages\")",
+            "description": "Request over MAX_REQUEST_MB (\"request_too_large\"). Too many pages is found only once the files are split: the job ends with \"too_many_pages\"",
             "content": {
               "application/json": {
                 "schema": {
@@ -253,7 +256,7 @@
             }
           },
           "503": {
-            "description": "The daily Gemini quota ran out before any page was saved (\"quota_exhausted\"): nothing was saved, so the file can be sent again. Also when the database is not reachable (\"database_unavailable\")",
+            "description": "The database is not reachable (\"database_unavailable\"), or too many uploads are being read (\"too_many_uploads\"). Nothing was read, so the file can be sent again",
             "content": {
               "application/json": {
                 "schema": {
@@ -261,56 +264,23 @@
                 }
               }
             }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        },
-        "requestBody": {
-          "required": true,
-          "content": {
-            "multipart/form-data": {
-              "schema": {
-                "type": "object",
-                "required": [
-                  "files"
-                ],
-                "properties": {
-                  "files": {
-                    "type": "array",
-                    "items": {
-                      "type": "string",
-                      "format": "binary"
-                    },
-                    "description": "PDF, JPG or PNG files."
-                  }
-                }
-              }
-            }
           }
         }
       }
     },
-    "/api/v1/extract/progress/{upload_id}": {
+    "/api/v1/extract/jobs/{job_id}": {
       "get": {
-        "summary": "Extract Progress",
-        "description": "How many pages of a running upload are read. 404 before it starts, after it\nends, and for an id the upload did not send.",
-        "operationId": "extract_progress_api_v1_extract_progress__upload_id__get",
+        "summary": "Extract Job",
+        "description": "How far the upload got, and its answer once it is over. 404 for another\nuser's job, and for any job after a server restart or FINISHED_TTL_S after it\nended: some forms may be saved, so the page checks the records screen.",
+        "operationId": "extract_job_api_v1_extract_jobs__job_id__get",
         "parameters": [
           {
-            "name": "upload_id",
+            "name": "job_id",
             "in": "path",
             "required": true,
             "schema": {
               "type": "string",
-              "title": "Upload Id"
+              "title": "Job Id"
             }
           }
         ],
@@ -320,13 +290,13 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ExtractProgress"
+                  "$ref": "#/components/schemas/ExtractJob"
                 }
               }
             }
           },
           "404": {
-            "description": "Not running (\"upload_not_found\")",
+            "description": "Unknown or forgotten (\"job_not_found\")",
             "content": {
               "application/json": {
                 "schema": {
@@ -1403,8 +1373,21 @@
         ],
         "title": "ErrorInfo"
       },
-      "ExtractProgress": {
+      "ExtractJob": {
         "properties": {
+          "job_id": {
+            "type": "string",
+            "title": "Job Id"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "running",
+              "done",
+              "failed"
+            ],
+            "title": "Status"
+          },
           "done": {
             "type": "integer",
             "title": "Done",
@@ -1414,14 +1397,41 @@
             "type": "integer",
             "title": "Total",
             "description": "Pages in the upload. 0 until the files are split into pages."
+          },
+          "result": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ExtractResponse"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "status \"done\": the saved records and the pages that failed."
+          },
+          "problem": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Problem"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "status \"failed\": why, with the status POST /extract would have answered: 413 too_many_pages; 503 quota_exhausted (nothing was saved, so the file can be sent again); 500 extraction_stopped (the job broke or the server stopped: some forms may be saved, check the records before sending again)."
           }
         },
         "type": "object",
         "required": [
+          "job_id",
+          "status",
           "done",
-          "total"
+          "total",
+          "result",
+          "problem"
         ],
-        "title": "ExtractProgress"
+        "title": "ExtractJob",
+        "description": "An upload read in the background. Ask again until status is not \"running\"."
       },
       "ExtractResponse": {
         "properties": {
