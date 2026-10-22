@@ -6,6 +6,7 @@ import pymupdf
 import pytest
 
 from app.pipeline import ingest
+from app.pipeline.boxes import Box
 from app.pipeline.ingest import (
     MAX_SIDE_PX,
     SAVE_MAX_SIDE_PX,
@@ -193,7 +194,7 @@ def test_a_crop_is_larger_than_the_models_image():
     whole = page.render_crop(0, (0, 0, 1000, 1000))
 
     width, height = image_size(whole.jpeg)
-    assert max(width, height) == pytest.approx(ingest.CROP_SCALE * MAX_SIDE_PX, abs=2)
+    assert max(width, height) == pytest.approx(ingest.NAME_CROP_SCALE * MAX_SIDE_PX, abs=2)
     assert height > width
 
 
@@ -342,3 +343,154 @@ def test_split_pages_async_runs_on_the_render_thread(monkeypatch):
 
     assert [page.page_number for page in pages] == [1, 2]
     assert seen and seen[0].startswith("render")
+
+
+# --- Cutting a form out of a page (several forms on one page, split.py)
+
+
+def make_two_forms_pdf() -> bytes:
+    """A4 with a red top half and a blue bottom half: two "forms"."""
+    with pymupdf.open() as doc:
+        page = doc.new_page(width=595, height=842)
+        page.draw_rect(pymupdf.Rect(0, 0, 595, 421), color=(1, 0, 0), fill=(1, 0, 0))
+        page.draw_rect(pymupdf.Rect(0, 421, 595, 842), color=(0, 0, 1), fill=(0, 0, 1))
+        return doc.tobytes()
+
+
+def center_color(jpeg: bytes) -> tuple[int, ...]:
+    pixmap = pymupdf.Pixmap(jpeg)
+    return pixmap.pixel(pixmap.width // 2, pixmap.height // 2)
+
+
+def is_red(color) -> bool:
+    return color[0] > 200 and color[2] < 60
+
+
+def is_blue(color) -> bool:
+    return color[2] > 200 and color[0] < 60
+
+
+def test_crop_cuts_out_one_form_as_a_page_of_its_own():
+    page = split_pages("f1", "forms.pdf", make_two_forms_pdf(), **LIMITS)[0]
+
+    top = page.crop(0, Box(top=0, left=0, bottom=500, right=1000), part=1)
+    bottom = page.crop(0, Box(top=500, left=0, bottom=1000, right=1000), part=2)
+
+    assert (top.file_id, top.filename, top.page_number) == ("f1-f1", "forms.pdf", 1)
+    assert bottom.file_id == "f1-f2"  # one row per file and page number in the page table
+    assert is_red(center_color(top.render().jpeg))
+    assert is_blue(center_color(bottom.render().jpeg))
+    width, height = image_size(top.render().jpeg)
+    assert max(width, height) == pytest.approx(MAX_SIDE_PX, abs=2)  # scaled like a page
+    assert width > height  # half an A4 page is landscape
+
+
+def test_crop_cuts_the_page_as_the_model_saw_it_turned():
+    page = split_pages("f1", "forms.pdf", make_two_forms_pdf(), **LIMITS)[0]
+
+    # Turned 90 clockwise, the red top half is on the right.
+    right = page.crop(90, Box(top=0, left=500, bottom=1000, right=1000), part=1)
+
+    assert is_red(center_color(right.render().jpeg))
+
+
+def test_a_cut_form_turns_on_its_own():
+    page = split_pages("f1", "forms.pdf", make_two_forms_pdf(), **LIMITS)[0]
+    top = page.crop(0, Box(top=0, left=0, bottom=500, right=1000), part=1)
+
+    width, height = image_size(top.render(rotation=90).jpeg)
+
+    assert height > width
+    assert len(repr(top)) < 200  # never carries the document either
+
+
+def test_a_cut_page_of_a_later_page_keeps_its_page_number():
+    data = make_pdf(3)
+    page = split_pages("f1", "forms.pdf", data, **LIMITS)[2]
+
+    part = page.crop(0, Box(top=0, left=0, bottom=500, right=1000), part=2)
+
+    assert (part.file_id, part.page_number) == ("f1-f2", 3)
+    assert part.render().page_number == 3
+
+
+QUADRANTS = {"red": (1, 0, 0), "green": (0, 1, 0), "blue": (0, 0, 1), "yellow": (1, 1, 0)}
+
+
+def make_quadrants_pdf(rotate: int = 0) -> bytes:
+    """A4 in four colors: red | green on top, blue | yellow below; `rotate` is its /Rotate."""
+    with pymupdf.open() as doc:
+        page = doc.new_page(width=596, height=842)
+        corners = {"red": (0, 0), "green": (298, 0), "blue": (0, 421), "yellow": (298, 421)}
+        for color, (x, y) in corners.items():
+            rgb = QUADRANTS[color]
+            page.draw_rect(pymupdf.Rect(x, y, x + 298, y + 421), color=rgb, fill=rgb)
+        page.set_rotation(rotate)
+        return doc.tobytes()
+
+
+def colors_at(jpeg: bytes, *points: tuple[float, float]) -> list[str]:
+    """The color at each point, given as fractions of the width and height."""
+    pixmap = pymupdf.Pixmap(jpeg)
+    names = []
+    for x, y in points:
+        pixel = pixmap.pixel(int(x * pixmap.width), int(y * pixmap.height))
+        names.append(
+            next(
+                (
+                    n
+                    for n, rgb in QUADRANTS.items()
+                    if all(abs(p - c * 255) < 60 for p, c in zip(pixel, rgb, strict=True))
+                ),
+                str(pixel),
+            )
+        )
+    return names
+
+
+def test_a_cut_form_turned_shows_what_the_page_shows_turned():
+    page = split_pages("f1", "forms.pdf", make_quadrants_pdf(), **LIMITS)[0]
+    top = page.crop(0, Box(top=0, left=0, bottom=500, right=1000), part=1)
+
+    # Red | green, turned 90 clockwise: red above, green below.
+    turned = top.render(rotation=90).jpeg
+
+    assert colors_at(turned, (0.5, 0.25), (0.5, 0.75)) == ["red", "green"]
+
+
+def test_a_form_is_cut_from_the_page_as_the_viewer_shows_it():
+    # Stored sideways (/Rotate 90, as scanners do): the viewer shows blue | red on top.
+    page = split_pages("f1", "forms.pdf", make_quadrants_pdf(rotate=90), **LIMITS)[0]
+
+    top = page.crop(0, Box(top=0, left=0, bottom=500, right=1000), part=1)
+
+    assert colors_at(top.render().jpeg, (0.25, 0.5), (0.75, 0.5)) == ["blue", "red"]
+
+
+def test_the_name_crop_of_a_cut_form_is_cut_from_the_form():
+    page = split_pages("f1", "forms.pdf", make_quadrants_pdf(), **LIMITS)[0]
+    bottom = page.crop(0, Box(top=500, left=0, bottom=1000, right=1000), part=2)
+
+    crop = bottom.render_crop(0, (0, 500, 1000, 1000))  # the form's right half
+
+    assert colors_at(crop.jpeg, (0.5, 0.5)) == ["yellow"]
+    width, _ = image_size(crop.jpeg)
+    # Twice the scale of the form's own image, as for any page: half its width.
+    assert width == pytest.approx(ingest.NAME_CROP_SCALE * MAX_SIDE_PX / 2, abs=2)
+
+
+def test_a_cut_form_is_drawn_from_the_scan_itself():
+    # Never an image of an image: no copy, and no detail lost to a JPEG in between.
+    page = split_pages("f1", "forms.pdf", make_pdf(1), **LIMITS)[0]
+
+    part = page.crop(0, Box(top=0, left=0, bottom=500, right=1000), part=1)
+
+    assert part._pdf is page._pdf
+
+
+def test_a_cut_form_is_not_cut_again():
+    page = split_pages("f1", "forms.pdf", make_pdf(1), **LIMITS)[0]
+    part = page.crop(0, Box(top=0, left=0, bottom=500, right=1000), part=1)
+
+    with pytest.raises(ValueError):
+        part.crop(0, Box(top=0, left=0, bottom=500, right=1000), part=1)

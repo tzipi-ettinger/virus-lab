@@ -26,6 +26,7 @@ CATALOG: dict[IssueCode, Severity] = {
     "DUPLICATE_REMOVED": "info",
     "DUPLICATE_RECORD": "warning",
     "PAGE_GROUPING_UNCERTAIN": "warning",
+    "SEVERAL_FORMS_ON_PAGE": "warning",
     "EXTRACTION_FAILED": "error",
     "INVALID_FILE": "error",
 }

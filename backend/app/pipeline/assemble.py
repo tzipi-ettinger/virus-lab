@@ -5,14 +5,16 @@ so a change in the extraction schema never reaches the rules.
 
 The output is what apply_rules expects (tests/fixtures/rules/README.md): `raw`
 holds what the model read, `value` is left empty for the rules to normalize, and
-there are no issues or flags yet, except the page-level ROTATION_UNRESOLVED.
+there are no issues or flags yet, except the page-level ROTATION_UNRESOLVED and
+SEVERAL_FORMS_ON_PAGE.
 
 Owner: A
 """
 
+from app.pipeline.boxes import as_box
 from app.pipeline.orient import OrientedPage
 from app.rules.issues import make_issue
-from app.schemas.api import FieldBox, Form, FormField, FormFields
+from app.schemas.api import FieldBox, Form, FormField, FormFields, Issue
 from app.schemas.extraction import RawField
 
 
@@ -44,9 +46,19 @@ def assemble(page: OrientedPage) -> Form:
         commitment_numbers=[
             _field(item, image.page_number) for item in extraction.commitment_numbers
         ],
-        issues=[make_issue("ROTATION_UNRESOLVED")] if page.unresolved else [],
+        issues=_issues(page),
         needs_review=False,
     )
+
+
+def _issues(page: OrientedPage) -> list[Issue]:
+    issues = [make_issue("ROTATION_UNRESOLVED")] if page.unresolved else []
+    # The model saw several forms and read only the first (prompt v8), and the page
+    # got here uncut: split.py found the boxes doubtful, or it is a form already cut
+    # out of a page. The others were never read, and only a person can tell.
+    if len(page.extraction.forms_on_page) > 1:
+        issues.append(make_issue("SEVERAL_FORMS_ON_PAGE"))
+    return issues
 
 
 def _field(raw: RawField, page_number: int) -> FormField:
@@ -70,15 +82,9 @@ def _field(raw: RawField, page_number: int) -> FormField:
 
 
 def _box(raw: RawField, status: str, page_number: int) -> FieldBox | None:
-    """The model's box_2d as a FieldBox, or None when it can't be drawn.
-
-    A box only marks something that was read, and only a real rectangle on the
-    page: a wrong length, an edge off the page or a flat box is dropped, never
-    fixed up, since a box in the wrong place is worse than none.
-    """
-    if status == "not_found" or raw.box_2d is None or len(raw.box_2d) != 4:
+    """The model's box_2d as a FieldBox, or None when it can't be drawn: a box only
+    marks something that was read, and only a real rectangle on the page (as_box)."""
+    box = as_box(raw.box_2d) if status != "not_found" else None
+    if box is None:
         return None
-    top, left, bottom, right = raw.box_2d
-    if not (0 <= top < bottom <= 1000 and 0 <= left < right <= 1000):
-        return None
-    return FieldBox(page_number=page_number, top=top, left=left, bottom=bottom, right=right)
+    return FieldBox(page_number=page_number, **box._asdict())

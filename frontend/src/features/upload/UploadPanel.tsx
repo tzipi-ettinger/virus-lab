@@ -258,8 +258,9 @@ export function UploadPanel({ onResult, onBusyChange }: UploadPanelProps) {
             עמודים שלא נקראו ({failedPages.length})
           </h3>
           <ul>
-            {failedPages.map((p) => (
-              <li key={`${p.file_id}-${p.page_number}`}>
+            {/* The index too: two forms cut out of one page can both fail on it. */}
+            {failedPages.map((p, index) => (
+              <li key={`${p.file_id}-${p.page_number}-${index}`}>
                 <bdi>{p.source_file}</bdi>, עמוד {p.page_number}: {p.error.message}
               </li>
             ))}

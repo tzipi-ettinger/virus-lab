@@ -54,7 +54,23 @@ class RawField(BaseModel):
             return None
 
 
+class RawFormBox(BaseModel):
+    """Where one separate form lies on the image (two scans on one sheet, say)."""
+
+    box_2d: list[int] = Field(
+        description="Bounding box of the whole form: [ymin, xmin, ymax, xmax], 0-1000."
+    )
+
+
 class RawExtraction(BaseModel):
+    # v8. First: Gemini writes the answer in this order, and the prompt has it decide
+    # whether there are several forms before it reads any field (then only the
+    # first form's). Default empty: readings cached or kept as fixtures before v8
+    # have none, and empty means one form, as before. split.py decides whether to cut.
+    forms_on_page: list[RawFormBox] = Field(
+        default_factory=list,
+        description="One item per separate form on the image, when there are two or more.",
+    )
     page_rotation_degrees: int = Field(
         description="Clockwise rotation needed to make the text upright: 0, 90, 180 or 270."
     )
@@ -66,6 +82,15 @@ class RawExtraction(BaseModel):
     sender: RawField
     central_numbers: list[RawField]
     commitment_numbers: list[RawField]
+
+    @field_validator("forms_on_page", mode="wrap")
+    @classmethod
+    def _forms_never_fail_the_page(cls, value: Any, handler: ValidatorFunctionWrapHandler):
+        # A list that doesn't parse is read as one form: the fields still count.
+        try:
+            return handler(value)
+        except ValidationError:
+            return []
 
 
 class NamePart(BaseModel):

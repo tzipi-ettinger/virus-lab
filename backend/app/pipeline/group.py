@@ -8,8 +8,8 @@ central number on a rotated page. Attaching another patient's page to a form is
 the worst mistake here, so a page joins only when nothing on it says otherwise:
 no commitment number of its own, a rotation that was resolved, and an ID and name
 that are absent or the same as the form's. Any doubt (a conflict, an unclear ID or
-name, or the page before it failed) makes it a form of its own, flagged
-PAGE_GROUPING_UNCERTAIN for a person to check.
+name, several forms on it or on the page before it, or the page before it failed)
+makes it a form of its own, flagged PAGE_GROUPING_UNCERTAIN for a person to check.
 
 A continuation page only fills in what the form's first page lacks: a value read on
 the first page is never replaced.
@@ -65,7 +65,8 @@ class FormGroup:
 def place(page: ReadPage, group: FormGroup | None, *, after_failure: bool) -> Placement:
     """Where a page goes. `group` is the open form of the same file, right before it.
 
-    `after_failure`: the page right before this one, in the same file, failed.
+    `after_failure`: the page right before this one, in the same file, failed or
+    held several forms (split.py): either way there's no telling what it continues.
     """
     if _has_central_number(page.ruled):
         return "new"
@@ -103,6 +104,11 @@ def join(group: FormGroup, page: ReadPage, *, today: date) -> FormGroup:
     )
 
 
+def several_forms(form: Form) -> bool:
+    """The page holds several forms that weren't cut apart (assemble): only one was read."""
+    return any(issue.code == "SEVERAL_FORMS_ON_PAGE" for issue in form.issues)
+
+
 def _has_central_number(form: Form) -> bool:
     # "unclear" counts: there is a sticker, even if it can't be read.
     return any(item.model_status != "not_found" for item in form.central_numbers)
@@ -114,6 +120,8 @@ def _belongs_to(page: ReadPage, form: Form) -> bool:
         return False  # its own commitment: a form of its own whose sticker was missed
     if any(issue.code == "ROTATION_UNRESOLVED" for issue in ruled.issues):
         return False  # read sideways, so "no central number" can't be trusted
+    if several_forms(ruled):
+        return False  # a form on it that wasn't read may have a central number
     return all(
         _same_or_absent(getattr(ruled.fields, n), getattr(form.fields, n)) for n in _IDENTITY
     )

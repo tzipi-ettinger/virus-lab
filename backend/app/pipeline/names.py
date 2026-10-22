@@ -24,6 +24,7 @@ from dataclasses import replace
 
 from app.extraction.provider import ExtractionProvider, NameReader, ProviderError, QuotaExhausted
 from app.pipeline.assemble import form_id
+from app.pipeline.boxes import SCALE, Box, as_box
 from app.pipeline.ingest import SourcePage
 from app.pipeline.orient import OrientedPage
 from app.schemas.extraction import NamePart, RawExtraction, RawField
@@ -34,8 +35,6 @@ logger = logging.getLogger(__name__)
 # "שם משפחה", which tell first from last) and for a box drawn a little off.
 PAD_Y = 40
 PAD_X = 120
-
-Box = tuple[int, int, int, int]  # (top, left, bottom, right), 0-1000
 
 
 async def read_name_closer(
@@ -70,17 +69,17 @@ def name_area(extraction: RawExtraction) -> Box | None:
     """The first and last name's boxes together, with room around them. None when
     the page read placed neither."""
     boxes = [
-        field.box_2d
+        box
         for field in (extraction.first_name, extraction.last_name)
-        if field.status != "not_found" and _is_box(field.box_2d)
+        if field.status != "not_found" and (box := as_box(field.box_2d))
     ]
     if not boxes:
         return None
-    return (
-        max(0, min(box[0] for box in boxes) - PAD_Y),
-        max(0, min(box[1] for box in boxes) - PAD_X),
-        min(1000, max(box[2] for box in boxes) + PAD_Y),
-        min(1000, max(box[3] for box in boxes) + PAD_X),
+    return Box(
+        top=max(0, min(box.top for box in boxes) - PAD_Y),
+        left=max(0, min(box.left for box in boxes) - PAD_X),
+        bottom=min(SCALE, max(box.bottom for box in boxes) + PAD_Y),
+        right=min(SCALE, max(box.right for box in boxes) + PAD_X),
     )
 
 
@@ -102,10 +101,3 @@ def merge(page_read: RawField, closer: NamePart) -> RawField:
             "evidence": closer.evidence or page_read.evidence,
         }
     )
-
-
-def _is_box(box: list[int] | None) -> bool:
-    if box is None or len(box) != 4:
-        return False
-    top, left, bottom, right = box
-    return 0 <= top < bottom <= 1000 and 0 <= left < right <= 1000

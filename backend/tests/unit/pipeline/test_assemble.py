@@ -9,7 +9,7 @@ from app.pipeline.assemble import assemble, form_id
 from app.pipeline.orient import OrientedPage
 from app.rules.engine import apply_rules
 from app.schemas.api import FormFields
-from app.schemas.extraction import RawExtraction, RawField
+from app.schemas.extraction import RawExtraction, RawField, RawFormBox
 
 READINGS = [
     path
@@ -98,6 +98,24 @@ def test_unresolved_rotation_flags_the_page():
     form = assemble(oriented("01_meuhedet_clean", unresolved=True))
 
     assert [issue.code for issue in form.issues] == ["ROTATION_UNRESOLVED"]
+
+
+def test_several_forms_that_reach_assemble_flag_the_page():
+    # Not cut (split.py doubted the boxes): the model read only one of them.
+    reading = oriented("01_meuhedet_clean")
+    reading.extraction.forms_on_page = [
+        RawFormBox(box_2d=[0, 0, 600, 1000]),
+        RawFormBox(box_2d=[400, 0, 1000, 1000]),
+    ]
+
+    assert [issue.code for issue in assemble(reading).issues] == ["SEVERAL_FORMS_ON_PAGE"]
+
+
+def test_one_form_on_the_page_is_no_flag():
+    reading = oriented("01_meuhedet_clean")
+    reading.extraction.forms_on_page = [RawFormBox(box_2d=[0, 0, 1000, 1000])]
+
+    assert assemble(reading).issues == []
 
 
 # --- The seam with B's rules: every real reading goes through apply_rules.

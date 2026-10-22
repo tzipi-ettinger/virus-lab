@@ -6,6 +6,7 @@ from datetime import UTC, datetime, timedelta
 import httpx
 import pytest
 from google.genai import errors, types
+from pydantic import create_model
 
 from app.extraction import gemini_provider
 from app.extraction.fake_provider import FIXTURES_DIR
@@ -158,6 +159,7 @@ def test_the_prompt_lists_every_sender_and_drops_its_comment():
     assert "כתב יד רהוט" in prompt  # v7: names in Hebrew cursive
     assert "crossed out" in prompt  # the handwritten name, not the crossed-out one
     assert "best reading of the whole name" not in prompt  # an unclear name is null
+    assert "forms_on_page" in prompt  # v8: several forms on one image
 
 
 def test_a_used_up_daily_quota_stops_at_once():
@@ -545,6 +547,21 @@ def test_the_fingerprint_changes_with_the_model_or_the_prompt():
         [FakeClient(ANSWER)], "gemini-other", max_concurrency=1, prompt="PROMPT"
     )
     assert other_model.fingerprint != base
+
+
+def test_the_fingerprint_changes_with_the_order_of_the_answer(monkeypatch):
+    # Gemini writes the answer in the schema's order, so a new order is a new answer.
+    base = provider(FakeClient(ANSWER)).fingerprint
+    fields = reversed(RawExtraction.model_fields.items())
+    reordered = create_model("RawExtraction", **{name: (f.annotation, f) for name, f in fields})
+    monkeypatch.setattr(gemini_provider, "RawExtraction", reordered)
+
+    assert provider(FakeClient(ANSWER)).fingerprint != base
+
+
+def test_the_model_says_whether_there_are_several_forms_before_any_field():
+    # v8: the prompt has it check that first, and then read only the first form.
+    assert next(iter(RawExtraction.model_json_schema()["properties"])) == "forms_on_page"
 
 
 def test_a_crop_comes_back_as_a_name_reading():

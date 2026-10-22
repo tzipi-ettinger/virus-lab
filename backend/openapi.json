@@ -1742,6 +1742,7 @@
               "DUPLICATE_REMOVED",
               "DUPLICATE_RECORD",
               "PAGE_GROUPING_UNCERTAIN",
+              "SEVERAL_FORMS_ON_PAGE",
               "EXTRACTION_FAILED",
               "INVALID_FILE"
             ],

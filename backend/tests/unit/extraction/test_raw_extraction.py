@@ -50,3 +50,38 @@ def test_one_bad_box_doesnt_fail_the_whole_answer():
 def test_the_schema_sent_to_gemini_still_asks_for_a_list_of_ints():
     schema = RawField.model_json_schema()["properties"]["box_2d"]
     assert {"type": "array", "items": {"type": "integer"}} in schema["anyOf"]
+
+
+# --- forms_on_page (v8: several forms on one image)
+
+NOTHING = {"value": None, "status": "not_found", "evidence": None}
+ANSWER = {
+    "page_rotation_degrees": 0,
+    "form_type": "hmo_form",
+    **{name: NOTHING for name in ("first_name", "last_name", "national_id", "received_date")},
+    "sender": NOTHING,
+    "central_numbers": [],
+    "commitment_numbers": [],
+}
+
+
+def test_an_answer_without_forms_on_page_is_one_form():
+    # Readings cached or kept as fixtures before v8.
+    assert RawExtraction.model_validate(ANSWER).forms_on_page == []
+
+
+def test_forms_on_page_are_kept_as_given():
+    boxes = [{"box_2d": [0, 0, 500, 1000]}, {"box_2d": [500, 0, 1000, 1000]}]
+
+    extraction = RawExtraction.model_validate({**ANSWER, "forms_on_page": boxes})
+
+    assert [item.box_2d for item in extraction.forms_on_page] == [b["box_2d"] for b in boxes]
+
+
+@pytest.mark.parametrize(
+    "forms", [[{"box_2d": [1.5, "x"]}], [{"y": 1}], "two forms", [[0, 0, 500, 1000]]]
+)
+def test_forms_on_page_that_dont_parse_read_the_page_as_one_form(forms):
+    extraction = RawExtraction.model_validate_json(json.dumps({**ANSWER, "forms_on_page": forms}))
+
+    assert extraction.forms_on_page == []
