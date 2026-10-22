@@ -8,10 +8,11 @@ them right, or said it couldn't tell (spike on 5 pages, 22.10).
 
 So every page read upright whose first read placed a name, sure or not, is read
 again from a crop around it (ingest.render_crop), and the crop decides:
-- sure of a name: that name, "found". Unless the page read was sure of another
-  name: two sure readings that differ go to a person;
+- sure of a name: that name, "found", even over a different name the page read
+  was sure of (in the measurement, the page read's sure names were the wrong ones);
 - not sure: "unclear", value null, so a person reads it from the page;
-- no name in the crop: the page read stays, since the box may have missed it.
+- no name in the crop: "unclear" if the page read was sure of one there, since that
+  name was likely made up; otherwise the page read stays.
 That is one more model call per page. If it fails, the page read stays: the page
 was read, and losing it to the second call would cost more than it saves.
 
@@ -86,22 +87,21 @@ def name_area(extraction: RawExtraction) -> Box | None:
 def merge(page_read: RawField, closer: NamePart) -> RawField:
     """One name part after both reads. The box stays the page read's: the crop's
     coordinates mean nothing on the page."""
-    if closer.status == "not_found":
-        return page_read
     value = " ".join((closer.value or "").split())
-    sure = closer.status == "found" and value
-    if sure and (page_read.status != "found" or _same(page_read.value, value)):
+    if closer.status == "found" and value:
         return page_read.model_copy(
             update={"value": value, "status": "found", "evidence": closer.evidence}
         )
-    # Not sure up close, or sure of a different name than the page read: a person decides.
+    if closer.status == "not_found" and page_read.status != "found":
+        return page_read  # nothing new: the page read wasn't sure of a name either
+    # Not sure up close, or no name where the page read was sure of one: a person reads it.
     return page_read.model_copy(
-        update={"value": None, "status": "unclear", "evidence": closer.evidence}
+        update={
+            "value": None,
+            "status": "unclear",
+            "evidence": closer.evidence or page_read.evidence,
+        }
     )
-
-
-def _same(a: str | None, b: str) -> bool:
-    return a is not None and a.split() == b.split()
 
 
 def _is_box(box: list[int] | None) -> bool:

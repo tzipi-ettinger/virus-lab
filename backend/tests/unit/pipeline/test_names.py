@@ -107,17 +107,20 @@ def test_the_crop_is_cut_from_the_page_as_the_model_saw_it(source_page):
 @pytest.mark.parametrize(
     ("page_read", "closer_read", "expected"),
     [
-        # Both sure of the same name, spaces aside: it stays found.
-        (name("ישראל"), closer("ישראל "), ("ישראל", "found")),
-        # Sure of two different names (the page read invented one): a person decides.
-        (name("יוסף"), closer("ישראל"), (None, "unclear")),
+        # Both sure of the same name: it stays found, spaces tidied.
+        (name("ישראל"), closer(" ישראל "), ("ישראל", "found")),
+        # The crop is sure of another name: it wins (the page read's was made up).
+        (name("יוסף"), closer("ישראל"), ("ישראל", "found")),
+        (name(None, "unclear"), closer("ישראל"), ("ישראל", "found")),
         # The crop isn't sure: neither is the record, and nothing is guessed.
         (name("יוסף"), closer(None, "unclear"), (None, "unclear")),
         # A crop that says found without a value isn't sure of anything.
         (name("יוסף"), closer("", "found"), (None, "unclear")),
-        # No name in the crop: the box may have missed it, the page read stays.
-        (name("יוסף"), closer(None, "not_found"), ("יוסף", "found")),
+        # No name where the page read was sure of one: that name is in doubt.
+        (name("יוסף"), closer(None, "not_found"), (None, "unclear")),
+        # No name, and the page read wasn't sure either: nothing changes.
         (name(None, "unclear"), closer(None, "not_found"), (None, "unclear")),
+        (EMPTY, closer(None, "not_found"), (None, "not_found")),
     ],
 )
 def test_merge(page_read, closer_read, expected):

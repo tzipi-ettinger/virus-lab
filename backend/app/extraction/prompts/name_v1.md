@@ -9,13 +9,22 @@ name is small cursive handwriting on a whole page. In a spike on 5 pages, the sa
 model read the enlarged crop right where the page read was wrong or unclear, and
 said "unclear" where it still could not tell. One crop came out upside down (the
 first read took the page as upright): hence the line on direction.
+From the first measurement with the crop (48 pages): a name written under the ID with
+no label of its own was "not_found" (part 1 p21), and a whole name in one field came
+back with first and last swapped (part 1 p1): hence the lines on both.
 Owner: A
 -->
 This image is an enlarged crop of a scanned Hebrew medical form (טופס התחייבות), cut
-around the patient's name. Read the PATIENT's first name and last name.
+around the place where the patient's name was read on the whole page. Read the
+PATIENT's first name and last name.
 
 - The crop may be upside down or turned sideways: read the text in whatever direction
   it runs.
+- Handwriting in the crop is most likely the name even with no label of its own (it
+  is often written under or next to the ID number).
+- Hebrew runs right to left: when one field holds the whole name (e.g. "שם:"), the
+  word on the right is written first and is the first name; the next word, to its
+  left, is the last name.
 - The name is usually handwritten in Hebrew cursive script (כתב יד רהוט), whose letters
   can look like Latin letters (e.g. cursive "ישראל" looks like "plce"). Read it as Hebrew
   and return it in Hebrew letters, unless it is clearly written in Latin letters.
