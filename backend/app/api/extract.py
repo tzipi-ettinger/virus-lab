@@ -249,12 +249,14 @@ async def extract(
 @router.get(
     "/extract/jobs/{job_id}",
     responses={404: {"model": Problem, "description": 'Unknown or forgotten ("job_not_found")'}},
+    dependencies=[Depends(require_user)],
 )
-def extract_job(job_id: str, jobs: JobsDep, user: UserDep) -> ExtractJob:
-    """How far the upload got, and its answer once it is over. 404 for another
-    user's job, and for any job after a server restart or FINISHED_TTL_S after it
-    ended: some forms may be saved, so the page checks the records screen."""
-    job = jobs.get(job_id, user.id)
+def extract_job(job_id: str, jobs: JobsDep) -> ExtractJob:
+    """How far the upload got, and its answer once it is over. Any signed-in user
+    may ask, as everyone sees everyone's records. 404 after a server restart, or
+    FINISHED_TTL_S after the job ended: some forms may be saved, so the page checks
+    the records screen."""
+    job = jobs.get(job_id)
     if job is None:
         raise ProblemError(404, "job_not_found", "הקריאה של הקובץ הזה לא נמצאה בשרת")
     return job

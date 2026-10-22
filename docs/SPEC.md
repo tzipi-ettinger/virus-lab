@@ -360,7 +360,7 @@ records(form) =
 | `POST` | `/api/v1/auth/logout` | — | `204` |
 | `GET` | `/api/v1/auth/me` | — | `User {id, username, display_name}` |
 | `POST` | `/api/v1/extract` | `multipart/form-data`, שדה `files` | `202` עם `ExtractJob` מיד כשהקבצים התקבלו. הקריאה רצה ברקע, וכל טופס נשמר כממתין ברגע שנקרא [החלטה, 22.10] |
-| `GET` | `/api/v1/extract/jobs/{job_id}` | — | `ExtractJob {job_id, status, done, total, result, problem}`. `status`: `running` (עם `done` מתוך `total` עמודים, כולל שנכשלו; `total` הוא 0 עד שהקבצים פוצלו), `done` (`result` הוא `ExtractResponse`, 9.3) או `failed` (`problem`, ראו 9.5). `404 job_not_found` לעבודה של משתמש אחר, אחרי הפעלה מחדש של השרת, ו־15 דקות אחרי שהסתיימה. בזיכרון של השרת בלבד [החלטה, 22.10] |
+| `GET` | `/api/v1/extract/jobs/{job_id}` | — | `ExtractJob {job_id, status, done, total, result, problem}`. `status`: `running` (עם `done` מתוך `total` עמודים, כולל שנכשלו; `total` הוא 0 עד שהקבצים פוצלו), `done` (`result` הוא `ExtractResponse`, 9.3) או `failed` (`problem`, ראו 9.5). כל משתמש מחובר רואה את ההעלאות של כולם, כמו במסך הרשומות. `404 job_not_found` אחרי הפעלה מחדש של השרת, ו־15 דקות אחרי שהעבודה הסתיימה. בזיכרון של השרת בלבד [החלטה, 22.10] |
 | `GET` | `/api/v1/records` | `q`, `status`, `needs_review`, `sender`, `form_type`, `date_from`, `date_to`, `limit`, `offset` | `RecordList {items: RecordSummary[], total, limit, offset, counts}` |
 | `GET` | `/api/v1/records/{id}` | — | `Record` (9.2) |
 | `PATCH` | `/api/v1/records/{id}` | `RecordPatch` (9.4) | `RecordPatchResponse {record, siblings}` |

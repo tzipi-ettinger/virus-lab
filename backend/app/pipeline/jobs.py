@@ -11,7 +11,8 @@ forgets every job: the page then gets 404 and shows the upload as stopped. Each
 form is saved as soon as it is read, so what was read before that is on the
 records screen. A finished job is kept FINISHED_TTL_S for the page to collect.
 
-A job is seen only by the user who started it. Only counts, the result and the
+Every signed-in user sees every job, as on the records screen; the user who
+started it counts only for MAX_RUNNING_PER_USER. Only counts, the result and the
 problem are kept: never the files once the job is over (SPEC 11.1).
 
 Owner: A
@@ -102,11 +103,12 @@ class ExtractJobs:
         job.task = asyncio.create_task(self._run(job, run))
         return _view(job_id, job)
 
-    def get(self, job_id: str, user_id: str) -> ExtractJob | None:
-        """None for a job that doesn't exist, was forgotten, or is another user's."""
+    def get(self, job_id: str) -> ExtractJob | None:
+        """None for a job that doesn't exist or was forgotten. Any signed-in user may
+        ask, like the records screen, where everyone sees everyone's records."""
         self._forget_old()
         job = self._jobs.get(job_id)
-        if job is None or job.user_id != user_id:
+        if job is None:
             return None
         return _view(job_id, job)
 
