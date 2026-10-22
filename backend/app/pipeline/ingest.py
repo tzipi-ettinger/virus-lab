@@ -16,6 +16,7 @@ from functools import partial
 import pymupdf
 
 from app.extraction.provider import PageImage
+from app.pipeline.split import SCALE, FormBox
 
 # Longest side of the image sent to the model. An A4 scan comes out near 190 DPI,
 # which read well in the spike; a 12MP phone photo is scaled down to the same size.
@@ -25,6 +26,10 @@ JPEG_QUALITY = 85
 # smaller, since a person reads it on a screen with zoom, and it is kept.
 SAVE_MAX_SIDE_PX = 1600
 SAVE_JPEG_QUALITY = 80
+# A form cut out of a page (several forms on one page, split.py) is cut from a
+# larger drawing, so half a page still reaches MAX_SIDE_PX at the same detail.
+CROP_MAX_SIDE_PX = 3300
+CROP_JPEG_QUALITY = 90
 ROTATIONS = (0, 90, 180, 270)
 # A PNG of 126KB can hold a 108MP image, and rendering decodes all of it first. 100MP
 # leaves room for a 48MP phone photo and a 600 DPI A4 scan (35MP).
@@ -68,6 +73,9 @@ class SourcePage:
     # The whole file as a PDF, shared by all its pages. repr=False: a log line or
     # traceback must never carry the document.
     _pdf: bytes = field(repr=False)
+    # Where the page is in _pdf, when not at page_number: a form cut out of a page
+    # (crop) is a one-page PDF of its own, and keeps the page number it came from.
+    _pdf_index: int | None = field(default=None, repr=False)
 
     def render(
         self, rotation: int = 0, *, max_side: int = MAX_SIDE_PX, quality: int = JPEG_QUALITY
@@ -77,16 +85,7 @@ class SourcePage:
         Scaled so the longest side is `max_side` pixels. The defaults are the model's
         image; the saved image passes SAVE_MAX_SIDE_PX and SAVE_JPEG_QUALITY.
         """
-        if rotation not in ROTATIONS:
-            raise ValueError(f"rotation must be one of {ROTATIONS}, got {rotation}")
-        with pymupdf.open(stream=self._pdf, filetype="pdf") as doc:
-            page = doc[self.page_number - 1]
-            # Add to the page's own /Rotate (scanners often store pages sideways and
-            # rely on it), so rotation 0 means "as the viewer shows it".
-            page.set_rotation((page.rotation + rotation) % 360)
-            zoom = max_side / max(page.rect.width, page.rect.height)
-            pixmap = page.get_pixmap(matrix=pymupdf.Matrix(zoom, zoom))
-            jpeg = pixmap.tobytes("jpeg", jpg_quality=quality)
+        jpeg = self._pixmap(rotation, max_side).tobytes("jpeg", jpg_quality=quality)
         return PageImage(
             file_id=self.file_id,
             filename=self.filename,
@@ -101,6 +100,51 @@ class SourcePage:
         loop = asyncio.get_running_loop()
         render = partial(self.render, rotation, max_side=max_side, quality=quality)
         return await loop.run_in_executor(_RENDER_THREAD, render)
+
+    def crop(self, rotation: int, box: FormBox, part: int) -> "SourcePage":
+        """One form cut out of this page, as a page of its own.
+
+        `box` is where the form is on the page turned `rotation` degrees (the image
+        the model saw). The cut is drawn larger than the model's image, so the form
+        keeps its detail once it is scaled up to MAX_SIDE_PX. `part` (from 1) goes
+        into the file_id: the page table holds one row per file and page number.
+        """
+        pixmap = self._pixmap(rotation, CROP_MAX_SIDE_PX)
+        width, height = pixmap.width, pixmap.height
+        rect = pymupdf.IRect(
+            box.left * width // SCALE,
+            box.top * height // SCALE,
+            box.right * width // SCALE,
+            box.bottom * height // SCALE,
+        )
+        cut = pymupdf.Pixmap(pixmap.colorspace, rect, pixmap.alpha)
+        cut.copy(pixmap, rect)
+        jpeg = cut.tobytes("jpeg", jpg_quality=CROP_JPEG_QUALITY)
+        with pymupdf.open(stream=jpeg, filetype="jpeg") as doc:
+            pdf = doc.convert_to_pdf()
+        return SourcePage(
+            file_id=f"{self.file_id}-f{part}",
+            filename=self.filename,
+            page_number=self.page_number,
+            _pdf=pdf,
+            _pdf_index=0,
+        )
+
+    async def crop_async(self, rotation: int, box: FormBox, part: int) -> "SourcePage":
+        loop = asyncio.get_running_loop()
+        return await loop.run_in_executor(_RENDER_THREAD, self.crop, rotation, box, part)
+
+    def _pixmap(self, rotation: int, max_side: int) -> pymupdf.Pixmap:
+        if rotation not in ROTATIONS:
+            raise ValueError(f"rotation must be one of {ROTATIONS}, got {rotation}")
+        index = self.page_number - 1 if self._pdf_index is None else self._pdf_index
+        with pymupdf.open(stream=self._pdf, filetype="pdf") as doc:
+            page = doc[index]
+            # Add to the page's own /Rotate (scanners often store pages sideways and
+            # rely on it), so rotation 0 means "as the viewer shows it".
+            page.set_rotation((page.rotation + rotation) % 360)
+            zoom = max_side / max(page.rect.width, page.rect.height)
+            return page.get_pixmap(matrix=pymupdf.Matrix(zoom, zoom))
 
 
 def detect_type(data: bytes) -> str | None:

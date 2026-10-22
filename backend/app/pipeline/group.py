@@ -65,7 +65,8 @@ class FormGroup:
 def place(page: ReadPage, group: FormGroup | None, *, after_failure: bool) -> Placement:
     """Where a page goes. `group` is the open form of the same file, right before it.
 
-    `after_failure`: the page right before this one, in the same file, failed.
+    `after_failure`: the page right before this one, in the same file, failed or
+    held several forms (split.py): either way there's no telling what it continues.
     """
     if _has_central_number(page.ruled):
         return "new"

@@ -142,6 +142,7 @@ def test_the_prompt_lists_every_sender_and_drops_its_comment():
     assert "התקבל" in prompt  # v4: the received stamp wins
     assert "2825747366-01" in prompt  # v5: what the first measurement found
     assert "כתב יד רהוט" in prompt  # v7: names in Hebrew cursive
+    assert "forms_on_page" in prompt  # v8: several forms on one image
 
 
 def test_a_used_up_daily_quota_stops_at_once():

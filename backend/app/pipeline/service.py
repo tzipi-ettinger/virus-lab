@@ -1,4 +1,5 @@
-"""Runs the stages for one upload: split -> extract upright -> assemble -> apply_rules
+"""Runs the stages for one upload: split -> extract upright (a page with several forms
+is cut into one page per form, split.py) -> assemble -> apply_rules
 -> group pages into forms (group.py) -> save each form.
 
 A few pages at a time, so the model calls overlap. One page failing never stops
@@ -38,6 +39,7 @@ from app.pipeline.ingest import (
     split_pages_async,
 )
 from app.pipeline.orient import extract_upright
+from app.pipeline.split import form_boxes
 from app.rules.engine import apply_rules
 from app.schemas.api import ErrorCode, ErrorInfo, FailedPage, FileResult, Form, Record
 
@@ -84,6 +86,15 @@ class ExtractionResult:
         return self.quota_message is not None
 
 
+@dataclass(frozen=True)
+class _Split:
+    """A page with several forms, cut into one page per form (split.py), not read yet."""
+
+    parts: list[SourcePage]
+    calls: int  # the calls that found the forms
+    seconds: float
+
+
 class TooManyPages(Exception):
     """The whole upload is over the page limit. `message` is shown to the user, in Hebrew."""
 
@@ -123,15 +134,31 @@ async def extract_files(
     if on_progress is not None:
         on_progress(0, len(pages))
 
-    async def run(page: SourcePage) -> ReadPage | FailedPage:
+    async def run(page: SourcePage) -> list[ReadPage | FailedPage]:
         nonlocal pages_done
-        outcome = await read(page)
+        outcomes = await read_page(page)
         pages_done += 1
         if on_progress is not None:
             on_progress(pages_done, len(pages))
-        return outcome
+        return outcomes
 
-    async def read(page: SourcePage) -> ReadPage | FailedPage:
+    async def read_page(page: SourcePage) -> list[ReadPage | FailedPage]:
+        """One outcome per form on the page: usually one, several when it was split."""
+        outcome = await read(page, split=True)
+        if not isinstance(outcome, _Split):
+            return [outcome]
+        # One part at a time: the semaphore counts pages, and a part is a page too.
+        parts = [await read(part, split=False) for part in outcome.parts]
+        # The call that found the forms counts against the quota too.
+        for index, part in enumerate(parts):
+            if isinstance(part, ReadPage):
+                parts[index] = replace(
+                    part, calls=part.calls + outcome.calls, seconds=part.seconds + outcome.seconds
+                )
+                break
+        return parts
+
+    async def read(page: SourcePage, *, split: bool) -> ReadPage | FailedPage | _Split:
         nonlocal quota_message
         page_id = form_id(page.file_id, page.page_number)
         try:
@@ -139,8 +166,16 @@ async def extract_files(
                 if quota_message is not None:
                     return _failed(page, quota_message, code="QUOTA_EXHAUSTED")
                 started = time.perf_counter()
-                oriented = await extract_upright(provider, page)
+                oriented = await extract_upright(provider, page, stop_at_several_forms=split)
             seconds = time.perf_counter() - started
+            if split and (boxes := form_boxes(oriented.extraction)):
+                logger.info("page split: %s into %d forms", page_id, len(boxes))
+                rotation = oriented.applied_rotation
+                parts = [
+                    await page.crop_async(rotation, box, part)
+                    for part, box in enumerate(boxes, start=1)
+                ]
+                return _Split(parts=parts, calls=oriented.calls, seconds=seconds)
             # Outside the semaphore: it limits model calls, and this is not one.
             saved = await page.render_async(
                 oriented.applied_rotation, max_side=SAVE_MAX_SIDE_PX, quality=SAVE_JPEG_QUALITY
@@ -205,17 +240,32 @@ async def extract_files(
     tasks = [asyncio.ensure_future(run(page)) for page in pages]
     try:
         group: FormGroup | None = None
-        previous: ReadPage | FailedPage | None = None
-        for task in tasks:
-            outcome = await task
-            same_file = previous is not None and previous.file_id == outcome.file_id
+        previous_file: str | None = None
+        # The page before failed or held several forms: a page without a central
+        # number may continue it, and there's no telling which form.
+        previous_doubtful = False
+        for page, task in zip(pages, tasks, strict=True):
+            outcomes = await task
+            same_file = previous_file == page.file_id
+            previous_file = page.file_id
+            if len(outcomes) > 1:  # several forms on one page: each a form of its own
+                await close(group)
+                group = None
+                for outcome in outcomes:
+                    if isinstance(outcome, FailedPage):
+                        failed_pages.append(outcome)
+                    else:
+                        await close(start(outcome, uncertain=False, today=today))
+                previous_doubtful = True
+                continue
+            [outcome] = outcomes
             if isinstance(outcome, FailedPage):
                 await close(group)
                 group = None
                 failed_pages.append(outcome)
             else:
                 open_group = group if same_file else None
-                after_failure = same_file and isinstance(previous, FailedPage)
+                after_failure = same_file and previous_doubtful
                 placement = place(outcome, open_group, after_failure=after_failure)
                 joined = None
                 if placement == "join" and open_group is not None:
@@ -227,7 +277,7 @@ async def extract_files(
                     # A join that failed is a doubt like any other: flagged, not attached.
                     uncertain = placement != "new"
                     group = start(outcome, uncertain=uncertain, today=today)
-            previous = outcome
+            previous_doubtful = isinstance(outcome, FailedPage)
         await close(group)
     finally:
         # Left over only if the loop itself broke (run() never raises): stop the

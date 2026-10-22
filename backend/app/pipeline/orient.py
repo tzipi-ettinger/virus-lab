@@ -13,6 +13,7 @@ from dataclasses import dataclass
 
 from app.extraction.provider import ExtractionProvider, PageImage, ProviderError
 from app.pipeline.ingest import ROTATIONS, SourcePage
+from app.pipeline.split import form_boxes
 from app.schemas.extraction import RawExtraction
 
 # Two corrections cover a wrong first guess (seen in the spike): 3 calls at most.
@@ -30,7 +31,11 @@ class OrientedPage:
 
 
 async def extract_upright(
-    provider: ExtractionProvider, page: SourcePage, *, max_corrections: int = MAX_CORRECTIONS
+    provider: ExtractionProvider,
+    page: SourcePage,
+    *,
+    max_corrections: int = MAX_CORRECTIONS,
+    stop_at_several_forms: bool = False,
 ) -> OrientedPage:
     """Extract one page, turning it until the model reports it upright.
 
@@ -38,6 +43,10 @@ async def extract_upright(
     fails, the last good result is kept and flagged unresolved, since a sideways
     reading is still more than nothing. QuotaExhausted always propagates: the
     batch has to stop.
+
+    `stop_at_several_forms`: once the model reports several forms on the page, stop
+    turning it. The forms are cut out and each one is turned on its own (service.py),
+    so turning the whole page would spend calls for nothing.
     """
     image = await page.render_async(0)
     extraction = await provider.extract(image)
@@ -45,6 +54,8 @@ async def extract_upright(
     tried = {0}
 
     for _ in range(max_corrections):
+        if stop_at_several_forms and form_boxes(extraction):
+            break
         needed = extraction.page_rotation_degrees % 360
         if needed == 0 or needed not in ROTATIONS:
             break

@@ -44,7 +44,7 @@ from app.schemas.extraction import RawExtraction
 
 logger = logging.getLogger(__name__)
 
-PROMPT_FILE = Path(__file__).with_name("prompts") / "v7.md"
+PROMPT_FILE = Path(__file__).with_name("prompts") / "v8.md"
 MAX_ATTEMPTS = 2
 SERVER_ERROR_WAIT_S = 5.0
 MAX_RATE_WAIT_S = 30.0  # if Gemini asks for a longer wait, try the next key instead

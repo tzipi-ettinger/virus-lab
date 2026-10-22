@@ -14,6 +14,7 @@ from app.pipeline.ingest import (
     split_pages,
     split_pages_async,
 )
+from app.pipeline.split import FormBox
 
 LIMITS = {"max_bytes": 20_000_000, "max_pages": 60}
 
@@ -265,3 +266,72 @@ def test_split_pages_async_runs_on_the_render_thread(monkeypatch):
 
     assert [page.page_number for page in pages] == [1, 2]
     assert seen and seen[0].startswith("render")
+
+
+# --- Cutting a form out of a page (several forms on one page, split.py)
+
+
+def make_two_forms_pdf() -> bytes:
+    """A4 with a red top half and a blue bottom half: two "forms"."""
+    with pymupdf.open() as doc:
+        page = doc.new_page(width=595, height=842)
+        page.draw_rect(pymupdf.Rect(0, 0, 595, 421), color=(1, 0, 0), fill=(1, 0, 0))
+        page.draw_rect(pymupdf.Rect(0, 421, 595, 842), color=(0, 0, 1), fill=(0, 0, 1))
+        return doc.tobytes()
+
+
+def center_color(jpeg: bytes) -> tuple[int, ...]:
+    pixmap = pymupdf.Pixmap(jpeg)
+    return pixmap.pixel(pixmap.width // 2, pixmap.height // 2)
+
+
+def is_red(color) -> bool:
+    return color[0] > 200 and color[2] < 60
+
+
+def is_blue(color) -> bool:
+    return color[2] > 200 and color[0] < 60
+
+
+def test_crop_cuts_out_one_form_as_a_page_of_its_own():
+    page = split_pages("f1", "forms.pdf", make_two_forms_pdf(), **LIMITS)[0]
+
+    top = page.crop(0, FormBox(top=0, left=0, bottom=500, right=1000), part=1)
+    bottom = page.crop(0, FormBox(top=500, left=0, bottom=1000, right=1000), part=2)
+
+    assert (top.file_id, top.filename, top.page_number) == ("f1-f1", "forms.pdf", 1)
+    assert bottom.file_id == "f1-f2"  # one row per file and page number in the page table
+    assert is_red(center_color(top.render().jpeg))
+    assert is_blue(center_color(bottom.render().jpeg))
+    width, height = image_size(top.render().jpeg)
+    assert max(width, height) == pytest.approx(MAX_SIDE_PX, abs=2)  # scaled like a page
+    assert width > height  # half an A4 page is landscape
+
+
+def test_crop_cuts_the_page_as_the_model_saw_it_turned():
+    page = split_pages("f1", "forms.pdf", make_two_forms_pdf(), **LIMITS)[0]
+
+    # Turned 90 clockwise, the red top half is on the right.
+    right = page.crop(90, FormBox(top=0, left=500, bottom=1000, right=1000), part=1)
+
+    assert is_red(center_color(right.render().jpeg))
+
+
+def test_a_cut_form_turns_on_its_own():
+    page = split_pages("f1", "forms.pdf", make_two_forms_pdf(), **LIMITS)[0]
+    top = page.crop(0, FormBox(top=0, left=0, bottom=500, right=1000), part=1)
+
+    width, height = image_size(top.render(rotation=90).jpeg)
+
+    assert height > width
+    assert len(repr(top)) < 200  # never carries the document either
+
+
+def test_a_cut_page_of_a_later_page_keeps_its_page_number():
+    data = make_pdf(3)
+    page = split_pages("f1", "forms.pdf", data, **LIMITS)[2]
+
+    part = page.crop(0, FormBox(top=0, left=0, bottom=500, right=1000), part=2)
+
+    assert (part.file_id, part.page_number) == ("f1-f2", 3)
+    assert part.render().page_number == 3

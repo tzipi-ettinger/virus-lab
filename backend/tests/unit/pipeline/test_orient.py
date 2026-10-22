@@ -7,7 +7,7 @@ from app.extraction.fake_provider import FIXTURES_DIR, FakeProvider
 from app.extraction.provider import PageImage, ProviderError, QuotaExhausted
 from app.pipeline.ingest import split_pages
 from app.pipeline.orient import extract_upright
-from app.schemas.extraction import RawExtraction, RawField
+from app.schemas.extraction import RawExtraction, RawField, RawFormBox
 
 EMPTY = RawField(value=None, status="not_found", evidence=None)
 
@@ -164,3 +164,36 @@ def test_with_fake_provider_a_270_page_takes_two_calls():
 
     assert (result.calls, result.applied_rotation, result.unresolved) == (2, 270, False)
     assert result.image.rotation == 270
+
+
+# --- Several forms on one page (split.py)
+
+TWO_FORMS = [RawFormBox(box_2d=[0, 0, 480, 1000]), RawFormBox(box_2d=[520, 0, 1000, 1000])]
+
+
+class TwoFormsProvider:
+    """Reports two forms on the page, and a rotation it would like."""
+
+    def __init__(self) -> None:
+        self.seen_rotations: list[int] = []
+
+    async def extract(self, page: PageImage) -> RawExtraction:
+        self.seen_rotations.append(page.rotation)
+        return reading(90).model_copy(update={"forms_on_page": TWO_FORMS})
+
+
+def test_a_page_with_several_forms_is_not_turned_when_asked_to_stop(source_page):
+    provider = TwoFormsProvider()
+
+    result = run(provider, source_page, stop_at_several_forms=True)
+
+    # Each form is turned on its own once it is cut out: no call spent on the page.
+    assert (result.calls, result.applied_rotation, provider.seen_rotations) == (1, 0, [0])
+
+
+def test_without_asking_to_stop_a_page_with_several_forms_is_turned_as_usual(source_page):
+    provider = TwoFormsProvider()
+
+    result = run(provider, source_page)
+
+    assert result.calls == 3

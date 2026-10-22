@@ -17,7 +17,7 @@ from app.pipeline.service import (
     UploadedFile,
     extract_files,
 )
-from app.schemas.extraction import RawExtraction, RawField
+from app.schemas.extraction import RawExtraction, RawField, RawFormBox
 
 LIMITS = {"today": date(2026, 10, 19), "max_bytes": 20_000_000, "max_pages": 60}
 # An upright page with real values (Meuhedet; national ID read as 0011223344).
@@ -496,3 +496,141 @@ def test_no_progress_for_an_upload_over_the_page_limit():
         )
 
     assert seen == []
+
+
+# --- Several forms on one page (split.py)
+
+TWO_FORMS = [RawFormBox(box_2d=[0, 0, 480, 1000]), RawFormBox(box_2d=[520, 0, 1000, 1000])]
+
+
+def patient(national_id: str, commitment: str) -> RawExtraction:
+    return UPRIGHT.model_copy(
+        update={
+            "national_id": RawField(value=national_id, status="found", evidence="ת.ז."),
+            "commitment_numbers": [RawField(value=commitment, status="found", evidence="התחייבות")],
+        },
+        deep=True,
+    )
+
+
+class SplitScript:
+    """Pages in `split` report two forms; a cut form ("-f1", "-f2") reads as `parts[n]`.
+
+    `errors` maps a part number to the exception it raises. Records every call.
+    """
+
+    def __init__(self, split=(), parts=None, errors=None) -> None:
+        self.split = set(split)
+        self.parts = parts or {}
+        self.errors = errors or {}
+        self.called: list[tuple[str, int, int]] = []  # (filename, page, part); part 0 = whole
+
+    async def extract(self, page: PageImage) -> RawExtraction:
+        _, _, suffix = page.file_id.partition("-f")
+        part = int(suffix or 0)
+        self.called.append((page.filename, page.page_number, part))
+        if part in self.errors:
+            raise self.errors[part]
+        if part:
+            return self.parts.get(part, UPRIGHT).model_copy(deep=True)
+        if (page.filename, page.page_number) in self.split:
+            return UPRIGHT.model_copy(update={"forms_on_page": TWO_FORMS}, deep=True)
+        return UPRIGHT.model_copy(deep=True)
+
+
+PARTS = {1: patient("000000018", "111111"), 2: patient("000000026", "222222")}
+
+
+def test_a_page_with_two_forms_gives_two_forms_each_read_on_its_own():
+    provider = SplitScript(split={("forms.pdf", 1)}, parts=PARTS)
+    saver = Saver()
+
+    result = run([upload(2)], provider, save_form=saver)
+
+    file_id = result.files[0].file_id
+    assert [(f.form.file_id, f.form.page_number) for f in result.forms] == [
+        (f"{file_id}-f1", 1),
+        (f"{file_id}-f2", 1),
+        (file_id, 2),
+    ]
+    first, second, _ = result.forms
+    assert first.form.fields.national_id.value == "000000018"
+    assert second.form.fields.national_id.value == "000000026"
+    assert [c.value for c in second.form.commitment_numbers] == ["222222"]
+    assert [i.code for f in result.forms for i in f.form.issues] == []
+    # Each form keeps its own cut-out image, and saves on its own.
+    assert [image.file_id for image in second.images] == [f"{file_id}-f2"]
+    assert saver.saved == [1, 1, 2]
+    # The call that found the forms is counted once, with the first form.
+    assert [f.calls for f in result.forms] == [2, 1, 1]
+    # Page 2 runs alongside, so only the set of calls is fixed: no page turned.
+    assert sorted(provider.called) == [
+        ("forms.pdf", 1, 0),
+        ("forms.pdf", 1, 1),
+        ("forms.pdf", 1, 2),
+        ("forms.pdf", 2, 0),
+    ]
+    assert result.failed_pages == []
+
+
+def test_a_page_without_a_central_number_after_a_split_page_is_flagged():
+    # It may continue either form: never attached to one of them.
+    class Script(SplitScript):
+        async def extract(self, page):
+            if page.page_number == 2:
+                return BLANK.model_copy(deep=True)
+            return await super().extract(page)
+
+    result = run([upload(2)], Script(split={("forms.pdf", 1)}, parts=PARTS))
+
+    assert [(f.form.page_number, f.form.continuation_pages) for f in result.forms] == [
+        (1, []),
+        (1, []),
+        (2, []),
+    ]
+    assert [i.code for i in result.forms[2].form.issues] == ["PAGE_GROUPING_UNCERTAIN"]
+
+
+def test_a_cut_form_that_fails_fails_alone():
+    provider = SplitScript(
+        split={("forms.pdf", 1)}, parts=PARTS, errors={2: ProviderError("המודל לא ענה")}
+    )
+
+    result = run([upload(1)], provider)
+
+    file_id = result.files[0].file_id
+    assert [f.form.file_id for f in result.forms] == [f"{file_id}-f1"]
+    [failed] = result.failed_pages
+    assert (failed.file_id, failed.page_number, failed.error.message) == (
+        f"{file_id}-f2",
+        1,
+        "המודל לא ענה",
+    )
+
+
+def test_the_quota_running_out_on_a_cut_form_fails_the_next_without_a_call():
+    provider = SplitScript(split={("forms.pdf", 1)}, errors={1: QuotaExhausted("נגמרה המכסה")})
+
+    result = run([upload(1)], provider)
+
+    assert result.forms == []
+    assert [p.error.code for p in result.failed_pages] == ["QUOTA_EXHAUSTED", "QUOTA_EXHAUSTED"]
+    assert ("forms.pdf", 1, 2) not in provider.called
+    assert result.quota_exhausted
+
+
+def test_a_split_page_counts_once_in_the_progress():
+    seen = []
+
+    asyncio.run(
+        extract_files(
+            [upload(2)],
+            SplitScript(split={("forms.pdf", 1)}),
+            max_concurrency=2,
+            on_progress=lambda done, total: seen.append((done, total)),
+            **LIMITS,
+        )
+    )
+
+    assert seen[0] == (0, 2)
+    assert seen[-1] == (2, 2)
