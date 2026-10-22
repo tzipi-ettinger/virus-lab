@@ -221,11 +221,13 @@ describe("RecordsFilters", () => {
     await user.selectOptions(screen.getByLabelText("סוג טופס"), "lab_report");
     await user.selectOptions(screen.getByLabelText("סטטוס"), "approved");
     await user.type(screen.getByLabelText("מתאריך קבלה"), "2026-10-01");
+    await user.type(screen.getByLabelText("עד תאריך קבלה"), "2026-10-19");
 
     expect(Object.fromEntries(requested())).toMatchObject({
       form_type: "lab_report",
       status: "approved",
       date_from: "2026-10-01",
+      date_to: "2026-10-19",
     });
   });
 
