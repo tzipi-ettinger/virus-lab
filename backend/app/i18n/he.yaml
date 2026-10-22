@@ -18,7 +18,7 @@ issues:
   COMMITMENT_PREFIX_REMOVED: הוסרה קידומת המעבדה השולחת
   ROTATION_UNRESOLVED: העמוד סרוק בכיוון חריג — יש לבדוק את כל השדות
   DUPLICATE_REMOVED: הוסרה כפילות
-  DUPLICATE_RECORD: מספר ההתחייבות כבר קיים ברשומה אחרת — יש לבדוק
+  DUPLICATE_RECORD: כבר קיים בהיסטוריה — אותו מספר התחייבות ואותם מספרים מרכזיים. יש לבדוק
   PAGE_GROUPING_UNCERTAIN: עמוד בלי מספר מרכזי שלא תואם לטופס הקודם — יש לבדוק
   EXTRACTION_FAILED: הקריאה נכשלה — נסי שוב
   INVALID_FILE: לא ניתן לקרוא את הקובץ

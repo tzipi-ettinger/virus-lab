@@ -223,17 +223,65 @@ def test_a_failure_midway_saves_nothing(db, user, monkeypatch):
         assert rows(db, f"SELECT COUNT(*) AS n FROM {table}") == [{"n": 0}]
 
 
-def test_commitment_already_saved_is_flagged_duplicate(db, user):
+def duplicate_issue(record):
+    """The record's DUPLICATE_RECORD issue, or None."""
+    issues = record.fields.commitment_number.issues
+    return next((i for i in issues if i.code == "DUPLICATE_RECORD"), None)
+
+
+def test_same_commitment_and_central_numbers_is_flagged_with_who_and_when(db, user):
     [first] = save(db, make_form("clean", file_id="f1"))
 
     [second] = save(db, make_form("clean", file_id="f2"))
 
     field = second.fields.commitment_number
-    assert [i.code for i in field.issues][-1] == "DUPLICATE_RECORD"
+    issue = duplicate_issue(second)
+    assert field.issues[-1] == issue
+    assert [(d.record_id, d.created_at, d.created_by) for d in issue.duplicate_of] == [
+        (first.record_id, NOW, "Tester")
+    ]
     assert field.needs_review and second.needs_review
-    assert "DUPLICATE_RECORD" not in [i.code for i in first.fields.commitment_number.issues]
-    [stored] = rows(db, "SELECT needs_review FROM record WHERE id = %s", (second.record_id,))
+    assert duplicate_issue(first) is None
+    sql = "SELECT needs_review, fields FROM record WHERE id = %s"
+    [stored] = rows(db, sql, (second.record_id,))
     assert stored["needs_review"] is True
+    saved_issue = stored["fields"]["commitment_number"]["issues"][-1]
+    assert saved_issue["duplicate_of"][0]["created_by"] == "Tester"
+
+
+def test_same_commitment_with_other_central_numbers_is_not_flagged(db, user):
+    save(db, make_form("clean", file_id="f1"))
+    more_central = make_form("multi_values").central_numbers  # 948062 and 948063
+
+    [subset] = save(db, make_form("clean", file_id="f2", central_numbers=more_central))
+    [other] = save(db, make_form("clean", file_id="f3", central_numbers=more_central[1:]))
+
+    assert duplicate_issue(subset) is None
+    assert duplicate_issue(other) is None
+    assert not subset.fields.commitment_number.needs_review
+
+
+def test_central_numbers_in_another_order_are_the_same(db, user):
+    form = make_form("multi_values", file_id="f1")
+    save(db, form)
+
+    reordered = make_form(
+        "multi_values", file_id="f2", central_numbers=list(reversed(form.central_numbers))
+    )
+    records = save(db, reordered)
+
+    assert [c.value for c in reordered.central_numbers] == ["948063", "948062"]
+    assert all(duplicate_issue(record) for record in records)
+
+
+def test_same_commitment_and_no_central_numbers_on_both_is_flagged(db, user):
+    save(db, make_form("clean", file_id="f1", central_numbers=[]))
+
+    [second] = save(db, make_form("clean", file_id="f2", central_numbers=[]))
+    [with_central] = save(db, make_form("clean", file_id="f3"))
+
+    assert duplicate_issue(second)
+    assert duplicate_issue(with_central) is None
 
 
 def test_two_saves_at_once_with_the_same_commitment_flag_exactly_one(db, user):

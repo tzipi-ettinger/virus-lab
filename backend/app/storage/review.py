@@ -14,7 +14,6 @@ from datetime import date, datetime
 from psycopg import AsyncConnection
 
 from app.rules.engine import apply_rules
-from app.rules.issues import make_issue
 from app.rules.records import blocking_fields
 from app.rules.review_policy import is_blocking
 from app.rules.text import fold_text
@@ -40,7 +39,7 @@ from app.schemas.api import (
     User,
 )
 from app.storage import repo
-from app.storage.service import _iso_date, search_text
+from app.storage.service import _iso_date, central_values, flag_duplicate, search_text
 
 # The fields every record of a form shares (A3). commitment_number is the record's own.
 SHARED = tuple(FormFields.model_fields)
@@ -267,26 +266,23 @@ def rerun_rules(record: Record, *, today: date) -> Record:
 
 async def _keep_duplicate_flag(conn: AsyncConnection, before: Record, after: Record) -> Record:
     """apply_rules doesn't know other records, so DUPLICATE_RECORD (set on save, A4) is
-    kept here. It is checked again when the number changes, and while the number stays
-    and is flagged, since the other record may be gone by now. An unflagged number
-    that stays is not checked: the record saved first is never flagged by a later copy.
-    Confirming the field still resolves it."""
+    kept here. It is checked again when the commitment number or the central numbers
+    change, and while the record is flagged, since the earlier records may be gone or
+    changed by now. An unflagged record that didn't change is not checked: the record
+    saved first is never flagged by a later copy. Confirming the field still resolves it."""
     old, new = before.fields.commitment_number, after.fields.commitment_number
     if not new.value:
         return after
+    old_central = sorted(central_values(before.central_numbers))
+    new_central = central_values(after.central_numbers)
     flagged = any(issue.code == "DUPLICATE_RECORD" for issue in old.issues)
-    if new.value == old.value and not flagged:
+    if new.value == old.value and sorted(new_central) == old_central and not flagged:
         return after
     await repo.lock_commitments(conn, [new.value])
-    if not await repo.commitment_taken(conn, new.value, except_id=after.record_id):
+    same = await repo.same_records(conn, new.value, new_central, except_id=after.record_id)
+    if not same:
         return after
-    flagged = new.model_copy(
-        update={
-            "issues": [*new.issues, make_issue("DUPLICATE_RECORD")],
-            "needs_review": not new.confirmed,
-        }
-    )
-    fields = after.fields.model_copy(update={"commitment_number": flagged})
+    fields = after.fields.model_copy(update={"commitment_number": flag_duplicate(new, same)})
     return after.model_copy(
         update={
             "fields": fields,
@@ -380,7 +376,7 @@ async def _save(conn: AsyncConnection, record: Record, now: datetime) -> None:
         central_numbers=[item.model_dump(mode="json") for item in record.central_numbers],
         national_id=fields.national_id.value,
         commitment_number=fields.commitment_number.value,
-        central_values=[item.value for item in record.central_numbers if item.value],
+        central_values=central_values(record.central_numbers),
         first_name=fields.first_name.value,
         last_name=fields.last_name.value,
         sender=fields.sender.value,
