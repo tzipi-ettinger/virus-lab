@@ -2,7 +2,7 @@
 // highlight, it turns to the page the value was read on and boxes the value there.
 // Owner: A
 
-import { useEffect, useRef, useState, type HTMLAttributes } from "react";
+import { useEffect, useRef, useState, type Dispatch, type HTMLAttributes, type SetStateAction } from "react";
 import { FileName } from "../../shared/FileName";
 import {
   MAX_ZOOM,
@@ -33,13 +33,16 @@ interface DocumentPreviewProps {
 type Fit = "width" | "page";
 
 export function DocumentPreview({ record, highlight = null, pointerArea, fit = "width" }: DocumentPreviewProps) {
+  // Kept here, above the page, so the zoom the reviewer picked stays from one record
+  // to the next instead of going back to "fit" every time.
+  const [zoom, setZoom] = useState<Zoom>("fit");
   return (
     <section className="preview" aria-labelledby="preview-title" {...pointerArea}>
       <h2 id="preview-title" className="preview-title">הטופס המקורי</h2>
       {record ? (
-        // A different form starts on its first page, fitted to the width. Records of
-        // the same form (one per commitment) share its pages, so page and zoom stay.
-        <Pages key={record.page_id} record={record} highlight={highlight} fit={fit} />
+        // A different form starts on its first page, at the zoom picked before. Records
+        // of the same form (one per commitment) share its pages, so the page stays too.
+        <Pages key={record.page_id} record={record} highlight={highlight} fit={fit} zoom={zoom} setZoom={setZoom} />
       ) : (
         <p className="preview-empty">בחרי שורה בטבלה כדי לראות את הטופס המקורי</p>
       )}
@@ -47,10 +50,17 @@ export function DocumentPreview({ record, highlight = null, pointerArea, fit = "
   );
 }
 
-function Pages({ record, highlight, fit }: { record: ApiRecord; highlight: Highlight | null; fit: Fit }) {
+interface PagesProps {
+  record: ApiRecord;
+  highlight: Highlight | null;
+  fit: Fit;
+  zoom: Zoom;
+  setZoom: Dispatch<SetStateAction<Zoom>>;
+}
+
+function Pages({ record, highlight, fit, zoom, setZoom }: PagesProps) {
   const pages = previewPages(record);
   const [index, setIndex] = useState(0);
-  const [zoom, setZoom] = useState<Zoom>("fit");
   const [failed, setFailed] = useState<string | null>(null); // the image URL that did not load
   const frame = useRef<HTMLDivElement>(null);
   const mark = useRef<HTMLDivElement>(null);

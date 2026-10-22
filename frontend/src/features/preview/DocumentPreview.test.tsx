@@ -117,3 +117,18 @@ describe("DocumentPreview with a highlight", () => {
     expect(shownPage()).toBe("עמוד 3 של הטופס");
   });
 });
+
+describe("DocumentPreview zoom", () => {
+  test("the zoom picked stays when the next form opens", async () => {
+    const user = userEvent.setup();
+    const { rerender } = render(<DocumentPreview record={record()} />);
+    await user.click(screen.getByRole("button", { name: "הגדלה" }));
+    const level = () => document.querySelector(".preview-zoom-level")?.textContent;
+    const zoomed = level();
+    expect(zoomed).toBe("150%");
+
+    rerender(<DocumentPreview record={record({ record_id: "r2", page_id: "p2" })} />);
+
+    expect(level()).toBe(zoomed);
+  });
+});
