@@ -412,6 +412,12 @@
   font-size: 0.875rem;
 }
 
+/* The cards keep their full height. With overflow hidden a card could shrink in the
+   column and clip its last line (the meta chips, the last fields) out of sight. */
+.record-main > * {
+  flex-shrink: 0;
+}
+
 .record-back {
   align-self: flex-start;
   color: var(--color-accent-strong, #08515a);
