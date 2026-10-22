@@ -16,13 +16,15 @@ interface ReviewTableProps {
   onSelect: (recordId: string) => void;
   /** Records the server sent back after a change: they replace the local ones. */
   onRecords: (records: ApiRecord[]) => void;
+  /** Back to the upload, from the empty list. */
+  onUpload?: () => void;
 }
 
-export function ReviewTable({ records, selectedId, onSelect, onRecords }: ReviewTableProps) {
+export function ReviewTable({ records, selectedId, onSelect, onRecords, onUpload }: ReviewTableProps) {
   const { approveMany } = useRecordMutations(onRecords);
   const [skipped, setSkipped] = useState<Record<string, string>>({});
   if (records.length === 0) {
-    return <p className="review-empty">עוד אין רשומות. העלי טפסים כדי להתחיל</p>;
+    return <EmptyList onUpload={onUpload} />;
   }
   const toFix = records.filter((r) => r.status === "pending" && blockingFields(r).length > 0).length;
 
@@ -111,6 +113,29 @@ function RowStatus({ record }: { record: ApiRecord }) {
     <span className="review-badge is-flagged" title={`לטפל קודם ב: ${blocking.map(fieldTitle).join(", ")}`}>
       ⚠ {blocking.length} לתיקון
     </span>
+  );
+}
+
+/** No records yet (or all deleted): a small picture and a way back to the upload. */
+function EmptyList({ onUpload }: { onUpload?: () => void }) {
+  return (
+    <section className="review review-empty-state" aria-labelledby="review-empty-title">
+      <svg className="review-empty-art" viewBox="0 0 96 96" width="96" height="96" aria-hidden="true">
+        <rect x="22" y="12" width="52" height="68" rx="6" fill="var(--color-surface, #ffffff)" stroke="currentColor" strokeWidth="3" />
+        <path d="M32 30h32M32 42h32M32 54h20" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+        <circle cx="70" cy="72" r="16" fill="var(--color-accent, #1f6fb2)" />
+        <path d="M70 64v16M62 72h16" stroke="#ffffff" strokeWidth="3" strokeLinecap="round" />
+      </svg>
+      <h2 id="review-empty-title" className="review-empty-title">
+        עוד אין רשומות לבדיקה
+      </h2>
+      <p className="review-empty">מעלים טפסים, והרשומות שנקראו מהם יופיעו כאן לבדיקה ולאישור</p>
+      {onUpload && (
+        <button type="button" className="review-empty-button" onClick={onUpload}>
+          העלאת טפסים
+        </button>
+      )}
+    </section>
   );
 }
 

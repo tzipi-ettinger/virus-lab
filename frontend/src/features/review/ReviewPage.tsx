@@ -106,6 +106,7 @@ export function ReviewPage() {
           selectedId={selected?.record_id ?? null}
           onSelect={setSelectedId}
           onRecords={onRecords}
+          onUpload={() => setView("upload")}
         />
         <RecordPanel
           record={selected}

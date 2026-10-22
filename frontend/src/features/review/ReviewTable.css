@@ -429,6 +429,47 @@
   display: none;
 }
 
+/* The list with no records: a picture, a line, and the way to the upload. */
+.review-empty-state {
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding-block: 40px;
+  text-align: center;
+}
+
+.review-empty-art {
+  color: var(--color-border-strong, #a9bccf);
+}
+
+.review-empty-title {
+  margin: 0;
+  font-size: 1.125rem;
+}
+
+.review-empty-state .review-empty {
+  padding: 0;
+  max-inline-size: 32ch;
+}
+
+.review-empty-button {
+  margin-block-start: 8px;
+  min-block-size: 44px;
+  padding-inline: 24px;
+  color: #ffffff;
+  background: var(--gradient-brand, #1f6fb2);
+  border: 0;
+  border-radius: var(--radius-md, 10px);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.review-empty-button:focus-visible {
+  outline: 3px solid var(--color-focus, #1d4ed8);
+  outline-offset: 2px;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .review-approve button.is-ready:not(:disabled) {
     animation: none;
