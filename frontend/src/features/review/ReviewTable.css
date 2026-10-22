@@ -388,6 +388,28 @@
   font-size: 0.8125rem;
 }
 
+/* Nothing left to fix: approve turns green, with a small pop when it does. */
+.review-approve button.is-ready:not(:disabled) {
+  background: var(--color-success, #1e6b3a);
+  animation: review-ready-pop 0.35s ease-out;
+}
+
+.review-approve button.is-ready:not(:disabled):hover {
+  box-shadow: 0 6px 16px rgb(30 107 58 / 0.3);
+}
+
+@keyframes review-ready-pop {
+  0% {
+    transform: scale(0.92);
+  }
+  60% {
+    transform: scale(1.06);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
 /* The ID check while typing: an orange line under the input, never color alone. */
 .review-cell-input.is-invalid {
   border-color: var(--color-warning-border, #d9a514);
@@ -405,4 +427,10 @@
 
 .review-cell-hint:empty {
   display: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .review-approve button.is-ready:not(:disabled) {
+    animation: none;
+  }
 }

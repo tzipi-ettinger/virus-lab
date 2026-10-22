@@ -1,5 +1,6 @@
 // Approve one record (PLAN-DEV-B 3.2). Blocked while a field is still flagged, and
 // then it lists what to fix; the server checks again and has the last word (D3).
+// Once nothing is left to fix it turns green, with a small pop, so "all good" shows.
 // Owner: B
 
 import { useId, useState } from "react";
@@ -32,6 +33,7 @@ export function ApproveButton({ record, onApprove }: Props) {
     <span className="review-approve">
       <button
         type="button"
+        className={blocking.length === 0 ? "is-ready" : undefined}
         disabled={busy || blocking.length > 0}
         aria-describedby={blocking.length > 0 ? hintId : undefined}
         onClick={(event) => {
@@ -39,7 +41,14 @@ export function ApproveButton({ record, onApprove }: Props) {
           void approve();
         }}
       >
-        {busy ? "מאשרת…" : "אישור"}
+        {busy ? (
+          "מאשרת…"
+        ) : (
+          <>
+            {blocking.length === 0 && <span aria-hidden="true">✓ </span>}
+            אישור
+          </>
+        )}
       </button>
       {blocking.length > 0 && (
         <span id={hintId} className="review-blocking">

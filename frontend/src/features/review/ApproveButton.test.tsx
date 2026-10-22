@@ -79,6 +79,15 @@ describe("ApproveButton", () => {
     expect(screen.queryByRole("button")).toBeNull();
     expect(screen.getByText("✓ אושר")).toBeTruthy();
   });
+
+  test("nothing left to fix turns the button green, and a flagged one stays plain", () => {
+    renderButton(record());
+    expect(screen.getByRole("button", { name: "אישור" }).className).toBe("is-ready");
+    cleanup();
+
+    renderButton(flaggedRecord());
+    expect(screen.getByRole("button", { name: "אישור" }).className).toBe("");
+  });
 });
 
 describe("approve", () => {
