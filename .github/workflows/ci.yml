@@ -108,6 +108,64 @@ jobs:
       - if: always()
         run: docker logs app || true
 
+  # The whole path in a real browser (e2e/tests/smoke.spec.ts): sign in, upload,
+  # find the record, open it, export it, sign out. Against the image Render deploys
+  # and a real Postgres, with EXTRACTION_PROVIDER=fake (no key, no quota).
+  e2e:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: virus_lab
+          POSTGRES_PASSWORD: virus_lab
+          POSTGRES_DB: virus_lab_e2e
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U virus_lab -d virus_lab_e2e"
+          --health-interval 2s
+          --health-timeout 3s
+          --health-retries 15
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker build -t virus-lab .
+      - name: Start the app next to Postgres
+        run: |
+          docker run -d --name app --network host \
+            -e DATABASE_URL=postgresql://virus_lab:virus_lab@127.0.0.1:5432/virus_lab_e2e \
+            -e FRONTEND_ORIGIN=http://localhost:8000 -e EXTRACTION_PROVIDER=fake virus-lab
+          for i in $(seq 1 30); do curl -fsS localhost:8000/api/health && break; sleep 1; done
+          curl -fsS localhost:8000/api/health | grep -q '"database":"ok"'
+      # A throwaway user in a throwaway database, with a random password.
+      - name: Create the test user
+        run: |
+          password=$(openssl rand -hex 16)
+          echo "::add-mask::$password"
+          echo "E2E_PASSWORD=$password" >> "$GITHUB_ENV"
+          printf '%s\n%s\n' "$password" "$password" | docker exec -i app python -m scripts.create_user e2e --name "בדיקה"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: e2e/package-lock.json
+      - run: npm ci
+        working-directory: e2e
+      - run: npx playwright install --with-deps chromium
+        working-directory: e2e
+      - run: npx playwright test
+        working-directory: e2e
+      - if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: |
+            e2e/playwright-report
+            e2e/test-results
+          retention-days: 7
+      - if: always()
+        run: docker logs app || true
+
   # Known vulnerabilities in the pinned dependencies: PyPI's advisories for
   # requirements.txt, npm's for package-lock.json. Not a required check.
   audit:
