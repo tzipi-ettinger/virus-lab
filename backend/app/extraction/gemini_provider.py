@@ -116,7 +116,7 @@ class GeminiProvider:
         )
         # The same settings, answering in the name's schema.
         self._name_config = self._config.model_copy(update={"response_schema": NameReading})
-        # A second look at a name the first one wasn't sure of: slower, so only then.
+        # The second look at a name's crop, which must agree with the first.
         self._name_deep_config = self._name_config.model_copy(
             update={"thinking_config": types.ThinkingConfig(thinking_level="high")}
         )

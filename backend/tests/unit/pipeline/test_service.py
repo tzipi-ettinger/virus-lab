@@ -534,8 +534,8 @@ def test_a_name_unclear_on_the_page_is_read_again_from_a_crop():
         "ישראלי",
         "found",
     )
-    assert page.calls == 2  # the page, then the crop
-    assert len(provider.crops) == 1
+    assert page.calls == 3  # the page, then two looks at the crop
+    assert len(provider.crops) == 2
 
 
 def test_a_page_with_no_name_on_it_costs_no_second_call():

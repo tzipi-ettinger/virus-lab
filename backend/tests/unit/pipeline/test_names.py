@@ -44,12 +44,16 @@ def oriented(extraction: RawExtraction, *, rotation: int = 0, unresolved: bool =
     return OrientedPage(extraction, image, rotation, unresolved=unresolved, calls=1)
 
 
-@pytest.fixture
-def source_page():
+def blank_page():
     with pymupdf.open() as doc:
         doc.new_page(width=595, height=842)
         pdf = doc.tobytes()
     return split_pages("f1", "forms.pdf", pdf, max_bytes=20_000_000, max_pages=60)[0]
+
+
+@pytest.fixture
+def source_page():
+    return blank_page()
 
 
 class PagesOnly:
@@ -96,66 +100,85 @@ def test_a_name_the_page_could_not_read_comes_from_the_crop(source_page):
         "found",
     )
     assert first.box_2d == FIRST_BOX  # the box on the page, not the crop's
-    assert result.calls == 2  # the second read counts against the quota too
+    assert result.calls == 3  # the page, then two looks at the crop
     assert result.extraction.national_id == page_read.extraction.national_id
-    [crop] = provider.crops
-    assert crop.jpeg.startswith(b"\xff\xd8")
-    assert crop.page_number == 1
+    assert provider.looks == [False, True]  # the second look thinks longer
+    first_crop, second_crop = provider.crops
+    assert first_crop is second_crop  # the same crop, looked at twice
+    assert first_crop.jpeg.startswith(b"\xff\xd8")
+    assert first_crop.page_number == 1
 
 
-def test_a_name_the_crop_is_sure_of_takes_no_deeper_look(source_page):
-    page_read = oriented(reading(name("יוסף"), EMPTY))
-    provider = Names(NameReading(first_name=closer("ישראל"), last_name=closer(None, "not_found")))
-
-    result = run(provider, source_page, page_read)
-
-    assert provider.looks == [False]  # no name anywhere for the last name: nothing to review
-    assert result.calls == 2
-
-
-def test_a_name_the_crop_is_not_sure_of_gets_a_deeper_look(source_page):
-    page_read = oriented(reading(name("יוסף"), name("סואעד", box=LAST_BOX)))
+def read_twice(first: NamePart, second: NamePart, page_first: RawField | None = None):
+    """The first name after two looks at the crop (the last name not on the page)."""
+    page_read = oriented(reading(page_first or name("יוסף"), EMPTY))
     provider = Names(
-        NameReading(first_name=closer(None, "unclear"), last_name=closer("ישראלי")),
-        deeper=NameReading(first_name=closer("ישראל"), last_name=closer(None, "unclear")),
+        NameReading(first_name=first, last_name=closer(None, "not_found")),
+        deeper=NameReading(first_name=second, last_name=closer(None, "not_found")),
     )
-
-    result = run(provider, source_page, page_read)
-
-    assert provider.looks == [False, True]
-    assert provider.crops[0] is provider.crops[1]  # the same crop, looked at longer
-    first, last = result.extraction.first_name, result.extraction.last_name
-    # Each part from the look that is sure of it: the deeper look never undoes the first.
-    assert (first.value, first.status) == ("ישראל", "found")
-    assert (last.value, last.status) == ("ישראלי", "found")
-    assert result.calls == 3
+    return asyncio.run(read_name_closer(provider, blank_page(), page_read)).extraction
 
 
 @pytest.mark.parametrize(
-    "deeper",
+    ("first", "second"),
     [
-        # Sure, but its letters don't spell it: the same bar as the first look.
-        NameReading(
-            first_name=closer("יוסף", letters=list("ישראל")),
-            last_name=closer(None, "not_found"),
-        ),
-        NameReading(first_name=closer(None, "unclear"), last_name=closer(None, "not_found")),
-        ProviderError("x"),
-        QuotaExhausted("x"),
+        # Both sure, of different names: one of them is a guess, maybe both.
+        (closer("ישמעאל"), closer("ישראל")),
+        # Only one look is sure.
+        (closer("ישראל"), closer(None, "unclear")),
+        (closer(None, "unclear"), closer("ישראל")),
+        # One saw a name, the other none.
+        (closer("ישראל"), closer(None, "not_found")),
+        # Sure in words, but its letters don't spell it.
+        (closer("ישראל"), closer("ישראל", letters=list("ישמעאל"))),
     ],
 )
-def test_a_deeper_look_that_is_not_sure_leaves_the_name_for_review(source_page, deeper):
+def test_two_looks_that_dont_agree_send_the_name_to_review(first, second):
+    result = read_twice(first, second)
+
+    assert (result.first_name.value, result.first_name.status) == (None, "unclear")
+
+
+def test_two_looks_agree_on_the_letters_not_on_how_a_letter_ends():
+    result = read_twice(closer("אברהם"), closer(" אברהמ", letters=list("אברהמ")))
+
+    assert (result.first_name.value, result.first_name.status) == ("אברהם", "found")
+
+
+def test_no_name_in_either_look_leaves_the_page_read():
+    # The page read wasn't sure either: nothing new, it stays as it was.
+    unclear = name(None, "unclear")
+
+    result = read_twice(closer(None, "not_found"), closer(None, "not_found"), unclear)
+
+    assert result.first_name == unclear
+
+
+@pytest.mark.parametrize("error", [ProviderError("x"), QuotaExhausted("x")])
+def test_a_failed_second_look_confirms_nothing(source_page, error):
     page_read = oriented(reading(name("יוסף"), EMPTY))
     provider = Names(
-        NameReading(first_name=closer(None, "unclear"), last_name=closer(None, "not_found")),
-        deeper=deeper,
+        NameReading(first_name=closer("ישראל"), last_name=closer(None, "not_found")),
+        deeper=error,
     )
 
     result = run(provider, source_page, page_read)
 
-    first = result.extraction.first_name
+    first, last = result.extraction.first_name, result.extraction.last_name
     assert (first.value, first.status) == (None, "unclear")
+    assert last == EMPTY  # no name on the page or in the crop: nothing to confirm
     assert result.calls == 3  # a failed call counts against the quota too
+
+
+@pytest.mark.parametrize(("first", "last"), [("ישראל", "ישראל"), ("אברהם", "אברהמ")])
+def test_a_first_name_the_same_as_the_last_name_goes_to_review(source_page, first, last):
+    page_read = oriented(reading(name(None, "unclear"), name(None, "unclear", LAST_BOX)))
+    provider = Names(NameReading(first_name=closer(first), last_name=closer(last)))
+
+    result = run(provider, source_page, page_read)
+
+    for part in (result.extraction.first_name, result.extraction.last_name):
+        assert (part.value, part.status) == (None, "unclear")
 
 
 def test_the_crop_is_cut_from_the_page_as_the_model_saw_it(source_page):

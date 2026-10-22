@@ -13,18 +13,24 @@ again from a crop around it (ingest.render_crop), and the crop decides:
 - not sure: "unclear", value null, so a person reads it from the page;
 - no name in the crop: "unclear" if the page read was sure of one there, since that
   name was likely made up; otherwise the page read stays.
-That is one more model call per page. If it fails, the page read stays: the page
-was read, and losing it to the second call would cost more than it saves.
+If the crop can't be read at all, the page read stays: the page was read, and
+losing it to the second call would cost more than it saves.
 
 "Sure" is checked here, not taken from the model: the crop first lists the letters
 it sees, and a name counts as found only when those letters spell it, every one
 read and Hebrew (spelled()). A model that slides into a common name that looks
 alike says "found" about it, but rarely lists its letters to match.
 
-A name the crop leaves unclear gets one more, deeper look at the same crop
-(thinking level high): one more call, only for those pages. The deeper look
-must pass the same check, and a part it isn't sure of keeps the first look's
-reading: thinking longer finds letters, it never lowers the bar.
+Letters copied the same way every time still misread cursive: on part 1 (22.10)
+the letter check left 11 wrong name parts of 26 found ("ישמעאל", "יששכר" for
+"ישראל"). So the crop is read twice, once more with thinking level high, and a
+name part is found only when both looks are sure of the same letters (agree()).
+A model that guesses reads unclear handwriting differently each time; a name it
+really reads comes out the same. If the second look fails, nothing confirms the
+first, and its names go to review. That is two more calls per page, not one.
+
+Last, a first name the same as the last name sends both to review: on part 1
+that was the model copying one into the other ("ישראל ישראל", 6 of the 11).
 
 Owner: A
 """
@@ -67,39 +73,49 @@ async def read_name_closer(
         page_id = form_id(page.file_id, page.page_number)
         logger.warning("name not read again: %s (%s)", page_id, type(exc).__name__)
         return replace(oriented, calls=oriented.calls + 1)
-    calls = oriented.calls + 1
-    merged = _merge_both(extraction, closer)
-    if _needs_review(merged):
-        calls += 1
-        try:
-            deeper = await provider.read_name(crop, deep=True)
-        except (ProviderError, QuotaExhausted) as exc:
-            # The first look stands: it was read, and is already sent to review.
-            page_id = form_id(page.file_id, page.page_number)
-            logger.warning("name not read deeper: %s (%s)", page_id, type(exc).__name__)
-        else:
-            merged = _merge_both(extraction, _surer(closer, deeper))
-    return replace(oriented, extraction=merged, calls=calls)
-
-
-def _merge_both(extraction: RawExtraction, closer: NameReading) -> RawExtraction:
-    return extraction.model_copy(
+    try:
+        deeper: NameReading | None = await provider.read_name(crop, deep=True)
+    except (ProviderError, QuotaExhausted) as exc:
+        page_id = form_id(page.file_id, page.page_number)
+        logger.warning("name not read deeper: %s (%s)", page_id, type(exc).__name__)
+        deeper = None  # nothing confirms the first look
+    merged = extraction.model_copy(
         update={
-            "first_name": merge(extraction.first_name, closer.first_name),
-            "last_name": merge(extraction.last_name, closer.last_name),
+            "first_name": merge(extraction.first_name, agree(closer.first_name, deeper, "first")),
+            "last_name": merge(extraction.last_name, agree(closer.last_name, deeper, "last")),
         }
     )
+    return replace(oriented, extraction=_same_name_twice(merged), calls=oriented.calls + 2)
 
 
-def _needs_review(extraction: RawExtraction) -> bool:
-    return "unclear" in (extraction.first_name.status, extraction.last_name.status)
+def agree(first: NamePart, deeper: NameReading | None, part: str) -> NamePart:
+    """One name part as both looks at the crop have it: found only when both are
+    sure of the same letters, and no name only when neither saw one."""
+    other = None
+    if deeper is not None:
+        other = deeper.first_name if part == "first" else deeper.last_name
+    if other is not None and is_sure(first) and is_sure(other):
+        if _plain(_tidy(first.value)) == _plain(_tidy(other.value)):
+            return first
+    if first.status == "not_found" and (other is None or other.status == "not_found"):
+        return first
+    evidence = first.evidence or (other.evidence if other is not None else None)
+    return NamePart(letters=[], value=None, status="unclear", evidence=evidence)
 
 
-def _surer(first: NameReading, deeper: NameReading) -> NameReading:
-    """Each part from the deeper look where it is sure, else from the first look."""
-    return NameReading(
-        first_name=deeper.first_name if is_sure(deeper.first_name) else first.first_name,
-        last_name=deeper.last_name if is_sure(deeper.last_name) else first.last_name,
+def _same_name_twice(extraction: RawExtraction) -> RawExtraction:
+    """Both parts to review when the first name is the last name."""
+    first, last = extraction.first_name, extraction.last_name
+    if not (first.status == last.status == "found" and first.value and last.value):
+        return extraction
+    if _plain(first.value.replace(" ", "")) != _plain(last.value.replace(" ", "")):
+        return extraction
+    unclear = {"value": None, "status": "unclear"}
+    return extraction.model_copy(
+        update={
+            "first_name": first.model_copy(update=unclear),
+            "last_name": last.model_copy(update=unclear),
+        }
     )
 
 
