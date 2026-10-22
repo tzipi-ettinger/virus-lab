@@ -600,12 +600,136 @@ def test_a_cut_form_that_fails_fails_alone():
 
     file_id = result.files[0].file_id
     assert [f.form.file_id for f in result.forms] == [f"{file_id}-f1"]
+    # On the page that was uploaded (its file_id is a file's), by its place on it:
+    # "page 1 failed" alone would hide that the page's other form was saved.
     [failed] = result.failed_pages
-    assert (failed.file_id, failed.page_number, failed.error.message) == (
-        f"{file_id}-f2",
+    assert (failed.file_id, failed.page_number, failed.error.code) == (
+        file_id,
         1,
-        "המודל לא ענה",
+        "EXTRACTION_FAILED",
     )
+    assert failed.error.message == "טופס 2 מתוך 2 בעמוד הזה. המודל לא ענה"
+
+
+def test_a_cut_form_that_isnt_saved_is_reported_on_its_page_alone():
+    async def save(extracted):
+        if extracted.form.file_id.endswith("-f2"):
+            raise RuntimeError("connection lost")
+        return ["saved"]
+
+    result = run([upload(1)], SplitScript(split={("forms.pdf", 1)}, parts=PARTS), save_form=save)
+
+    assert [f.form.file_id.rpartition("-")[2] for f in result.forms] == ["f1"]
+    [failed] = result.failed_pages
+    assert (failed.file_id, failed.page_number) == (result.files[0].file_id, 1)
+    assert failed.error.message == f"טופס 2 מתוך 2 בעמוד הזה. {service.SAVE_FAILED_PART}"
+
+
+def test_a_cut_form_without_a_central_number_is_flagged():
+    # It may be page 2 of the form before it, or half of one form cut in two.
+    provider = SplitScript(split={("forms.pdf", 1)}, parts={1: PARTS[1], 2: BLANK})
+
+    result = run([upload(1)], provider)
+
+    first, second = result.forms
+    assert [i.code for i in first.form.issues] == []
+    assert [i.code for i in second.form.issues] == ["PAGE_GROUPING_UNCERTAIN"]
+    assert second.form.needs_review
+
+
+@pytest.mark.usefixtures("instant_render")
+def test_a_split_page_has_its_forms_read_and_saved_in_its_own_turn():
+    # Not behind the pages waiting after it: nothing could be saved until they were read.
+    provider = SplitScript(split={("forms.pdf", 1)}, parts=PARTS)
+    called_at_first_save = []
+
+    async def save(extracted):
+        if not called_at_first_save:
+            called_at_first_save.extend(provider.called)
+        return ["saved"]
+
+    run([upload(6)], provider, max_concurrency=1, save_form=save)
+
+    assert provider.called[:4] == [
+        ("forms.pdf", 1, 0),
+        ("forms.pdf", 1, 1),
+        ("forms.pdf", 1, 2),
+        ("forms.pdf", 2, 0),
+    ]
+    assert ("forms.pdf", 6, 0) not in called_at_first_save
+
+
+@pytest.mark.usefixtures("instant_render")
+def test_the_quota_running_out_on_a_later_page_keeps_a_split_page_s_forms():
+    class Script(SplitScript):
+        async def extract(self, page):
+            if page.page_number == 5:
+                self.called.append((page.filename, 5, 0))
+                raise QuotaExhausted("נגמרה המכסה")
+            return await super().extract(page)
+
+    provider = Script(split={("forms.pdf", 1)}, parts=PARTS)
+
+    result = run([upload(6)], provider, max_concurrency=1)
+
+    assert [f.form.page_number for f in result.forms] == [1, 1, 2, 3, 4]
+    assert [(p.page_number, p.error.code) for p in result.failed_pages] == [
+        (5, "QUOTA_EXHAUSTED"),
+        (6, "QUOTA_EXHAUSTED"),
+    ]
+    assert ("forms.pdf", 6, 0) not in provider.called
+
+
+# Two forms the model reports, but the boxes share too much to cut by (split.py).
+OVERLAPPING = [RawFormBox(box_2d=[0, 0, 600, 1000]), RawFormBox(box_2d=[400, 0, 1000, 1000])]
+
+
+def test_several_forms_that_cant_be_cut_apart_are_one_form_flagged():
+    # The model read only the first of them (prompt v8): never a silent loss.
+    provider = PageScript(
+        readings={("forms.pdf", 1): UPRIGHT.model_copy(update={"forms_on_page": OVERLAPPING})}
+    )
+
+    result = run([upload(1)], provider)
+
+    [form] = result.forms
+    assert form.form.file_id == result.files[0].file_id  # read whole, not cut
+    assert [i.code for i in form.form.issues] == ["SEVERAL_FORMS_ON_PAGE"]
+    assert form.form.needs_review
+
+
+def test_a_page_after_several_forms_that_werent_cut_is_never_attached():
+    provider = PageScript(
+        readings={
+            ("forms.pdf", 1): UPRIGHT.model_copy(update={"forms_on_page": OVERLAPPING}),
+            ("forms.pdf", 2): BLANK,
+        }
+    )
+
+    result = run([upload(2)], provider)
+
+    assert [(f.form.page_number, f.form.continuation_pages) for f in result.forms] == [
+        (1, []),
+        (2, []),
+    ]
+    assert [i.code for i in result.forms[1].form.issues] == ["PAGE_GROUPING_UNCERTAIN"]
+
+
+def test_a_page_that_fails_to_be_cut_keeps_its_reading_flagged(monkeypatch, caplog):
+    async def crop_async(self, rotation, box, part):
+        raise RuntimeError("ישראל ישראלי: bad rect")
+
+    monkeypatch.setattr(SourcePage, "crop_async", crop_async)
+    provider = SplitScript(split={("forms.pdf", 1)}, parts=PARTS)
+
+    with caplog.at_level(logging.INFO, logger="app.pipeline.service"):
+        result = run([upload(1)], provider)
+
+    [form] = result.forms
+    assert [i.code for i in form.form.issues] == ["SEVERAL_FORMS_ON_PAGE"]
+    assert (form.calls, result.failed_pages) == (1, [])  # the call already made is kept
+    assert "RuntimeError" in caplog.text
+    assert "ישראל" not in caplog.text
 
 
 def test_the_quota_running_out_on_a_cut_form_fails_the_next_without_a_call():

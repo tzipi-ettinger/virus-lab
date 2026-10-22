@@ -5,14 +5,15 @@ so a change in the extraction schema never reaches the rules.
 
 The output is what apply_rules expects (tests/fixtures/rules/README.md): `raw`
 holds what the model read, `value` is left empty for the rules to normalize, and
-there are no issues or flags yet, except the page-level ROTATION_UNRESOLVED.
+there are no issues or flags yet, except the page-level ROTATION_UNRESOLVED and
+SEVERAL_FORMS_ON_PAGE.
 
 Owner: A
 """
 
 from app.pipeline.orient import OrientedPage
 from app.rules.issues import make_issue
-from app.schemas.api import FieldBox, Form, FormField, FormFields
+from app.schemas.api import FieldBox, Form, FormField, FormFields, Issue
 from app.schemas.extraction import RawField
 
 
@@ -44,9 +45,19 @@ def assemble(page: OrientedPage) -> Form:
         commitment_numbers=[
             _field(item, image.page_number) for item in extraction.commitment_numbers
         ],
-        issues=[make_issue("ROTATION_UNRESOLVED")] if page.unresolved else [],
+        issues=_issues(page),
         needs_review=False,
     )
+
+
+def _issues(page: OrientedPage) -> list[Issue]:
+    issues = [make_issue("ROTATION_UNRESOLVED")] if page.unresolved else []
+    # The model saw several forms and read only the first (prompt v8), and the page
+    # got here uncut: split.py found the boxes doubtful, or it is a form already cut
+    # out of a page. The others were never read, and only a person can tell.
+    if len(page.extraction.forms_on_page) > 1:
+        issues.append(make_issue("SEVERAL_FORMS_ON_PAGE"))
+    return issues
 
 
 def _field(raw: RawField, page_number: int) -> FormField:

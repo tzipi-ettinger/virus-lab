@@ -5,7 +5,8 @@ is cut into one page per form, split.py) -> read the name again, enlarged (names
 A few pages at a time, so the model calls overlap. One page failing never stops
 the others (FR-12): it becomes a FailedPage. A used-up quota is the exception:
 every further call would fail too, so the pages not started yet are failed
-without a call, and the pages already in flight are allowed to finish.
+without a call, and the pages already in flight are allowed to finish. A page that
+was cut keeps its turn until each of its forms is read, one call at a time.
 
 Each form is saved (`save_form`) as soon as the page after it is read, since only
 then is it known whether that page continues it; a file's last form when the file
@@ -30,7 +31,7 @@ from datetime import date
 
 from app.extraction.provider import ExtractionProvider, PageImage, ProviderError, QuotaExhausted
 from app.pipeline.assemble import assemble, form_id
-from app.pipeline.group import FormGroup, ReadPage, join, place, start
+from app.pipeline.group import FormGroup, ReadPage, join, place, several_forms, start
 from app.pipeline.ingest import (
     SAVE_JPEG_QUALITY,
     SAVE_MAX_SIDE_PX,
@@ -39,7 +40,7 @@ from app.pipeline.ingest import (
     split_pages_async,
 )
 from app.pipeline.names import read_name_closer
-from app.pipeline.orient import extract_upright
+from app.pipeline.orient import OrientedPage, extract_upright
 from app.pipeline.split import form_boxes
 from app.rules.engine import apply_rules
 from app.schemas.api import ErrorCode, ErrorInfo, FailedPage, FileResult, Form, Record
@@ -49,6 +50,11 @@ logger = logging.getLogger(__name__)
 UNEXPECTED_ERROR = "שגיאה לא צפויה בעיבוד העמוד. אפשר לנסות שוב"
 # Not "send the file again": the file's other forms are saved, and would be saved twice.
 SAVE_FAILED = "העמוד נקרא, אבל לא נשמר. כדי לשמור אותו, אפשר להעלות שוב רק את העמוד הזה"
+# A form cut out of a page: the page's other forms are saved, and would be saved twice too.
+SAVE_FAILED_PART = (
+    "הוא נקרא, אבל לא נשמר. אפשר להעלות שוב את העמוד, ואז שאר הטפסים שבו יישמרו פעמיים: "
+    "את הכפולים יש למחוק"
+)
 
 
 @dataclass(frozen=True)
@@ -85,6 +91,15 @@ class ExtractionResult:
     @property
     def quota_exhausted(self) -> bool:
         return self.quota_message is not None
+
+
+@dataclass(frozen=True)
+class _Called:
+    """A page, or a form cut out of one, after its model calls: not assembled yet."""
+
+    page: SourcePage
+    oriented: OrientedPage
+    seconds: float
 
 
 @dataclass(frozen=True)
@@ -144,48 +159,50 @@ async def extract_files(
         return outcomes
 
     async def read_page(page: SourcePage) -> list[ReadPage | FailedPage]:
-        """One outcome per form on the page: usually one, several when it was split."""
-        outcome = await read(page, split=True)
-        if not isinstance(outcome, _Split):
-            return [outcome]
-        # One part at a time: the semaphore counts pages, and a part is a page too.
-        parts = [await read(part, split=False) for part in outcome.parts]
-        # The call that found the forms counts against the quota too.
-        for index, part in enumerate(parts):
-            if isinstance(part, ReadPage):
-                parts[index] = replace(
-                    part, calls=part.calls + outcome.calls, seconds=part.seconds + outcome.seconds
-                )
-                break
-        return parts
+        """One outcome per form on the page: usually one, several when it was split.
 
-    async def read(page: SourcePage, *, split: bool) -> ReadPage | FailedPage | _Split:
+        A page that was cut keeps its place in the semaphore while its forms are
+        read, one at a time. Sent to the back of the queue, they would wait for
+        every page of the upload, and since forms are saved in page order nothing
+        after them would be saved until then; a quota used up on a later page
+        would fail them too, though their page went first.
+        """
+        async with semaphore:
+            outcome = await call(page, split=True)
+            if isinstance(outcome, _Split):
+                called = [await call(part, split=False) for part in outcome.parts]
+            else:
+                called = [outcome]
+        # Outside the semaphore: it limits model calls, and these are not.
+        read = [item if isinstance(item, FailedPage) else await finish(item) for item in called]
+        return _on_the_page(page, outcome, read) if isinstance(outcome, _Split) else read
+
+    async def call(page: SourcePage, *, split: bool) -> _Called | _Split | FailedPage:
+        """The model calls for a page, or a form cut out of one. The caller holds the semaphore."""
         nonlocal quota_message
+        if quota_message is not None:
+            return _failed(page, quota_message, code="QUOTA_EXHAUSTED")
         page_id = form_id(page.file_id, page.page_number)
+        started = time.perf_counter()
         try:
-            async with semaphore:
-                if quota_message is not None:
-                    return _failed(page, quota_message, code="QUOTA_EXHAUSTED")
-                started = time.perf_counter()
-                oriented = await extract_upright(provider, page, stop_at_several_forms=split)
-                boxes = form_boxes(oriented.extraction) if split else []
-                if not boxes:  # a page about to be cut has its names read form by form
-                    oriented = await read_name_closer(provider, page, oriented)
-            seconds = time.perf_counter() - started
+            oriented = await extract_upright(provider, page, stop_at_several_forms=split)
+            boxes = form_boxes(oriented.extraction) if split else []
             if boxes:
-                logger.info("page split: %s into %d forms", page_id, len(boxes))
-                rotation = oriented.applied_rotation
-                parts = [
-                    await page.crop_async(rotation, box, part)
-                    for part, box in enumerate(boxes, start=1)
-                ]
-                return _Split(parts=parts, calls=oriented.calls, seconds=seconds)
-            # Outside the semaphore: it limits model calls, and this is not one.
-            saved = await page.render_async(
-                oriented.applied_rotation, max_side=SAVE_MAX_SIDE_PX, quality=SAVE_JPEG_QUALITY
-            )
-            form = assemble(oriented)
-            ruled = apply_rules(form, today=today)
+                try:
+                    rotation = oriented.applied_rotation
+                    parts = [
+                        await page.crop_async(rotation, box, part)
+                        for part, box in enumerate(boxes, start=1)
+                    ]
+                except Exception as exc:
+                    # Read as one form instead, flagged (assemble): the reading is paid for.
+                    logger.error("page not cut: %s (%s)", page_id, type(exc).__name__)
+                else:
+                    logger.info("page split: %s into %d forms", page_id, len(parts))
+                    seconds = time.perf_counter() - started
+                    return _Split(parts=parts, calls=oriented.calls, seconds=seconds)
+            # Not before the cut: a page about to be cut has its names read form by form.
+            oriented = await read_name_closer(provider, page, oriented)
         except QuotaExhausted as exc:
             logger.warning("quota exhausted at %s", page_id)
             quota_message = exc.message
@@ -194,13 +211,23 @@ async def extract_files(
             logger.warning("page failed: %s (%s)", page_id, type(exc).__name__)
             return _failed(page, exc.message)
         except Exception as exc:  # a bug on one page must not fail the others
-            # Not logger.exception: the traceback can hold the model's text.
-            logger.error("page failed unexpectedly: %s (%s)", page_id, type(exc).__name__)
-            return _failed(page, UNEXPECTED_ERROR)
+            return _unexpected(page, exc)
+        return _Called(page=page, oriented=oriented, seconds=time.perf_counter() - started)
+
+    async def finish(called: _Called) -> ReadPage | FailedPage:
+        page, oriented = called.page, called.oriented
+        try:
+            saved = await page.render_async(
+                oriented.applied_rotation, max_side=SAVE_MAX_SIDE_PX, quality=SAVE_JPEG_QUALITY
+            )
+            form = assemble(oriented)
+            ruled = apply_rules(form, today=today)
+        except Exception as exc:  # a bug on one page must not fail the others
+            return _unexpected(page, exc)
         logger.info(
             "page done: %s in %.1fs, %d calls, rotation %d%s",
-            page_id,
-            seconds,
+            form_id(page.file_id, page.page_number),
+            called.seconds,
             oriented.calls,
             oriented.applied_rotation,
             ", unresolved" if oriented.unresolved else "",
@@ -211,13 +238,17 @@ async def extract_files(
             image=oriented.image,
             saved=saved,
             calls=oriented.calls,
-            seconds=seconds,
+            seconds=called.seconds,
         )
 
     forms: list[ExtractedForm] = []
     failed_pages: list[FailedPage] = []
 
-    async def close(group: FormGroup | None) -> None:
+    async def close(
+        group: FormGroup | None, *, cut_from: tuple[SourcePage, int, int] | None = None
+    ) -> None:
+        """`cut_from`: the group is a form cut out of a page (the page, the form's
+        place on it from 1, and how many forms the page holds)."""
         # Saves run one at a time, in page order: two forms with the same commitment
         # number saved at once could each miss the other in the duplicate check. Two
         # uploads at once can still race; the database handles that (B's save).
@@ -234,6 +265,9 @@ async def extract_files(
                 extracted = replace(extracted, records=await save_form(extracted))
             except Exception as exc:
                 logger.error("form not saved: %s (%s)", group.form.form_id, type(exc).__name__)
+                if cut_from is not None:
+                    failed_pages.append(_failed_part(*cut_from, SAVE_FAILED_PART))
+                    return
                 # One transaction per form (B): none of its pages was saved.
                 failed_pages.extend(_failed_read(page, SAVE_FAILED) for page in group.pages)
                 return
@@ -255,11 +289,15 @@ async def extract_files(
             if len(outcomes) > 1:  # several forms on one page: each a form of its own
                 await close(group)
                 group = None
-                for outcome in outcomes:
+                for part, outcome in enumerate(outcomes, start=1):
                     if isinstance(outcome, FailedPage):
                         failed_pages.append(outcome)
-                    else:
-                        await close(start(outcome, uncertain=False, today=today))
+                        continue
+                    # Like a page after a doubtful one: without a central number it may
+                    # be the rest of the form before it, or half of one form cut in two.
+                    uncertain = place(outcome, None, after_failure=True) == "uncertain"
+                    cut_from = (page, part, len(outcomes))
+                    await close(start(outcome, uncertain=uncertain, today=today), cut_from=cut_from)
                 previous_doubtful = True
                 continue
             [outcome] = outcomes
@@ -281,7 +319,7 @@ async def extract_files(
                     # A join that failed is a doubt like any other: flagged, not attached.
                     uncertain = placement != "new"
                     group = start(outcome, uncertain=uncertain, today=today)
-            previous_doubtful = isinstance(outcome, FailedPage)
+            previous_doubtful = isinstance(outcome, FailedPage) or several_forms(outcome.ruled)
         await close(group)
     finally:
         # Left over only if the loop itself broke (run() never raises): stop the
@@ -341,6 +379,41 @@ def _failed(page: SourcePage, message: str, *, code: ErrorCode = "EXTRACTION_FAI
         page_number=page.page_number,
         error=ErrorInfo(code=code, message=message),
     )
+
+
+def _unexpected(page: SourcePage, exc: Exception) -> FailedPage:
+    # Not logger.exception: the traceback can hold the model's text.
+    page_id = form_id(page.file_id, page.page_number)
+    logger.error("page failed unexpectedly: %s (%s)", page_id, type(exc).__name__)
+    return _failed(page, UNEXPECTED_ERROR)
+
+
+def _failed_part(
+    page: SourcePage, part: int, parts: int, message: str, *, code: ErrorCode = "EXTRACTION_FAILED"
+) -> FailedPage:
+    """A form cut out of `page` failed. Reported on the page the user uploaded (the
+    form's own file_id matches no file), with its place on it: the other forms on
+    the page may well be saved."""
+    return _failed(page, f"טופס {part} מתוך {parts} בעמוד הזה. {message}", code=code)
+
+
+def _on_the_page(
+    page: SourcePage, split: _Split, parts: list[ReadPage | FailedPage]
+) -> list[ReadPage | FailedPage]:
+    """The forms cut out of `page`, as read."""
+    outcomes: list[ReadPage | FailedPage] = []
+    counted = False
+    for number, part in enumerate(parts, start=1):
+        if isinstance(part, FailedPage):
+            error = part.error
+            part = _failed_part(page, number, len(parts), error.message, code=error.code)
+        elif not counted:  # the call that found the forms counts against the quota too
+            part = replace(
+                part, calls=part.calls + split.calls, seconds=part.seconds + split.seconds
+            )
+            counted = True
+        outcomes.append(part)
+    return outcomes
 
 
 def _join_or_none(group: FormGroup, page: ReadPage, *, today: date) -> FormGroup | None:

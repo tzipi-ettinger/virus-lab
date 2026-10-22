@@ -139,6 +139,13 @@ def test_a_page_read_sideways_is_not_attached():
     assert place(page(2, unresolved=True), first_form(), after_failure=False) == "uncertain"
 
 
+def test_a_page_with_several_forms_that_werent_cut_is_not_attached():
+    # A form on it that wasn't read may have a central number.
+    boxes = [{"box_2d": [0, 0, 600, 1000]}, {"box_2d": [400, 0, 1000, 1000]}]
+
+    assert place(page(2, forms_on_page=boxes), first_form(), after_failure=False) == "uncertain"
+
+
 def test_a_page_after_a_failed_page_is_not_attached():
     # It may belong to the page we couldn't read, not to the form before it.
     assert place(page(3), first_form(), after_failure=True) == "uncertain"
