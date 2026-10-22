@@ -412,6 +412,12 @@
   font-size: 0.875rem;
 }
 
+/* The cards keep their full height. With overflow hidden a card could shrink in the
+   column and clip its last line (the meta chips, the last fields) out of sight. */
+.record-main > * {
+  flex-shrink: 0;
+}
+
 .record-back {
   align-self: flex-start;
   color: var(--color-accent-strong, #08515a);
@@ -468,9 +474,21 @@
 .record-actions {
   display: flex;
   flex-wrap: wrap;
-  align-items: flex-start;
+  align-items: center;
   gap: 8px;
   margin-inline-start: auto;
+}
+
+/* What blocks approval sits on one line beside the button, not squeezed under it. */
+.record-actions .review-approve {
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+}
+
+.record-actions .review-blocking {
+  max-inline-size: none;
 }
 
 .record-page .record-actions button {
