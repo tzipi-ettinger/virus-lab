@@ -136,7 +136,7 @@ copy .env.example .env          # ואז להדביק את המפתחות ב־GE
 .\.venv\Scripts\python.exe -m uvicorn app.main:app --reload --port 8000
 ```
 
-בדיקה: `http://localhost:8000/api/health` מחזיר `{"status": "ok", ...}`. תיעוד ה־API: `http://localhost:8000/docs`.
+בדיקה: `http://localhost:8000/api/health` מחזיר `{"status": "ok", "database": "ok", ...}`. בלי `DATABASE_URL` מופיע `"database": "off"`. תיעוד ה־API: `http://localhost:8000/docs`.
 
 **משתמש:** אין הרשמה. אחרי שהשרת עלה פעם אחת (הוא יוצר את הטבלאות), יוצרים משתמש. הסיסמה נקלטת מ־prompt, לפחות 12 תווים:
 
@@ -200,7 +200,7 @@ EXTRACTION_PROVIDER=fake
    Remove-Item Env:DATABASE_URL
    ```
 
-4. בדיקה: `https://<הכתובת>/api/health` מחזיר `"status": "ok"` ו־`"extraction_provider": "gemini"`.
+4. בדיקה: `https://<הכתובת>/api/health` מחזיר `"status": "ok"`, `"database": "ok"` ו־`"extraction_provider": "gemini"`. זו גם בדיקת הבריאות של Render (`render.yaml`): כשמסד הנתונים לא עונה תוך 3 שניות התשובה היא `503`, ו־Render לא מחשיב את השרת כתקין.
 5. **השרת לא נרדם:** השרת פונה לכתובת הציבורית של עצמו כל 10 דקות ([app/keep_alive.py](backend/app/keep_alive.py)), בלי הגדרה נוספת. בלוגים של Render מופיעה בקשת `GET /api/health` כל 10 דקות. כדי שזה יישאר בתוך 750 השעות החינמיות בחודש, זה צריך להיות השרת החינמי היחיד ב־workspace.
 
 **בדיקה מקומית של ה־image:**
@@ -250,10 +250,15 @@ docker run --rm -p 8000:8000 -e EXTRACTION_PROVIDER=fake -e FRONTEND_ORIGIN=http
 
 | Method | Path | תיאור |
 |---|---|---|
-| `GET` | `/api/health` | בדיקת חיים |
+| `GET` | `/api/health` | בדיקת חיים, כולל `SELECT 1` למסד הנתונים. `503` כשהמסד לא עונה |
+| `POST` | `/api/v1/auth/login` | כניסה: מחזיר את המשתמש ושם עוגיית סשן. `429` אחרי 5 ניסיונות שגויים |
+| `POST` | `/api/v1/auth/logout` | יציאה: מבטל את הסשן גם בשרת |
+| `GET` | `/api/v1/auth/me` | המשתמש המחובר, או `401` |
 | `POST` | `/api/v1/extract` | `multipart/form-data` עם `files` → הרשומות שנשמרו כממתינות, והעמודים שנכשלו |
+| `GET` | `/api/v1/extract/progress/{upload_id}` | כמה עמודים של העלאה שרצה כבר נקראו |
 | `GET` | `/api/v1/records` | רשימה עם חיפוש (`q`), סינון, מיון, דפדוף ומונים של ממתין ומאושר |
 | `GET` | `/api/v1/records/{id}` | רשומה אחת עם כל השדות |
+| `GET` | `/api/v1/records/{id}/history` | מי יצר, תיקן, אישר ומתי. בלי הערכים עצמם |
 | `PATCH` | `/api/v1/records/{id}` | תיקון או אישור של ערכים. מחזיר את הרשומה ואת האחיות שהשתנו |
 | `POST` | `/api/v1/records/{id}/approve` | אישור רשומה, או `409 review_required` עם השדות החוסמים |
 | `POST` | `/api/v1/records/approve` | אישור של כל המוכנות: מה אושר, ומה דולג ולמה |
@@ -262,7 +267,7 @@ docker run --rm -p 8000:8000 -e EXTRACTION_PROVIDER=fake -e FRONTEND_ORIGIN=http
 | `GET` | `/api/v1/pages/{page_id}/image` | תמונת העמוד לתצוגה ליד הטבלה |
 | `GET` | `/api/v1/senders` | הרשימה הסגורה של הגורמים השולחים |
 
-כל בקשה שמשנה נתונים חייבת להגיע מהדף של האתר (בדיקת `Origin`). שגיאות מוחזרות כ־`application/problem+json`. החוזה המלא ודוגמאות: [docs/SPEC.md §9](docs/SPEC.md#9-חוזה-api).
+כל הנתיבים תחת `/api/v1` דורשים כניסה, חוץ מ־`login`. כל בקשה שמשנה נתונים חייבת להגיע מהדף של האתר (בדיקת `Origin`). שגיאות מוחזרות כ־`application/problem+json`. החוזה המלא ודוגמאות: [docs/SPEC.md §9](docs/SPEC.md#9-חוזה-api).
 
 ---
 
@@ -276,7 +281,15 @@ cd backend
 
 ### תוצאות
 
-הרצה מ־21.10 על שני קובצי הדוגמה (48 עמודים) מול `eval/ground_truth.csv` (51 רשומות), עם `gemini-3.8-flash` ו־prompt v5. נמדד הפלט אחרי הכללים ולפני תיקון של אדם. שמות לא נמדדים (SPEC 12). **v6** (v5 עם בקשת מלבן לכל ערך) עוד לא נמדד.
+הרצה מ־21.10 על שני קובצי הדוגמה (48 עמודים) מול `eval/ground_truth.csv` (51 רשומות), עם `gemini-3.8-flash` ו־prompt v5. נמדד הפלט אחרי הכללים ולפני תיקון של אדם. שמות לא נמדדים (SPEC 12).
+
+> **המספרים כאן הם של prompt v5, והקוד השתנה מאז ולא נמדד מחדש.** מה השתנה:
+> - **v6** (21.10): המודל מחזיר גם מלבן לכל ערך, בשביל הסימון על העמוד. ההוראות לשדות נשארו כמו ב־v5
+> - **v7** (22.10): הוראות חדשות לשמות בכתב יד. ההוראות לשאר השדות לא השתנו
+> - **קריאה שנייה של השם** (22.10, `pipeline/names.py`, `prompts/name_v1.md`): קריאה נוספת מחיתוך מוגדל של העמוד סביב השם. נוגעת רק בשמות
+> - **רזולוציה גבוהה** (22.10, #100): התמונה נשלחת ל־Gemini ב־`MEDIA_RESOLUTION_HIGH`. השינוי חל על כל השדות, ולכן גם המספרים בטבלה עשויים להשתנות
+>
+> כדי למדוד את הקוד הנוכחי: `eval.run_eval`, כמו למעלה, ואז לעדכן את הטבלה ואת התאריך.
 
 | שדה | דיוק | כיסוי | שגיאות שלא סומנו |
 |---|---|---|---|
@@ -343,9 +356,11 @@ cd backend
 ### בדיקה לפני הגשה
 
 ```powershell
+curl.exe -s https://<הכתובת>/api/health             # "status": "ok", "database": "ok", "extraction_provider": "gemini"
 curl.exe -I https://<הכתובת>/                       # CSP, nosniff, no-referrer, X-Frame-Options, HSTS
 curl.exe -s -o NUL -w "%{http_code}" https://<הכתובת>/docs           # 404
 curl.exe -s -o NUL -w "%{http_code}" https://<הכתובת>/api/v1/records # 401 בלי כניסה
+curl.exe -s -o NUL -w "%{http_code}" https://<הכתובת>/api/v1/auth/me # 401 בלי כניסה
 ```
 
 ואחר כך, בלוגים של Render: חיפוש לפי ת״ז במסך הרשומות לא משאיר את המספר בלוג.
