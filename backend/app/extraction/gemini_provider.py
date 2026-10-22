@@ -135,7 +135,7 @@ class GeminiProvider:
         self, config: types.GenerateContentConfig, prompt: str, schema: type[BaseModel]
     ) -> str:
         schema_json = json.dumps(schema.model_json_schema(), sort_keys=True)
-        thinking = config.thinking_config.thinking_level
+        thinking = config.thinking_config.thinking_level if config.thinking_config else None
         resolution = config.media_resolution
         return "\n".join((self._model, str(thinking), str(resolution), prompt, schema_json))
 

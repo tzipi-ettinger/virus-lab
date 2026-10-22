@@ -11,7 +11,7 @@ Owner: A
 
 import logging
 import sys
-from collections.abc import AsyncIterator
+from collections.abc import AsyncGenerator, AsyncIterator
 from functools import lru_cache
 from typing import Annotated, assert_never
 
@@ -25,7 +25,7 @@ from starlette.datastructures import UploadFile
 from starlette.formparsers import MultiPartException, MultiPartParser
 
 from app.api.deps import get_pool, require_user
-from app.api.errors import ProblemError
+from app.api.errors import ProblemError, Responses
 from app.clock import israel_today
 from app.extraction.cached_provider import CachedProvider
 from app.extraction.fake_provider import FakeProvider
@@ -67,7 +67,7 @@ _UPLOAD_BODY = {
         },
     }
 }
-_PROBLEMS = {
+_PROBLEMS: Responses = {
     status: {"model": Problem, "description": description}
     for status, description in {
         400: 'No files ("no_files"), more than MAX_FILES_PER_REQUEST ("too_many_files"), '
@@ -104,7 +104,7 @@ class _Body:
         self._limit = limit
         self.tail = b""
 
-    async def chunks(self) -> AsyncIterator[bytes]:
+    async def chunks(self) -> AsyncGenerator[bytes]:
         received = 0
         async for chunk in self._stream:
             received += len(chunk)
@@ -249,12 +249,14 @@ async def extract(
 @router.get(
     "/extract/jobs/{job_id}",
     responses={404: {"model": Problem, "description": 'Unknown or forgotten ("job_not_found")'}},
+    dependencies=[Depends(require_user)],
 )
-def extract_job(job_id: str, jobs: JobsDep, user: UserDep) -> ExtractJob:
-    """How far the upload got, and its answer once it is over. 404 for another
-    user's job, and for any job after a server restart or FINISHED_TTL_S after it
-    ended: some forms may be saved, so the page checks the records screen."""
-    job = jobs.get(job_id, user.id)
+def extract_job(job_id: str, jobs: JobsDep) -> ExtractJob:
+    """How far the upload got, and its answer once it is over. Any signed-in user
+    may ask, as everyone sees everyone's records. 404 after a server restart, or
+    FINISHED_TTL_S after the job ended: some forms may be saved, so the page checks
+    the records screen."""
+    job = jobs.get(job_id)
     if job is None:
         raise ProblemError(404, "job_not_found", "הקריאה של הקובץ הזה לא נמצאה בשרת")
     return job

@@ -5,6 +5,7 @@
 .github
 .claude
 docs
+e2e
 **/.env
 **/.env.*
 **/*.pdf

@@ -88,7 +88,9 @@ async def init_db(conn: AsyncConnection) -> None:
     async with conn.transaction(), conn.cursor(row_factory=tuple_row) as cur:
         await cur.execute("SELECT pg_advisory_xact_lock(%s)", (_INIT_LOCK,))
         await cur.execute("SELECT to_regclass('schema_meta') IS NOT NULL")
-        (exists,) = await cur.fetchone()
+        found = await cur.fetchone()
+        assert found is not None  # to_regclass always returns a row
+        (exists,) = found
         if not exists:
             # No parameters, so psycopg sends it as one script of many statements.
             await cur.execute(_SCHEMA_SQL.read_text(encoding="utf-8"))
@@ -117,6 +119,10 @@ async def open_pool(database_url: str, *, max_size: int = 5) -> AsyncConnectionP
         min_size=1,
         max_size=max_size,
         kwargs={"row_factory": dict_row},
+        # Each connection is checked before a request gets it, and a dead one is
+        # replaced. Without this, after a database restart or failover (Render's
+        # maintenance), the next requests got the pool's dead connections and failed.
+        check=AsyncConnectionPool.check_connection,
         open=False,
     )
     await pool.open(wait=True, timeout=10)

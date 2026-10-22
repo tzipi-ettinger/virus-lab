@@ -1,0 +1,340 @@
+/* The overview screen: three number tiles, then the corrections chart beside the
+   records' status. Logical properties only (RTL). Owner: B */
+
+.stats {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  max-inline-size: 1200px;
+  margin-inline: auto;
+  padding-block: 22px 40px;
+}
+
+.stats-head {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.stats-title {
+  margin: 0;
+  font-size: 1.75rem;
+  font-weight: 800;
+  color: var(--color-text, #12233a);
+}
+
+.stats-lead {
+  margin: 0;
+  color: var(--color-text-muted, #56677a);
+}
+
+.stats-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 20px 24px;
+  background: var(--color-surface, #ffffff);
+  border: 1px solid var(--color-border, #e1e8ef);
+  border-radius: var(--radius-lg, 16px);
+  box-shadow: var(--shadow-card, none);
+}
+
+/* --- The three tiles */
+
+.stats-tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 16px;
+}
+
+.stats-tile-title {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--color-text-muted, #56677a);
+}
+
+.stats-number {
+  margin: 0;
+  font-size: 2.75rem;
+  font-weight: 800;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text, #12233a);
+}
+
+.stats-note {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 8px;
+  margin: 0;
+  font-size: 0.875rem;
+  color: var(--color-text-muted, #56677a);
+}
+
+.stats-note strong {
+  color: var(--color-text, #12233a);
+}
+
+.stats-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 10px;
+  font-weight: 700;
+  color: var(--color-warning, #8a5300);
+  background: var(--color-warning-soft, #fff4db);
+  border-radius: 999px;
+}
+
+.stats-link {
+  margin-block-start: auto;
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: var(--color-accent-strong, #17588f);
+  text-decoration: none;
+}
+
+.stats-link:hover {
+  text-decoration: underline;
+}
+
+.stats-meter {
+  block-size: 8px;
+  overflow: hidden;
+  background: var(--color-border, #e1e8ef);
+  border-radius: 999px;
+}
+
+.stats-meter span {
+  display: block;
+  block-size: 100%;
+  background: var(--color-warning-border, #d9a514);
+  border-radius: 999px;
+}
+
+/* --- The chart and the status card */
+
+.stats-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: stretch;
+  gap: 16px;
+}
+
+.stats-chart {
+  flex: 999 1 520px;
+  min-inline-size: 0;
+}
+
+.stats-status {
+  flex: 1 1 280px;
+}
+
+.stats-card-title {
+  margin: 0;
+  font-size: 1.2rem;
+  font-weight: 800;
+}
+
+.stats-card-lead {
+  margin: -6px 0 6px;
+  font-size: 0.875rem;
+  color: var(--color-text-muted, #56677a);
+}
+
+.stats-chart-empty {
+  margin: 0;
+  padding: 18px;
+  text-align: center;
+  color: var(--color-text-muted, #56677a);
+  background: var(--color-surface-muted, #f5f8fb);
+  border-radius: var(--radius-md, 10px);
+}
+
+.stats-bars {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.stats-bars li {
+  display: grid;
+  grid-template-columns: 8.5rem minmax(0, 1fr);
+  align-items: center;
+  gap: 14px;
+}
+
+.stats-bar-label {
+  font-weight: 600;
+}
+
+.stats-bar-track {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* Thin, with the rounded end where the value is. */
+.stats-bar {
+  display: block;
+  min-inline-size: 6px;
+  block-size: 14px;
+  background: var(--color-accent, #1f6fb2);
+  border-start-end-radius: 4px;
+  border-end-end-radius: 4px;
+}
+
+.stats-bars li:hover .stats-bar {
+  background: var(--color-accent-strong, #17588f);
+}
+
+.stats-bar-value {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.stats-stack {
+  display: flex;
+  gap: 2px;
+  block-size: 18px;
+}
+
+.stats-stack span {
+  flex-basis: 0;
+}
+
+.stats-stack span:first-child {
+  border-start-start-radius: 4px;
+  border-end-start-radius: 4px;
+}
+
+.stats-stack span:last-child {
+  border-start-end-radius: 4px;
+  border-end-end-radius: 4px;
+}
+
+.is-approved {
+  background: #2e7d4a;
+}
+
+.is-ready {
+  background: var(--color-accent, #1f6fb2);
+}
+
+.is-review {
+  background: var(--color-warning-border, #d9a514);
+}
+
+.stats-legend {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.stats-legend li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.stats-swatch {
+  inline-size: 12px;
+  block-size: 12px;
+  border-radius: 3px;
+}
+
+.stats-legend-label {
+  flex: 1;
+}
+
+.stats-legend strong {
+  font-variant-numeric: tabular-nums;
+}
+
+.stats-status-note {
+  margin: auto 0 0;
+  padding: 12px 14px;
+  font-size: 0.875rem;
+  line-height: 1.5;
+  color: var(--color-text-muted, #56677a);
+  background: var(--color-surface-muted, #f5f8fb);
+  border-radius: var(--radius-md, 10px);
+}
+
+.stats-status-note strong {
+  color: var(--color-text, #12233a);
+}
+
+/* --- Loading, error and empty */
+
+.stats-banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  color: var(--color-danger, #a12222);
+  background: var(--color-danger-soft, #fdecec);
+  border-radius: var(--radius-md, 10px);
+}
+
+.stats-banner button {
+  min-block-size: 36px;
+  padding: 4px 14px;
+  font: inherit;
+  background: var(--color-surface, #ffffff);
+  border: 1px solid var(--color-border-strong, #a9bccf);
+  border-radius: var(--radius-md, 10px);
+  cursor: pointer;
+}
+
+.stats-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 36px 20px;
+  text-align: center;
+  background: var(--color-surface, #ffffff);
+  border: 1px dashed var(--color-border-strong, #a9bccf);
+  border-radius: var(--radius-lg, 16px);
+}
+
+.stats-empty p {
+  margin: 0;
+}
+
+.stats-empty a {
+  font-weight: 700;
+  color: var(--color-accent-strong, #17588f);
+}
+
+.stats-link:focus-visible,
+.stats-empty a:focus-visible,
+.stats-banner button:focus-visible {
+  outline: 2px solid var(--color-focus, #1d4ed8);
+  outline-offset: 2px;
+}
+
+@media (max-width: 640px) {
+  .stats-number {
+    font-size: 2.25rem;
+  }
+
+  .stats-bars li {
+    grid-template-columns: 1fr;
+    gap: 4px;
+  }
+
+  .stats-card {
+    padding: 16px 18px;
+  }
+}

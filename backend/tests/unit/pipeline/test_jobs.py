@@ -35,12 +35,12 @@ def test_a_job_runs_in_the_background_and_ends_with_its_answer():
         assert (started.status, started.done, started.total) == ("running", 0, 0)
 
         await asyncio.sleep(0)
-        running = jobs.get(started.job_id, "u1")
+        running = jobs.get(started.job_id)
         assert (running.status, running.done, running.total) == ("running", 1, 3)
 
         gate.set()
         await asyncio.sleep(0)
-        return jobs.get(started.job_id, "u1")
+        return jobs.get(started.job_id)
 
     done = asyncio.run(scenario())
 
@@ -60,7 +60,7 @@ def test_a_problem_ends_the_job_as_failed():
 
         job = jobs.start("u1", run)
         await asyncio.sleep(0)
-        return jobs.get(job.job_id, "u1")
+        return jobs.get(job.job_id)
 
     failed = asyncio.run(finished())
 
@@ -76,7 +76,7 @@ def test_a_job_that_breaks_is_stopped_not_lost(caplog):
 
         job = jobs.start("u1", run)
         await asyncio.sleep(0)
-        return jobs.get(job.job_id, "u1")
+        return jobs.get(job.job_id)
 
     job = asyncio.run(scenario())
 
@@ -84,13 +84,17 @@ def test_a_job_that_breaks_is_stopped_not_lost(caplog):
     assert "039337423" not in caplog.text  # only the error's type is logged
 
 
-def test_a_job_is_seen_only_by_its_user():
+def test_a_job_is_found_by_its_id_alone():
+    # Everyone sees everyone's records, so a job isn't kept to the user who started it.
     async def scenario():
         jobs = ExtractJobs()
         job = jobs.start("u1", lambda progress: answer_after(progress, asyncio.Event()))
-        return jobs.get(job.job_id, "u2"), jobs.get("no-such-job", "u1")
+        return jobs.get(job.job_id), jobs.get("no-such-job")
 
-    assert asyncio.run(scenario()) == (None, None)
+    found, unknown = asyncio.run(scenario())
+
+    assert found.status == "running"
+    assert unknown is None
 
 
 def test_a_finished_job_is_forgotten_after_its_ttl():
@@ -104,9 +108,9 @@ def test_a_finished_job_is_forgotten_after_its_ttl():
         job = jobs.start("u1", run)
         await asyncio.sleep(0)
         clock.now += 59
-        kept = jobs.get(job.job_id, "u1")
+        kept = jobs.get(job.job_id)
         clock.now += 2
-        return kept, jobs.get(job.job_id, "u1")
+        return kept, jobs.get(job.job_id)
 
     kept, forgotten = asyncio.run(scenario())
 
@@ -120,7 +124,7 @@ def test_a_running_job_is_never_forgotten():
         jobs = ExtractJobs(finished_ttl_s=60, clock=clock)
         job = jobs.start("u1", lambda progress: answer_after(progress, asyncio.Event()))
         clock.now += 3600
-        return jobs.get(job.job_id, "u1")
+        return jobs.get(job.job_id)
 
     assert asyncio.run(scenario()).status == "running"
 
@@ -156,7 +160,7 @@ def test_shutdown_waits_for_a_job_that_ends_in_time():
 
         job = jobs.start("u1", run)
         await jobs.shutdown(grace_s=5)
-        return jobs.get(job.job_id, "u1")
+        return jobs.get(job.job_id)
 
     assert asyncio.run(scenario()).status == "done"
 
@@ -166,7 +170,7 @@ def test_shutdown_stops_a_job_that_runs_too_long():
         jobs = ExtractJobs()
         job = jobs.start("u1", lambda progress: answer_after(progress, asyncio.Event()))
         await jobs.shutdown(grace_s=0.01)
-        return jobs.get(job.job_id, "u1")
+        return jobs.get(job.job_id)
 
     stopped = asyncio.run(scenario())
 

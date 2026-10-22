@@ -274,7 +274,7 @@
     "/api/v1/extract/jobs/{job_id}": {
       "get": {
         "summary": "Extract Job",
-        "description": "How far the upload got, and its answer once it is over. 404 for another\nuser's job, and for any job after a server restart or FINISHED_TTL_S after it\nended: some forms may be saved, so the page checks the records screen.",
+        "description": "How far the upload got, and its answer once it is over. Any signed-in user\nmay ask, as everyone sees everyone's records. 404 after a server restart, or\nFINISHED_TTL_S after the job ended: some forms may be saved, so the page checks\nthe records screen.",
         "operationId": "extract_job_api_v1_extract_jobs__job_id__get",
         "parameters": [
           {
@@ -1161,6 +1161,35 @@
         }
       }
     },
+    "/api/v1/stats": {
+      "get": {
+        "summary": "Stats",
+        "description": "The overview screen: records left to approve, pending fields still flagged,\nand how often each field was corrected by hand (from the records' history).",
+        "operationId": "stats_api_v1_stats_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecordStats"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid session (\"unauthenticated\")",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/senders": {
       "get": {
         "summary": "Senders",
@@ -1545,6 +1574,25 @@
         ],
         "title": "FieldBox",
         "description": "Where the model read a value: a rectangle on one page of the form.\n\nEdges are in thousandths of the page image as saved (upright, the same image\n/api/v1/pages/{page_id}/image serves), 0 = top / left, 1000 = bottom / right.\nLeft is the image's own left: the page is never mirrored for RTL."
+      },
+      "FieldCorrections": {
+        "properties": {
+          "field": {
+            "type": "string",
+            "title": "Field",
+            "description": "A RecordFields name, or \"central_numbers\" for any central number."
+          },
+          "corrections": {
+            "type": "integer",
+            "title": "Corrections"
+          }
+        },
+        "type": "object",
+        "required": [
+          "field",
+          "corrections"
+        ],
+        "title": "FieldCorrections"
       },
       "FieldEdit": {
         "properties": {
@@ -2314,6 +2362,64 @@
           "siblings"
         ],
         "title": "RecordPatchResponse"
+      },
+      "RecordStats": {
+        "properties": {
+          "pending": {
+            "type": "integer",
+            "title": "Pending"
+          },
+          "approved": {
+            "type": "integer",
+            "title": "Approved"
+          },
+          "needs_review": {
+            "type": "integer",
+            "title": "Needs Review",
+            "description": "Pending records with a field still flagged."
+          },
+          "fields_total": {
+            "type": "integer",
+            "title": "Fields Total",
+            "description": "Fields in pending records, each central number counted on its own."
+          },
+          "fields_flagged": {
+            "type": "integer",
+            "title": "Fields Flagged",
+            "description": "Of fields_total, the ones still flagged."
+          },
+          "corrections": {
+            "type": "integer",
+            "title": "Corrections",
+            "description": "Corrections by hand. Changing a field shared by a form's records counts once."
+          },
+          "corrected_records": {
+            "type": "integer",
+            "title": "Corrected Records",
+            "description": "Records with at least one correction."
+          },
+          "by_field": {
+            "items": {
+              "$ref": "#/components/schemas/FieldCorrections"
+            },
+            "type": "array",
+            "title": "By Field",
+            "description": "Most corrected first."
+          }
+        },
+        "type": "object",
+        "required": [
+          "pending",
+          "approved",
+          "needs_review",
+          "fields_total",
+          "fields_flagged",
+          "corrections",
+          "corrected_records",
+          "by_field"
+        ],
+        "title": "RecordStats",
+        "description": "The overview screen: how much work is left and which fields needed a hand.\n\nOver every record, with no filters."
       },
       "RecordSummary": {
         "properties": {

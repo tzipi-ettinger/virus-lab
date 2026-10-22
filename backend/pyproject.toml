@@ -8,3 +8,24 @@ line-length = 100
 [tool.ruff.lint]
 # pycodestyle, pyflakes, import order, bugbear, pyupgrade
 select = ["E", "F", "I", "B", "UP"]
+
+# Type check in CI: `mypy`. The pydantic plugin knows that a Settings field with
+# a default is optional.
+[tool.mypy]
+python_version = "3.13"
+files = ["app", "eval", "scripts"]
+plugins = ["pydantic.mypy"]
+ignore_missing_imports = true
+warn_unused_ignores = true
+
+# Coverage, measured in CI: `python -m pytest --cov`. fail_under is a floor a bit
+# under today's number (97%): a PR that drops below it fails, so raise it as
+# coverage grows.
+[tool.coverage.run]
+source = ["app", "eval", "scripts"]
+branch = true
+
+[tool.coverage.report]
+fail_under = 95
+skip_covered = true
+show_missing = true

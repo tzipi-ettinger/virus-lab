@@ -116,9 +116,10 @@ export interface paths {
         };
         /**
          * Extract Job
-         * @description How far the upload got, and its answer once it is over. 404 for another
-         *     user's job, and for any job after a server restart or FINISHED_TTL_S after it
-         *     ended: some forms may be saved, so the page checks the records screen.
+         * @description How far the upload got, and its answer once it is over. Any signed-in user
+         *     may ask, as everyone sees everyone's records. 404 after a server restart, or
+         *     FINISHED_TTL_S after the job ended: some forms may be saved, so the page checks
+         *     the records screen.
          */
         get: operations["extract_job_api_v1_extract_jobs__job_id__get"];
         put?: never;
@@ -260,6 +261,27 @@ export interface paths {
          * @description Rerun the rules; approve only if no field still needs review (D3).
          */
         post: operations["approve_record_api_v1_records__record_id__approve_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/stats": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Stats
+         * @description The overview screen: records left to approve, pending fields still flagged,
+         *     and how often each field was corrected by hand (from the records' history).
+         */
+        get: operations["stats_api_v1_stats_get"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -445,6 +467,16 @@ export interface components {
             bottom: number;
             /** Right */
             right: number;
+        };
+        /** FieldCorrections */
+        FieldCorrections: {
+            /**
+             * Field
+             * @description A RecordFields name, or "central_numbers" for any central number.
+             */
+            field: string;
+            /** Corrections */
+            corrections: number;
         };
         /**
          * FieldEdit
@@ -731,6 +763,48 @@ export interface components {
              * @description Other records of the same form whose shared fields changed too (A3).
              */
             siblings: components["schemas"]["Record"][];
+        };
+        /**
+         * RecordStats
+         * @description The overview screen: how much work is left and which fields needed a hand.
+         *
+         *     Over every record, with no filters.
+         */
+        RecordStats: {
+            /** Pending */
+            pending: number;
+            /** Approved */
+            approved: number;
+            /**
+             * Needs Review
+             * @description Pending records with a field still flagged.
+             */
+            needs_review: number;
+            /**
+             * Fields Total
+             * @description Fields in pending records, each central number counted on its own.
+             */
+            fields_total: number;
+            /**
+             * Fields Flagged
+             * @description Of fields_total, the ones still flagged.
+             */
+            fields_flagged: number;
+            /**
+             * Corrections
+             * @description Corrections by hand. Changing a field shared by a form's records counts once.
+             */
+            corrections: number;
+            /**
+             * Corrected Records
+             * @description Records with at least one correction.
+             */
+            corrected_records: number;
+            /**
+             * By Field
+             * @description Most corrected first.
+             */
+            by_field: components["schemas"]["FieldCorrections"][];
         };
         /**
          * RecordSummary
@@ -1521,6 +1595,35 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    stats_api_v1_stats_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RecordStats"];
+                };
+            };
+            /** @description No valid session ("unauthenticated") */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
                 };
             };
         };

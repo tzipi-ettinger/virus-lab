@@ -272,6 +272,26 @@ def test_open_pool_checks_schema_and_gives_dict_rows(db):
     assert db.run(first_version()) == {"version": SCHEMA_VERSION}
 
 
+def test_open_pool_replaces_a_connection_the_database_cut(db):
+    # A database restart or failover ends the pool's idle connections. The next
+    # request must get a working one, not the dead one and a 500 (22.10).
+    async def after_the_cut():
+        pool = await open_pool(db.url, max_size=1)
+        try:
+            async with pool.connection() as conn:
+                cur = await conn.execute("SELECT pg_backend_pid() AS pid")
+                pid = (await cur.fetchone())["pid"]
+            with db.connect() as admin:
+                admin.execute("SELECT pg_terminate_backend(%s)", (pid,))
+            async with pool.connection() as conn:
+                cur = await conn.execute("SELECT 1 AS ok")
+                return await cur.fetchone()
+        finally:
+            await pool.close()
+
+    assert db.run(after_the_cut()) == {"ok": 1}
+
+
 def test_ids_keep_leading_zeros(db):
     with db.connect() as conn:
         insert_page(conn)

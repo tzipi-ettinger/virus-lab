@@ -34,6 +34,7 @@ from app.schemas.api import (
     RecordList,
     RecordPatch,
     RecordPatchResponse,
+    RecordStats,
     RecordSummary,
     SkippedRecord,
     User,
@@ -115,6 +116,14 @@ def _to_summary(row: dict) -> RecordSummary:
 # --- Reading
 
 
+async def _reload(conn: AsyncConnection, record_id: str) -> Record:
+    """A record just saved in this transaction, as it is now."""
+    row = await repo.get_record(conn, record_id)
+    if row is None:  # held by the transaction's lock, so only if a bug deleted it
+        raise _not_found()
+    return to_record(row)
+
+
 async def get_record(conn: AsyncConnection, record_id: str) -> Record:
     async with conn.transaction():
         row = await repo.get_record(conn, record_id)
@@ -172,6 +181,12 @@ async def list_records(
         offset=offset,
         counts=RecordCounts(**counts),
     )
+
+
+async def get_stats(conn: AsyncConnection) -> RecordStats:
+    """The overview screen's numbers, over every record."""
+    async with conn.transaction():
+        return RecordStats(**await repo.record_stats(conn))
 
 
 # A file, not a page: enough for every record of the demo, small enough to build in memory.
@@ -435,8 +450,8 @@ async def patch_record(
             await _save(conn, await _rerun(conn, sibling, copied, today=today), now)
             await _log(conn, sibling.record_id, shared_events, user, now)
 
-        saved = to_record(await repo.get_record(conn, record_id))
-        siblings = [to_record(await repo.get_record(conn, s["id"])) for s in sibling_rows]
+        saved = await _reload(conn, record_id)
+        siblings = [await _reload(conn, s["id"]) for s in sibling_rows]
     return RecordPatchResponse(record=saved, siblings=siblings)
 
 
@@ -469,7 +484,7 @@ async def approve_record(
             await _save(conn, ruled, now)
         await repo.approve_record(conn, record_id, user_id=user.id, now=now)
         await _log(conn, record_id, [("approved", None)], user, now)
-        return to_record(await repo.get_record(conn, record_id))
+        return await _reload(conn, record_id)
 
 
 async def approve_many(

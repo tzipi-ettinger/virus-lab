@@ -6,10 +6,15 @@ client gets a Problem body with its status.
 Owner: shared
 """
 
+from typing import Any
+
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 
 from app.schemas.api import Problem
+
+# The `responses=` of a route: what each status means, for the OpenAPI contract.
+Responses = dict[int | str, dict[str, Any]]
 
 
 class ProblemError(Exception):

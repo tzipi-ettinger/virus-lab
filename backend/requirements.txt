@@ -15,7 +15,11 @@ tzdata==2026.4
 
 # tests
 pytest==9.1.1
+# coverage in CI (config in pyproject.toml)
+pytest-cov==7.1.0
 httpx2==2.13.1
 
 # lint + format (config in pyproject.toml)
 ruff==0.17.1
+# type check (config in pyproject.toml). 2.4.0: the newest at least two weeks old
+mypy==2.4.0
