@@ -11,6 +11,7 @@ import { NO_FILTERS, PAGE_SIZE, hasFilters, parseFilters, toParams, withChange, 
 import { RecordsFilters } from "./RecordsFilters";
 import { RecordsTable } from "./RecordsTable";
 import { useRecordsQuery } from "./useRecordsQuery";
+import { Skeleton } from "../../shared/ui/Skeleton";
 import "./RecordsPage.css";
 
 type RecordCounts = components["schemas"]["RecordCounts"];
@@ -48,7 +49,11 @@ export function RecordsPage() {
           </button>
         </div>
       )}
-      {!data && query.status === "loading" && <p className="records-empty">טוען…</p>}
+      {!data && query.status === "loading" && (
+        <div className="records-card">
+          <Skeleton rows={10} label="טוען רשומות…" />
+        </div>
+      )}
       {data && data.items.length === 0 && (
         <div className="records-empty">
           {hasFilters(filters) ? (

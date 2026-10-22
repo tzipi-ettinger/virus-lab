@@ -40,9 +40,23 @@ function App() {
 
 function NotFound() {
   return (
-    <div className="app-status">
-      <p>הדף לא נמצא.</p>
-      <Link to="/upload">חזרה להעלאה ובדיקה</Link>
+    <div className="not-found">
+      <p className="not-found-code" aria-hidden="true">
+        404
+      </p>
+      <h1 className="not-found-title">הדף לא נמצא.</h1>
+      <p className="not-found-text">ייתכן שהכתובת שגויה, או שהדף הועבר. אפשר להמשיך מכאן:</p>
+      <div className="not-found-actions">
+        <Link to="/upload" className="not-found-primary">
+          חזרה להעלאה ובדיקה
+        </Link>
+        <Link to="/records" className="not-found-secondary">
+          לכל הרשומות
+        </Link>
+        <Link to="/" className="not-found-secondary">
+          לדף הבית
+        </Link>
+      </div>
     </div>
   );
 }
