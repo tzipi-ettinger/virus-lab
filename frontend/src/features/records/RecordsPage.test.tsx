@@ -277,6 +277,15 @@ describe("sorting", () => {
     expect(requested().get("sort")).toBe("-last_name");
   });
 
+  test("every cell carries its column's title, for the narrow-screen cards", async () => {
+    serve(list([summary()]));
+    renderAt("/records");
+
+    const headers = (await screen.findAllByRole("columnheader")).map((th) => th.textContent?.replace(/[▲▼]/g, ""));
+    const cells = within(screen.getAllByRole("row")[1]).getAllByRole("cell");
+    expect(cells.map((td) => td.getAttribute("data-label"))).toEqual(headers);
+  });
+
   test("central numbers are a list, with nothing to sort by", async () => {
     serve(list([summary()]));
     renderAt("/records");
