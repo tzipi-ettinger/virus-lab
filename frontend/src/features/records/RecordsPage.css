@@ -182,6 +182,7 @@
 
 .records-filters input,
 .records-filters select {
+  box-sizing: border-box; /* date inputs are content-box by default, so they came out taller */
   min-inline-size: 0;
   min-block-size: 38px;
   padding: 6px 10px;
