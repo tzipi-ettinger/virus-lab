@@ -1,10 +1,10 @@
 // @vitest-environment jsdom
 // UploadPanel: what each file's row says, retry, failed pages, and how files get in.
 // useExtract (the sending itself) has its own tests; here it is a stub that hands
-// the panel a list of items.
+// the panel a list of items. UploadPanel.progress.test.tsx runs the real hook.
 // Owner: A
 
-import { act, cleanup, fireEvent, render, screen, within } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import type { ExtractResponse, UploadItem } from "./useExtract";
@@ -28,7 +28,6 @@ beforeEach(() => {
 });
 afterEach(() => {
   cleanup();
-  vi.useRealTimers();
 });
 
 const pdf = (name = "scan.pdf") => new File(["%PDF"], name, { type: "application/pdf" });
@@ -81,20 +80,23 @@ describe("UploadPanel", () => {
     expect(screen.getByText(/2 מתוך 3 קבצים/).textContent).toContain("נוצרו 3 רשומות");
   });
 
-  test("a sending file shows the pages read and the time, and the clock moves", () => {
-    vi.useFakeTimers();
-    const start = Date.now();
-    hook.items = [item({ status: "sending", startedAt: start, progress: { done: 2, total: 8 } })];
+  test("a sending file shows the pages read and a bar, without a clock", () => {
+    hook.items = [item({ status: "sending", progress: { done: 2, total: 8 } })];
     render(<UploadPanel onResult={() => {}} />);
 
     expect(within(row("scan.pdf")).getByText("נקרא…")).toBeTruthy();
-    expect(row("scan.pdf").textContent).toContain("0:00");
+    expect(row("scan.pdf").textContent).toContain("נקראו 2 מתוך 8 עמודים");
     const bar = row("scan.pdf").querySelector(".upload-progress-bar") as HTMLElement;
     expect(bar.style.inlineSize).toBe("25%");
+    expect(row("scan.pdf").textContent).not.toMatch(/\d:\d\d/);
+  });
 
-    vi.setSystemTime(start + 64_000);
-    act(() => vi.advanceTimersByTime(1000)); // the panel's one-second tick
-    expect(row("scan.pdf").textContent).toContain("1:05");
+  test("a sending file with no page count yet shows no bar", () => {
+    hook.items = [item({ status: "sending" })];
+    render(<UploadPanel onResult={() => {}} />);
+
+    expect(within(row("scan.pdf")).getByText("נקרא…")).toBeTruthy();
+    expect(row("scan.pdf").querySelector(".upload-progress-bar")).toBeNull();
   });
 
   test("a failed file shows its message and offers to send it again", async () => {
@@ -187,7 +189,7 @@ describe("UploadPanel", () => {
 
   test("tells the page when files are being sent and when they are done", () => {
     const onBusyChange = vi.fn();
-    hook.items = [item({ status: "sending", startedAt: Date.now() })];
+    hook.items = [item({ status: "sending" })];
     const { rerender } = render(<UploadPanel onResult={() => {}} onBusyChange={onBusyChange} />);
     expect(onBusyChange).toHaveBeenLastCalledWith(true);
 

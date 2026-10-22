@@ -838,6 +838,13 @@ export interface operations {
                     };
                 };
             };
+            /** @description The database is set but does not answer ("database": "unavailable") */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
         };
     };
     login_api_v1_auth_login_post: {
