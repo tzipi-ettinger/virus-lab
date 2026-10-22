@@ -14,7 +14,7 @@ import {
 import "./UploadPanel.css";
 
 interface UploadPanelProps {
-  // Called once per file, as soon as that file's 200 answer arrives.
+  // Called once per file, as soon as the server has finished reading it.
   onResult: (result: ExtractResponse) => void;
   // Called when files start or stop being sent: true while any is queued or sending.
   onBusyChange?: (busy: boolean) => void;
