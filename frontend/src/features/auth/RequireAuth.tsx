@@ -1,15 +1,13 @@
-// Screens behind sign-in: without a session, to /login and back here after it
-// (PLAN-DEV-B 3.5).
+// Screens behind sign-in: without a session, to /login, and from there to the
+// upload (PLAN-DEV-B 3.5).
 // Owner: B
 
 import type { ReactNode } from "react";
-import { Navigate, useLocation } from "react-router";
+import { Navigate } from "react-router";
 import { useAuth } from "./authContext";
-import type { LoginRedirect } from "./LoginPage";
 
 export function RequireAuth({ children }: { children: ReactNode }) {
   const { state, retry } = useAuth();
-  const location = useLocation();
 
   switch (state.status) {
     case "loading":
@@ -23,10 +21,8 @@ export function RequireAuth({ children }: { children: ReactNode }) {
           </button>
         </div>
       );
-    case "signed_out": {
-      const redirect: LoginRedirect = { from: location.pathname + location.search };
-      return <Navigate to="/login" state={redirect} replace />;
-    }
+    case "signed_out":
+      return <Navigate to="/login" replace />;
     case "signed_in":
       return children;
   }

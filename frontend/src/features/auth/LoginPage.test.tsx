@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-// The login screen: errors in Hebrew, and back to the screen that asked (PLAN-DEV-B 3.5).
+// The login screen: errors in Hebrew, and on to the upload (PLAN-DEV-B 3.5).
 // Owner: B
 
 import { cleanup, render, screen } from "@testing-library/react";
@@ -21,6 +21,7 @@ function renderLogin(login: Auth["login"], state: AuthState = { status: "signed_
       <MemoryRouter initialEntries={[{ pathname: "/login", state: { from: "/records?status=pending" } }]}>
         <Routes>
           <Route path="/login" element={<LoginPage />} />
+          <Route path="/upload" element={<p>מסך ההעלאה</p>} />
           <Route path="/records" element={<p>מסך הרשומות</p>} />
         </Routes>
       </MemoryRouter>
@@ -50,14 +51,15 @@ describe("LoginPage", () => {
     expect(document.activeElement).toBe(screen.getByLabelText("שם משתמש"));
   });
 
-  test("signs in and goes back to the screen that asked", async () => {
+  test("signs in and goes to the upload, even when the records screen asked", async () => {
     const login = vi.fn<Auth["login"]>().mockResolvedValue();
     renderLogin(login);
 
     await signIn();
 
     expect(login).toHaveBeenCalledWith("dana", "correct horse battery");
-    expect(await screen.findByText("מסך הרשומות")).toBeTruthy();
+    expect(await screen.findByText("מסך ההעלאה")).toBeTruthy();
+    expect(screen.queryByText("מסך הרשומות")).toBeNull();
   });
 
   test("a wrong password shows one message and clears the password", async () => {
@@ -100,10 +102,10 @@ describe("LoginPage", () => {
     expect((await screen.findByRole("alert")).textContent).toContain("נסי שוב בעוד 15 דקות");
   });
 
-  test("an already signed-in user goes straight on", () => {
+  test("an already signed-in user goes straight on to the upload", () => {
     renderLogin(vi.fn(), { status: "signed_in", user: { id: "u1", username: "dana", display_name: "דנה" } });
 
-    expect(screen.getByText("מסך הרשומות")).toBeTruthy();
+    expect(screen.getByText("מסך ההעלאה")).toBeTruthy();
   });
 });
 

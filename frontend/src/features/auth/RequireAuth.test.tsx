@@ -4,7 +4,7 @@
 
 import { cleanup, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { MemoryRouter, Route, Routes, useLocation } from "react-router";
+import { MemoryRouter, Route, Routes } from "react-router";
 import { afterEach, describe, expect, test, vi } from "vitest";
 import { Layout } from "../../shared/layout/Layout";
 import { ErrorBoundary } from "../../shared/ui/ErrorBoundary";
@@ -15,18 +15,13 @@ afterEach(cleanup);
 
 const DANA: AuthState = { status: "signed_in", user: { id: "u1", username: "dana", display_name: "דנה" } };
 
-function LoginProbe() {
-  const from = (useLocation().state as { from?: string } | null)?.from;
-  return <p>כניסה, ואחר כך {from}</p>;
-}
-
 function renderAt(path: string, state: AuthState, overrides: Partial<Auth> = {}) {
   const auth: Auth = { state, login: vi.fn(), logout: vi.fn().mockResolvedValue(undefined), retry: vi.fn(), ...overrides };
   render(
     <AuthContext.Provider value={auth}>
       <MemoryRouter initialEntries={[path]}>
         <Routes>
-          <Route path="/login" element={<LoginProbe />} />
+          <Route path="/login" element={<p>כניסה</p>} />
           <Route
             element={
               <RequireAuth>
@@ -44,10 +39,11 @@ function renderAt(path: string, state: AuthState, overrides: Partial<Auth> = {})
 }
 
 describe("RequireAuth", () => {
-  test("without a session goes to login, remembering the screen and its filters", () => {
+  test("without a session goes to login", () => {
     renderAt("/records?status=pending", { status: "signed_out" });
 
-    expect(screen.getByText("כניסה, ואחר כך /records?status=pending")).toBeTruthy();
+    expect(screen.getByText("כניסה")).toBeTruthy();
+    expect(screen.queryByText("מסך הרשומות")).toBeNull();
   });
 
   test("with a session shows the screen inside the frame", () => {
