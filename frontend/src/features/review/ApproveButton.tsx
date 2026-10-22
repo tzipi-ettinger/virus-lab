@@ -10,14 +10,16 @@ import { blockingFields, fieldTitle } from "./reviewRows";
 interface Props {
   record: ApiRecord;
   onApprove: (record: ApiRecord) => Promise<Saved>;
+  /** Approved on screen, still waiting for its "undo" to run out (useUndo). */
+  queued?: boolean;
 }
 
-export function ApproveButton({ record, onApprove }: Props) {
+export function ApproveButton({ record, onApprove, queued = false }: Props) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const hintId = useId();
 
-  if (record.status === "approved") {
+  if (record.status === "approved" || queued) {
     return <span className="review-approved">✓ אושר</span>;
   }
   const blocking = blockingFields(record);

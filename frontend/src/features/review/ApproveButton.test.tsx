@@ -88,6 +88,13 @@ describe("ApproveButton", () => {
     renderButton(flaggedRecord());
     expect(screen.getByRole("button", { name: "אישור" }).className).toBe("");
   });
+
+  test("an approve waiting for its undo shows as approved", () => {
+    render(<ApproveButton record={record()} onApprove={vi.fn()} queued />);
+
+    expect(screen.queryByRole("button")).toBeNull();
+    expect(screen.getByText("✓ אושר")).toBeTruthy();
+  });
 });
 
 describe("approve", () => {

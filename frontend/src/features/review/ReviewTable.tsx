@@ -16,11 +16,13 @@ interface ReviewTableProps {
   onSelect: (recordId: string) => void;
   /** Records the server sent back after a change: they replace the local ones. */
   onRecords: (records: ApiRecord[]) => void;
+  /** Approved on screen, waiting for its "undo" to run out: shown as approved. */
+  approvingId?: string | null;
   /** Back to the upload, from the empty list. */
   onUpload?: () => void;
 }
 
-export function ReviewTable({ records, selectedId, onSelect, onRecords, onUpload }: ReviewTableProps) {
+export function ReviewTable({ records, selectedId, onSelect, onRecords, approvingId = null, onUpload }: ReviewTableProps) {
   const { approveMany } = useRecordMutations(onRecords);
   const [skipped, setSkipped] = useState<Record<string, string>>({});
   if (records.length === 0) {
@@ -89,7 +91,7 @@ export function ReviewTable({ records, selectedId, onSelect, onRecords, onUpload
                     <bdi>{r.fields.national_id.value ?? "—"}</bdi>
                   </td>
                   <td>
-                    <RowStatus record={r} />
+                    <RowStatus record={r} approving={r.record_id === approvingId} />
                     {skipped[r.record_id] && r.status === "pending" && (
                       <span className="review-cell-error">{skipped[r.record_id]}</span>
                     )}
@@ -105,8 +107,8 @@ export function ReviewTable({ records, selectedId, onSelect, onRecords, onUpload
 }
 
 /** Approved, ready, or how many fields still block approval, in text and not color only. */
-function RowStatus({ record }: { record: ApiRecord }) {
-  if (record.status === "approved") return <span className="review-approved">✓ אושר</span>;
+function RowStatus({ record, approving }: { record: ApiRecord; approving: boolean }) {
+  if (record.status === "approved" || approving) return <span className="review-approved">✓ אושר</span>;
   const blocking = blockingFields(record);
   if (blocking.length === 0) return <span className="review-badge is-ready">מוכן לאישור</span>;
   return (

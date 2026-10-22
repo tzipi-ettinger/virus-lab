@@ -28,9 +28,24 @@ interface RecordPanelProps {
   onRecords: (records: ApiRecord[]) => void;
   /** A record deleted on the server: take it off. */
   onRemoved: (recordId: string) => void;
+  /** Approve and delete with "undo" (useUndo): the page sends them later. Without
+   *  these, approve and delete go to the server at once, delete after asking. */
+  onApproveLater?: (record: ApiRecord) => void;
+  onDeleteLater?: (record: ApiRecord) => void;
+  /** Approved on screen, waiting for its "undo" to run out. */
+  approvingId?: string | null;
 }
 
-export function RecordPanel({ record, records, onSelect, onRecords, onRemoved }: RecordPanelProps) {
+export function RecordPanel({
+  record,
+  records,
+  onSelect,
+  onRecords,
+  onRemoved,
+  onApproveLater,
+  onDeleteLater,
+  approvingId = null,
+}: RecordPanelProps) {
   const { saveField, saveCentrals, approve, remove } = useRecordMutations(onRecords);
   const senders = useSenders();
   const [expanded, setExpanded] = useState(false);
@@ -44,7 +59,8 @@ export function RecordPanel({ record, records, onSelect, onRecords, onRemoved }:
       </aside>
     );
   }
-  const editable = record.status === "pending";
+  const queued = record.record_id === approvingId;
+  const editable = record.status === "pending" && !queued;
   const blocking = blockingFields(record);
   const name = [record.fields.first_name.value, record.fields.last_name.value].filter(Boolean).join(" ");
   const position = records.findIndex((r) => r.record_id === record.record_id) + 1;
@@ -128,8 +144,35 @@ export function RecordPanel({ record, records, onSelect, onRecords, onRemoved }:
           <DuplicateNotice record={record} newTab />
 
           <div key={`actions-${record.record_id}`} className="record-panel-actions">
-            <ApproveButton record={record} onApprove={approve} />
-            <DeleteButton record={record} onDelete={remove} onDeleted={(gone) => onRemoved(gone.record_id)} />
+            <ApproveButton
+              record={record}
+              queued={queued}
+              onApprove={
+                onApproveLater
+                  ? (r) => {
+                      onApproveLater(r);
+                      return Promise.resolve(null);
+                    }
+                  : approve
+              }
+            />
+            {!queued && (
+              <DeleteButton
+                record={record}
+                confirm={onDeleteLater ? () => true : undefined}
+                onDelete={
+                  onDeleteLater
+                    ? (r) => {
+                        onDeleteLater(r);
+                        return Promise.resolve(null);
+                      }
+                    : remove
+                }
+                onDeleted={(gone) => {
+                  if (!onDeleteLater) onRemoved(gone.record_id);
+                }}
+              />
+            )}
             {next && (
               <button type="button" className="record-panel-next" onClick={() => onSelect(next.record_id)}>
                 הבאה לתיקון ←
