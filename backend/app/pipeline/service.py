@@ -1,6 +1,6 @@
 """Runs the stages for one upload: split -> extract upright (a page with several forms
-is cut into one page per form, split.py) -> assemble -> apply_rules
--> group pages into forms (group.py) -> save each form.
+is cut into one page per form, split.py) -> read the name again, enlarged (names.py)
+-> assemble -> apply_rules -> group pages into forms (group.py) -> save each form.
 
 A few pages at a time, so the model calls overlap. One page failing never stops
 the others (FR-12): it becomes a FailedPage. A used-up quota is the exception:
@@ -38,6 +38,7 @@ from app.pipeline.ingest import (
     SourcePage,
     split_pages_async,
 )
+from app.pipeline.names import read_name_closer
 from app.pipeline.orient import extract_upright
 from app.pipeline.split import form_boxes
 from app.rules.engine import apply_rules
@@ -167,8 +168,11 @@ async def extract_files(
                     return _failed(page, quota_message, code="QUOTA_EXHAUSTED")
                 started = time.perf_counter()
                 oriented = await extract_upright(provider, page, stop_at_several_forms=split)
+                boxes = form_boxes(oriented.extraction) if split else []
+                if not boxes:  # a page about to be cut has its names read form by form
+                    oriented = await read_name_closer(provider, page, oriented)
             seconds = time.perf_counter() - started
-            if split and (boxes := form_boxes(oriented.extraction)):
+            if boxes:
                 logger.info("page split: %s into %d forms", page_id, len(boxes))
                 rotation = oriented.applied_rotation
                 parts = [

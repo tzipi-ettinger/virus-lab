@@ -44,9 +44,9 @@ def test_every_response_has_the_security_headers(dist, path):
 
 
 def test_error_answers_have_them_too():
-    response = client_for().get("/api/v1/records")  # no DB in this test
+    response = client_for().get("/api/v1/records")  # no session
 
-    assert response.status_code == 503
+    assert response.status_code in (401, 503)
     assert response.headers["x-content-type-options"] == "nosniff"
 
 

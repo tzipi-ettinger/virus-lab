@@ -17,7 +17,7 @@ from app.pipeline.service import (
     UploadedFile,
     extract_files,
 )
-from app.schemas.extraction import RawExtraction, RawField, RawFormBox
+from app.schemas.extraction import NamePart, NameReading, RawExtraction, RawField, RawFormBox
 
 LIMITS = {"today": date(2026, 10, 19), "max_bytes": 20_000_000, "max_pages": 60}
 # An upright page with real values (Meuhedet; national ID read as 0011223344).
@@ -634,3 +634,85 @@ def test_a_split_page_counts_once_in_the_progress():
 
     assert seen[0] == (0, 2)
     assert seen[-1] == (2, 2)
+
+
+# --- The name's second read (names.py)
+
+NAME_UNCLEAR = RawField(value=None, status="unclear", evidence="שם", box_2d=[300, 500, 320, 600])
+READ_UP_CLOSE = NameReading(
+    first_name=NamePart(value="ישראל", status="found", evidence="שם פרטי"),
+    last_name=NamePart(value="ישראלי", status="found", evidence="שם משפחה"),
+)
+
+
+class NameScript(PageScript):
+    """Reads crops too, the way Gemini does: every name comes back sure, up close."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.crops: list[PageImage] = []
+
+    async def read_name(self, crop: PageImage) -> NameReading:
+        self.crops.append(crop)
+        return READ_UP_CLOSE.model_copy(deep=True)
+
+
+def test_a_name_unclear_on_the_page_is_read_again_from_a_crop():
+    provider = NameScript()
+    provider.readings[("forms.pdf", 1)] = UPRIGHT.model_copy(
+        update={"first_name": NAME_UNCLEAR, "last_name": NAME_UNCLEAR}
+    )
+
+    result = run([upload(1)], provider)
+
+    [page] = result.forms
+    first, last = page.form.fields.first_name, page.form.fields.last_name
+    assert (first.raw, first.model_status, last.raw, last.model_status) == (
+        "ישראל",
+        "found",
+        "ישראלי",
+        "found",
+    )
+    assert page.calls == 2  # the page, then the crop
+    assert len(provider.crops) == 1
+
+
+def test_a_page_with_no_name_on_it_costs_no_second_call():
+    provider = NameScript()  # UPRIGHT: its names are unclear, with no box to cut out
+
+    result = run([upload(1)], provider)
+
+    assert provider.crops == []
+    assert result.forms[0].calls == 1
+
+
+def test_a_split_page_has_its_names_read_again_form_by_form():
+    # Page 2: a cut form is a one-page PDF that keeps its page number, so the crop
+    # must draw its PDF's only page, not page 2.
+    class Script(SplitScript):
+        def __init__(self) -> None:
+            names = {"first_name": NAME_UNCLEAR, "last_name": NAME_UNCLEAR}
+            parts = {n: reading.model_copy(update=names) for n, reading in PARTS.items()}
+            super().__init__(split={("forms.pdf", 2)}, parts=parts)
+            self.crops: list[str] = []
+
+        async def extract(self, page):
+            reading = await super().extract(page)
+            if reading.forms_on_page:  # the whole page: its names are placed too
+                reading = reading.model_copy(update={"first_name": NAME_UNCLEAR})
+            return reading
+
+        async def read_name(self, crop: PageImage) -> NameReading:
+            self.crops.append(crop.file_id)
+            return READ_UP_CLOSE.model_copy(deep=True)
+
+    provider = Script()
+
+    result = run([upload(2)], provider)
+
+    file_id = result.files[0].file_id
+    # Not the whole page: it is about to be cut, and each form is read on its own.
+    assert sorted(provider.crops) == [f"{file_id}-f1", f"{file_id}-f2"]
+    cut = [f for f in result.forms if f.form.file_id != file_id]
+    assert [f.form.fields.first_name.raw for f in cut] == ["ישראל", "ישראל"]
+    assert result.failed_pages == []

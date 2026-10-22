@@ -26,18 +26,40 @@
   font-size: 1.125rem;
 }
 
-/* A's DocumentPreview, inside the panel: no card of its own, and a short frame
-   until "הגדלת הטופס". */
+/* The panel is a container: what is inside follows its width, not the window's
+   (beside the list it is much narrower than the window). */
+.record-panel {
+  container: record-panel / inline-size;
+}
+
+/* One under the other: the original page on top, then the fields and the actions. */
+.record-panel-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.record-panel-side {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-inline-size: 0;
+}
+
+/* A's DocumentPreview, inside the panel: no card of its own, and the whole page in
+   a frame of a set height, so the frame itself never scrolls until zoomed in. */
 .record-panel-preview {
   display: flex;
   flex-direction: column;
   gap: 6px;
+  min-inline-size: 0;
 }
 
 .record-panel-preview .preview {
-  gap: 8px;
+  gap: 6px;
   padding: 0;
   border: 0;
+  box-shadow: none;
 }
 
 .record-panel-preview .preview-title {
@@ -45,12 +67,80 @@
   color: var(--color-text-muted, #52606d);
 }
 
-.record-panel-preview .preview-frame {
-  max-block-size: 220px;
+.record-panel-preview .preview-source,
+.record-panel-preview .preview-highlight {
+  font-size: 0.8125rem;
+}
+
+.record-panel-preview .preview-source {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.record-panel-preview .preview-button {
+  min-block-size: 28px;
+  font-size: 0.8125rem;
+}
+
+/* Never higher than the panel is wide: a page turned sideways leaves less empty
+   frame under it on a phone. */
+.record-panel .record-panel-preview .preview-frame {
+  block-size: min(50svh, 420px, 100cqi);
+  max-block-size: none;
 }
 
 .record-panel-preview.is-expanded .preview-frame {
-  max-block-size: 75vh;
+  block-size: 80svh;
+}
+
+/* A narrow panel (a phone): the field names take less of the row. */
+@container record-panel (max-width: 420px) {
+  .record-panel-fields th {
+    inline-size: 6.5rem;
+  }
+}
+
+/* Wide screen, panel wide enough: the page and the fields side by side, each as high
+   as the panel. The page is shown whole in its column, so nothing scrolls; only a
+   very short window scrolls the fields, inside their own column. */
+@media (min-width: 901px) {
+  @container record-panel (min-width: 720px) {
+    .review-page.is-review .record-panel-body {
+      flex: 1;
+      min-block-size: 0;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(320px, 1fr);
+      grid-template-rows: minmax(0, 1fr);
+      gap: 16px;
+    }
+
+    .review-page.is-review .record-panel-preview {
+      min-block-size: 0;
+    }
+
+    .review-page.is-review .record-panel-preview .preview {
+      flex: 1;
+      min-block-size: 0;
+    }
+
+    .review-page.is-review .record-panel-preview .preview-frame,
+    .review-page.is-review .record-panel-preview.is-expanded .preview-frame {
+      flex: 1;
+      block-size: auto;
+      min-block-size: 0;
+    }
+
+    /* The page already has the whole column. */
+    .review-page.is-review .record-panel-toggle {
+      display: none;
+    }
+
+    .review-page.is-review .record-panel-side {
+      min-block-size: 0;
+      overflow-y: auto;
+    }
+  }
 }
 
 .record-panel-toggle,

@@ -1,4 +1,4 @@
-"""scripts/wipe_data.py deletes every page, record and export (SPEC 11, D12)."""
+"""scripts/wipe_data.py deletes the data and keeps the users (SPEC 11, D12)."""
 
 from datetime import UTC, datetime
 
@@ -13,10 +13,15 @@ TABLES = ("page", "page_image", "record", "record_event", "export_log")
 @pytest.fixture
 def filled(db):
     with db.connect() as conn:
+        conn.execute(
+            "INSERT INTO users (id, username, password_hash, display_name, created_at)"
+            " VALUES ('u1', 'dana', 'x', 'דנה', %s)",
+            (NOW,),
+        )
         for page_id, first in (("p1", None), ("p2", "p1")):
             conn.execute(
                 "INSERT INTO page (id, file_id, source_filename, page_number, first_page_id,"
-                " created_at) VALUES (%s, 'f1', 'a.pdf', %s, %s, %s)",
+                " created_at, created_by) VALUES (%s, 'f1', 'a.pdf', %s, %s, %s, 'u1')",
                 (page_id, int(page_id[1]), first, NOW),
             )
             conn.execute(
@@ -26,16 +31,19 @@ def filled(db):
             )
         conn.execute(
             "INSERT INTO record (id, page_id, commitment_idx, needs_review, form_type, fields,"
-            " central_numbers, issues, national_id, created_at, updated_at)"
-            " VALUES ('r1', 'p1', 0, false, 'hmo_form', '{}', '[]', '[]', '011223344', %s, %s)",
+            " central_numbers, issues, national_id, created_at, created_by, updated_at)"
+            " VALUES ('r1', 'p1', 0, false, 'hmo_form', '{}', '[]', '[]', '011223344',"
+            " %s, 'u1', %s)",
             (NOW, NOW),
         )
         conn.execute(
-            "INSERT INTO record_event (record_id, at, action) VALUES ('r1', %s, 'created')",
+            "INSERT INTO record_event (record_id, at, user_id, action) VALUES ('r1', %s, 'u1',"
+            " 'created')",
             (NOW,),
         )
         conn.execute(
-            "INSERT INTO export_log (at, format, record_count) VALUES (%s, 'csv', 1)",
+            "INSERT INTO export_log (at, user_id, format, record_count)"
+            " VALUES (%s, 'u1', 'csv', 1)",
             (NOW,),
         )
     return db
@@ -46,10 +54,11 @@ def count(db, table):
         return conn.execute(f"SELECT count(*) AS n FROM {table}").fetchone()["n"]
 
 
-def test_deletes_pages_images_records_events_and_exports(filled, capsys):
+def test_deletes_pages_images_records_events_and_exports_but_keeps_users(filled, capsys):
     assert main(["--yes"], database_url=filled.url) == 0
 
     assert {table: count(filled, table) for table in TABLES} == dict.fromkeys(TABLES, 0)
+    assert count(filled, "users") == 1
     assert "Deleted 2 pages and 1 records" in capsys.readouterr().out
 
 

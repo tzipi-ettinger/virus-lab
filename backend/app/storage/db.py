@@ -17,7 +17,7 @@ from psycopg import AsyncConnection
 from psycopg.rows import dict_row, tuple_row
 from psycopg_pool import AsyncConnectionPool
 
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
 _SCHEMA_SQL = Path(__file__).with_name("schema.sql")
 # Any constant: two servers starting at once must not both create the schema.
 _INIT_LOCK = 0x76_6C_61_62  # "vlab"
@@ -34,6 +34,46 @@ MIGRATIONS = {
         ALTER TABLE page DROP COLUMN created_by;
         DROP TABLE sessions;
         DROP TABLE users;
+    """,
+    # 2 -> 3: sign-in is back (22.10, the mentor: sign-in and "who did it" are a
+    # must). What was saved without sign-in belongs to the "legacy" user, who can't
+    # sign in: inactive, and "!" is never a valid hash.
+    2: """
+        CREATE TABLE users (
+            id              TEXT PRIMARY KEY,
+            username        TEXT NOT NULL UNIQUE,
+            password_hash   TEXT NOT NULL,
+            display_name    TEXT NOT NULL,
+            is_active       BOOLEAN NOT NULL DEFAULT TRUE,
+            failed_attempts INTEGER NOT NULL DEFAULT 0,
+            locked_until    TIMESTAMPTZ,
+            created_at      TIMESTAMPTZ NOT NULL,
+            last_login_at   TIMESTAMPTZ
+        );
+        CREATE TABLE sessions (
+            token_hash   TEXT PRIMARY KEY,
+            user_id      TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            created_at   TIMESTAMPTZ NOT NULL,
+            expires_at   TIMESTAMPTZ NOT NULL,
+            last_seen_at TIMESTAMPTZ NOT NULL
+        );
+        CREATE INDEX sessions_user ON sessions (user_id);
+        INSERT INTO users (id, username, password_hash, display_name, is_active, created_at)
+            VALUES ('legacy', 'legacy', '!', 'לפני הכניסה', FALSE, now());
+        ALTER TABLE page ADD COLUMN created_by TEXT REFERENCES users(id);
+        ALTER TABLE record ADD COLUMN created_by TEXT REFERENCES users(id),
+            ADD COLUMN approved_by TEXT REFERENCES users(id);
+        ALTER TABLE record_event ADD COLUMN user_id TEXT REFERENCES users(id);
+        ALTER TABLE export_log ADD COLUMN user_id TEXT REFERENCES users(id);
+        UPDATE page SET created_by = 'legacy';
+        UPDATE record SET created_by = 'legacy';
+        UPDATE record SET approved_by = 'legacy' WHERE approved_at IS NOT NULL;
+        UPDATE record_event SET user_id = 'legacy';
+        UPDATE export_log SET user_id = 'legacy';
+        ALTER TABLE page ALTER COLUMN created_by SET NOT NULL;
+        ALTER TABLE record ALTER COLUMN created_by SET NOT NULL;
+        ALTER TABLE record_event ALTER COLUMN user_id SET NOT NULL;
+        ALTER TABLE export_log ALTER COLUMN user_id SET NOT NULL;
     """,
 }
 

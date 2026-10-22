@@ -138,7 +138,11 @@ copy .env.example .env          # ואז להדביק את המפתחות ב־GE
 
 בדיקה: `http://localhost:8000/api/health` מחזיר `{"status": "ok", ...}`. תיעוד ה־API: `http://localhost:8000/docs`.
 
-**אין כניסה:** כל מי שפותח את האתר יכול להשתמש בו, בלי משתמש וסיסמה (הוחלט ב־21.10).
+**משתמש:** אין הרשמה. אחרי שהשרת עלה פעם אחת (הוא יוצר את הטבלאות), יוצרים משתמש. הסיסמה נקלטת מ־prompt, לפחות 12 תווים:
+
+```powershell
+.\.venv\Scripts\python.exe -m scripts.create_user dana --name "דנה"
+```
 
 ב־Windows צריך להשאיר את `--reload`: בלעדיו uvicorn רץ על event loop ש־psycopg לא תומך בו במצב async. `docker compose down -v` מוחק את כל הנתונים המקומיים.
 
@@ -179,16 +183,25 @@ EXTRACTION_PROVIDER=fake
 
 ### פריסה (Render)
 
-השרת החי הוא image אחד של Docker ([Dockerfile](Dockerfile)): Node בונה את `frontend/dist`, ו־FastAPI מגיש גם את ה־API וגם את הדף מאותה כתובת, כך שאין CORS. [render.yaml](render.yaml) מגדיר את השרת ואת ה־Postgres, שניהם בתוכנית החינמית ובפרנקפורט. כל מיזוג ל־`main` נפרס אוטומטית.
+השרת החי הוא image אחד של Docker ([Dockerfile](Dockerfile)): Node בונה את `frontend/dist`, ו־FastAPI מגיש גם את ה־API וגם את הדף מאותה כתובת, כך שאין CORS והעוגייה של הסשן עובדת. [render.yaml](render.yaml) מגדיר את השרת ואת ה־Postgres, שניהם בתוכנית החינמית ובפרנקפורט. כל מיזוג ל־`main` נפרס אוטומטית.
 
 **פעם ראשונה:**
 
 1. ב־Render: **New → Blueprint**, ובוחרים את הריפו. ל־Render צריכה להיות גישה לריפו דרך ה־GitHub App שלו, ואת זה מאשרת בעלת הריפו.
 2. Render מבקש את הערכים שלא נמצאים בריפו:
    - `GEMINI_API_KEYS`: המפתחות, מופרדים בפסיקים.
-   - `FRONTEND_ORIGIN`: הכתובת הציבורית, בדיוק ובלי `/` בסוף, למשל `https://virus-lab-e0zp.onrender.com`. בקשה שמשנה נתונים ומגיעה מכתובת אחרת נדחית (`403`).
-3. בדיקה: `https://<הכתובת>/api/health` מחזיר `"status": "ok"` ו־`"extraction_provider": "gemini"`. השרת יוצר את הטבלאות בעלייה הראשונה, ומשדרג מסד מגרסה קודמת בלי למחוק רשומות.
-4. **השרת לא נרדם:** השרת פונה לכתובת הציבורית של עצמו כל 10 דקות ([app/keep_alive.py](backend/app/keep_alive.py)), בלי הגדרה נוספת. בלוגים של Render מופיעה בקשת `GET /api/health` כל 10 דקות. כדי שזה יישאר בתוך 750 השעות החינמיות בחודש, זה צריך להיות השרת החינמי היחיד ב־workspace.
+   - `FRONTEND_ORIGIN`: הכתובת הציבורית, למשל `https://virus-lab.onrender.com`. בקשה שמשנה נתונים ומגיעה מכתובת אחרת נדחית (CSRF).
+3. אחרי שהשרת עלה (הוא יוצר את הטבלאות), יוצרים משתמשים מהמחשב, מול ה־**External Database URL** מעמוד ה־DB ב־Render:
+
+   ```powershell
+   # backend/
+   $env:DATABASE_URL = "<External Database URL>?sslmode=require"
+   .\.venv\Scripts\python.exe -m scripts.create_user dana --name "דנה"
+   Remove-Item Env:DATABASE_URL
+   ```
+
+4. בדיקה: `https://<הכתובת>/api/health` מחזיר `"status": "ok"` ו־`"extraction_provider": "gemini"`.
+5. **השרת לא נרדם:** השרת פונה לכתובת הציבורית של עצמו כל 10 דקות ([app/keep_alive.py](backend/app/keep_alive.py)), בלי הגדרה נוספת. בלוגים של Render מופיעה בקשת `GET /api/health` כל 10 דקות. כדי שזה יישאר בתוך 750 השעות החינמיות בחודש, זה צריך להיות השרת החינמי היחיד ב־workspace.
 
 **בדיקה מקומית של ה־image:**
 
@@ -215,7 +228,7 @@ docker run --rm -p 8000:8000 -e EXTRACTION_PROVIDER=fake -e FRONTEND_ORIGIN=http
 | `EXTRACTION_CACHE` | `false` | מטמון לפיתוח בלבד, על קובצי דוגמה בלבד: עמוד ש־Gemini כבר קרא (אותו מודל ואותו prompt) נלקח מ־`backend/.cache/` בלי פנייה חדשה. לא בשרת החי |
 | `FRONTEND_ORIGIN` | `http://localhost:5173` | הכתובת של הדף: CORS בפיתוח, ובדיקת ה־`Origin` (CSRF) על בקשה שמשנה נתונים. בשרת החי: הכתובת הציבורית |
 | `ENV` | `development` | `production` בשרת החי (מ־`render.yaml`): HSTS, ובלי `/docs` ו־`/openapi.json` |
-| `DATABASE_URL` | — | Postgres. מקומית: מ־`docker compose`, כמו ב־`.env.example`. בשרת החי: ה־Internal URL של Render, שמגיע מ־`render.yaml`. בלעדיו השרת עולה, אבל העלאה ורשומות מחזירות `503` |
+| `DATABASE_URL` | — | Postgres. מקומית: מ־`docker compose`, כמו ב־`.env.example`. בשרת החי: ה־Internal URL של Render, שמגיע מ־`render.yaml`. בלעדיו השרת עולה, אבל כניסה ורשומות מחזירות `503` |
 | `STATIC_DIR` | ריק | תיקיית ה־frontend הבנוי, ש־FastAPI מגיש. מוגדר רק ב־image של Docker. בפיתוח Vite מגיש את הדף |
 | `KEEP_ALIVE_URL` | ריק | הכתובת הציבורית שהשרת פונה אליה (`/api/health`) כדי ש־Render לא ירדים אותו. כשהוא ריק משתמשים ב־`RENDER_EXTERNAL_URL`, ש־Render מגדיר בעצמו. בלי שניהם (מקומית ובטסטים) הפנייה כבויה |
 | `KEEP_ALIVE_INTERVAL_S` | `600` | כל כמה שניות לפנות. לפחות 60. Render מרדים שרת חינמי אחרי 15 דקות בלי בקשות מבחוץ |
@@ -305,16 +318,14 @@ cd backend
 - **הסבר המודל (`evidence`)** אינו הוכחה; תמיד לבדוק מול העמוד המקורי
 - **המלבן על העמוד** (prompt v6) הוא המקום שהמודל אומר שקרא בו את הערך, לא הוכחה. מלבן לא תקין לא מוצג, ורשומות מלפני v6 מוצגות בלי מלבן
 - **צילומי iPhone בפורמט HEIC** לא נתמכים; יש לשמור כ־JPG
-- **אין כניסה (הוחלט ב־21.10):** כל מי שיש לו את הקישור יכול להעלות קבצים (ולצרוך מהמכסה של Gemini), לתקן, לאשר, למחוק ולייצא רשומות. ביומן הפעולות נרשם מה נעשה ומתי, אבל לא מי עשה את זה
 
 ## מה נדרש כדי שהמעבדה תשתמש בזה
 
-1. **כניסה עם משתמשים** — לפני שמעלים טפסים אמיתיים, ובשביל לדעת מי אישר כל רשומה
-2. **חשבון בתשלום** אצל ספק ה־AI — כדי שהקלט לא ישמש לאימון, ובשביל מכסה מספקת
-3. **אישור אבטחת מידע** של הארגון לשליחת מידע רפואי לספק חיצוני, או מעבר למודל שרץ בתוך הרשת
-4. **מדידה על טפסים אמיתיים** (בלי סימון צהוב), בהשתתפות הצוות
-5. **חיבור למערכת המעבדה:** הפורמט המדויק שהיא מקבלת, במקום ייצוא ידני של CSV
-6. **ניהול הרשימה הסגורה** של גורמים שולחים על ידי המעבדה
+1. **חשבון בתשלום** אצל ספק ה־AI — כדי שהקלט לא ישמש לאימון, ובשביל מכסה מספקת
+2. **אישור אבטחת מידע** של הארגון לשליחת מידע רפואי לספק חיצוני, או מעבר למודל שרץ בתוך הרשת
+3. **מדידה על טפסים אמיתיים** (בלי סימון צהוב), בהשתתפות הצוות
+4. **חיבור למערכת המעבדה:** הפורמט המדויק שהיא מקבלת, במקום ייצוא ידני של CSV
+5. **ניהול הרשימה הסגורה** של גורמים שולחים על ידי המעבדה
 
 ---
 
@@ -323,10 +334,10 @@ cd backend
 - עובדות **רק עם קובצי הדוגמה של האתגר**, שבהם הפרטים האישיים שונו
 - הקובץ שהועלה עובר **בזיכרון בלבד** ולא נשמר. נשמרות רק הרשומות ותמונה דחוסה של כל עמוד, ב־PostgreSQL מנוהל של Render (Frankfurt, האיחוד האירופי). פירוט ב־[SPEC 11.1](docs/SPEC.md#111-פרטיות-ואבטחה)
 - הלוגים לא מכילים שמות, ת״ז או תוכן טפסים: ה־access log נכתב בלי ה־query של החיפוש, ושגיאה לא צפויה נרשמת רק לפי הסוג והנתיב, בלי ההודעה וה־traceback
-- **בלי כניסה:** האתר פתוח לכל מי שיש לו את הקישור (הוחלט ב־21.10). בקשה שמשנה נתונים חייבת להגיע מהדף של האתר עצמו (בדיקת `Origin`), כך שאתר אחר לא יכול לשלוח שינויים דרך הדפדפן של מי שגולש בו
+- **כניסה:** משתמשים מוגדרים מראש בלבד, סיסמאות ב־scrypt, עוגיית סשן `HttpOnly; Secure; SameSite=Strict`, נעילה אחרי 5 ניסיונות, ובדיקת `Origin` על כל שינוי
 - **כותרות:** CSP שמתיר רק את האתר עצמו, `nosniff`, `no-referrer`, איסור הטמעה במסגרת, ו־HSTS בשרת החי. תשובות ה־API לא נשמרות במטמון (`no-store`)
 - **בשרת החי** (`ENV=production`): אין `/docs` ואין `/openapi.json`
-- **מחיקה בפקודה אחת:** `python -m scripts.wipe_data` מוחק את כל העמודים, התמונות והרשומות
+- **מחיקה בפקודה אחת:** `python -m scripts.wipe_data` מוחק את כל העמודים, התמונות והרשומות. המשתמשים נשארים
 - מפתח ה־API רק ב־`backend/.env` ובמשתני הסביבה של Render; הקבצים `.env` ותוצאות הניסויים מוחרגים מ־Git
 
 ### בדיקה לפני הגשה
@@ -334,22 +345,21 @@ cd backend
 ```powershell
 curl.exe -I https://<הכתובת>/                       # CSP, nosniff, no-referrer, X-Frame-Options, HSTS
 curl.exe -s -o NUL -w "%{http_code}" https://<הכתובת>/docs           # 404
-curl.exe -s -o NUL -w "%{http_code}" -X DELETE https://<הכתובת>/api/v1/records/x  # 403: לא מהדף של האתר
+curl.exe -s -o NUL -w "%{http_code}" https://<הכתובת>/api/v1/records # 401 בלי כניסה
 ```
 
 ואחר כך, בלוגים של Render: חיפוש לפי ת״ז במסך הרשומות לא משאיר את המספר בלוג.
 
-### נתוני הדגמה
+### נתוני הדגמה ומשתמש לשופטים
 
 ```powershell
-# backend/, מול ה־External Database URL מעמוד ה־DB ב־Render
-$env:DATABASE_URL = "<External Database URL>?sslmode=require"
-.\.venv\Scripts\python.exe -m scripts.seed_demo "<תיקיית קובצי הדוגמה>"   # רק קובצי הדוגמה של האתגר
-.\.venv\Scripts\python.exe -m scripts.wipe_data                          # להתחיל מחדש
-Remove-Item Env:DATABASE_URL
+# backend/, עם ה־External URL של ה־DB ב־Render (כמו ב־create_user)
+.\.venv\Scripts\python.exe -m scripts.create_user judge-demo --name "שופטים"
+.\.venv\Scripts\python.exe -m scripts.seed_demo "<תיקיית קובצי הדוגמה>" --user dana   # רק קובצי הדוגמה של האתגר
+.\.venv\Scripts\python.exe -m scripts.wipe_data                                   # להתחיל מחדש
 ```
 
-`seed_demo` קורא כל קובץ כמו העלאה באתר ושומר את הרשומות כממתינות. `EXTRACTION_CACHE=true` חוסך מכסה על עמודים ש־Gemini כבר קרא.
+`seed_demo` קורא כל קובץ כמו העלאה באתר ושומר את הרשומות כממתינות. `EXTRACTION_CACHE=true` חוסך מכסה על עמודים ש־Gemini כבר קרא. את פרטי הכניסה של `judge-demo` מוסרים בטופס ההגשה, לא כאן (D9).
 
 ---
 

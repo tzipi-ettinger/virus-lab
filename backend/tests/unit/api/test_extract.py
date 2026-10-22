@@ -7,21 +7,23 @@ from fastapi.testclient import TestClient
 from starlette import formparsers
 
 from app.api import extract
-from app.api.deps import same_origin
+from app.api.deps import require_user
 from app.extraction.cached_provider import CachedProvider
 from app.extraction.gemini_provider import GeminiProvider
 from app.main import create_app
 from app.pipeline.service import ExtractedForm
 from app.rules.records import build_records
-from app.schemas.api import Record
+from app.schemas.api import Record, User
 from app.settings import Settings, get_settings
 from app.storage.service import _to_record
 from tests.unit.api.uploads import QUOTA, Answers, make_pdf, upload
 
+SIGNED_IN = User(id="u1", username="dana", display_name="דנה")
+
 
 async def unsaved_records(extracted: ExtractedForm) -> list[Record]:
-    """What form_saver returns, without a database. Saving itself, and the Origin
-    check, are tested in test_extract_saves.py."""
+    """What form_saver returns, without a database or a user. Saving itself is
+    tested in test_extract_saves.py."""
     form = extracted.form
     page_id = f"p_{secrets.token_hex(8)}"
     now = datetime.now(UTC)
@@ -35,7 +37,7 @@ def make_client():
         app.dependency_overrides[get_settings] = lambda: Settings(_env_file=None, **settings)
         app.dependency_overrides[extract.get_provider] = lambda: provider or Answers()
         app.dependency_overrides[extract.get_save_form] = lambda: save_form or unsaved_records
-        app.dependency_overrides[same_origin] = lambda: None
+        app.dependency_overrides[require_user] = lambda: SIGNED_IN
         return TestClient(app)
 
     return build

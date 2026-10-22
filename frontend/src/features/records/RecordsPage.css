@@ -125,11 +125,44 @@
   outline-offset: 2px;
 }
 
+/* The filters fill their own row of the toolbar. Each field's flex-basis is
+   the narrowest width it still reads well at, and the grow factor is its share
+   of any extra room. So the fields shrink together as the screen narrows, and
+   only when one would go below its basis does it wrap to the next row. */
+.records-toolbar > .records-filters {
+  flex: 1 1 100%;
+}
+
 .records-filters {
   display: flex;
   flex-wrap: wrap;
   align-items: end;
   gap: 12px;
+}
+
+.records-filters > * {
+  min-inline-size: 0;
+}
+
+.records-filters .records-search {
+  flex: 3 1 240px;
+}
+
+.records-filters .records-filter-status {
+  flex: 0.5 1 110px;
+}
+
+.records-filters .records-check {
+  flex: 0 0 auto;
+}
+
+.records-filters .records-filter-sender,
+.records-filters .records-filter-form {
+  flex: 1.5 1 140px;
+}
+
+.records-filters .records-dates {
+  flex: 2 1 280px;
 }
 
 .records-filters label {
@@ -144,10 +177,13 @@
   flex-direction: row;
   align-items: center;
   padding-block-end: 8px;
+  white-space: nowrap;
 }
 
 .records-filters input,
 .records-filters select {
+  box-sizing: border-box; /* date inputs are content-box by default, so they came out taller */
+  min-inline-size: 0;
   min-block-size: 38px;
   padding: 6px 10px;
   font: inherit;
@@ -174,8 +210,30 @@
   accent-color: var(--color-accent, #1f6fb2);
 }
 
-.records-search input {
-  min-inline-size: 260px;
+/* The received-date range: one title over "from – to". */
+.records-dates {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-inline-size: 0;
+}
+
+.records-dates legend {
+  padding: 0;
+  margin-block-end: 4px;
+  font-size: 0.9rem;
+  color: var(--color-text-muted, #52606d);
+}
+
+.records-dates-inputs {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--color-text-muted, #52606d);
+}
+
+.records-dates-inputs input {
+  flex: 1 1 0;
 }
 
 .records-banner {
@@ -196,6 +254,7 @@
 
 .records-scroll {
   overflow-x: auto;
+  container-type: inline-size;
 }
 
 .records-table {
@@ -204,12 +263,13 @@
   border-spacing: 0;
 }
 
+/* Text may wrap, so the table fits its card instead of scrolling sideways.
+   Single values (numbers, dates, the status) stay on one line. */
 .records-table th,
 .records-table td {
-  padding: 10px 14px;
+  padding: 10px clamp(8px, 1vw, 14px);
   text-align: start;
   border-block-end: 1px solid var(--color-border, #dde3e9);
-  white-space: nowrap;
 }
 
 /* The header stays on top while the list scrolls under it. */
@@ -240,10 +300,12 @@
   border-block-end: 0;
 }
 
+/* The name is how a row is found: it keeps one line, others wrap first. */
 .records-table td a {
   color: var(--color-accent-strong, #17588f);
   font-weight: 600;
   text-decoration: none;
+  white-space: nowrap;
 }
 
 .records-table tbody tr:hover td a {
@@ -252,6 +314,125 @@
 
 .records-number {
   font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* A list of numbers wraps between them, never inside one. */
+.records-centrals {
+  white-space: normal;
+}
+
+/* Too narrow for eight columns: each row becomes a card. The name and status
+   head it, the other fields sit under it with their titles, and the headers
+   turn into a row of sort chips. */
+@container (max-width: 840px) {
+  .records-table,
+  .records-table thead,
+  .records-table tbody {
+    display: block;
+  }
+
+  .records-table thead tr {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+    padding: 10px 16px;
+    background: var(--color-surface-muted, #f7f9fb);
+    border-block-end: 1px solid var(--color-border, #e1e8ef);
+  }
+
+  .records-table thead tr::before {
+    content: "מיון:";
+    margin-inline-end: 2px;
+    font-size: 0.8125rem;
+    font-weight: 700;
+    color: var(--color-text-muted, #56677a);
+  }
+
+  .records-table th {
+    position: static;
+    padding: 0;
+    background: none;
+    border: 0;
+  }
+
+  /* Central numbers can't be sorted, so they have no chip. */
+  .records-table th:not([aria-sort]) {
+    display: none;
+  }
+
+  .records-table th .records-sort {
+    padding: 4px 12px;
+    background: var(--color-surface, #fff);
+    border: 1px solid var(--color-border, #e1e8ef);
+    border-radius: 999px;
+  }
+
+  .records-table th[aria-sort="ascending"] .records-sort,
+  .records-table th[aria-sort="descending"] .records-sort {
+    color: var(--color-accent-strong, #17588f);
+    background: var(--color-accent-soft, #e7f1fa);
+    border-color: var(--color-accent, #0b6e79);
+  }
+
+  .records-table tbody tr {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px 16px;
+    padding: 14px 16px;
+    border-block-end: 1px solid var(--color-border, #e1e8ef);
+  }
+
+  .records-table tbody tr:last-child {
+    border-block-end: 0;
+  }
+
+  /* flex-start, not stretch: a number's <bdi> is LTR and would sit on the left. */
+  .records-table td {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
+    min-inline-size: 0;
+    padding: 0;
+    border: 0;
+  }
+
+  .records-table td::before {
+    content: attr(data-label);
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--color-text-muted, #56677a);
+  }
+
+  .records-table td:first-child {
+    grid-column: 1 / -2;
+    justify-content: center;
+    font-size: 1.0625rem;
+  }
+
+  .records-table td:first-child a {
+    white-space: normal;
+  }
+
+  .records-table td:last-child {
+    grid-column: -2 / -1;
+    grid-row: 1;
+    align-items: end;
+    justify-content: center;
+  }
+
+  .records-table td:first-child::before,
+  .records-table td:last-child::before {
+    content: none;
+  }
+}
+
+@container (max-width: 520px) {
+  .records-table tbody tr {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 /* The status as a pill: icon, text and color together. */
@@ -262,6 +443,7 @@
   padding: 3px 12px;
   font-size: 0.8125rem;
   font-weight: 600;
+  white-space: nowrap;
   color: var(--color-accent-strong, #17588f);
   background: var(--color-accent-soft, #e7f1fa);
   border-radius: 999px;
@@ -412,6 +594,12 @@
   font-size: 0.875rem;
 }
 
+/* The cards keep their full height. With overflow hidden a card could shrink in the
+   column and clip its last line (the meta chips, the last fields) out of sight. */
+.record-main > * {
+  flex-shrink: 0;
+}
+
 .record-back {
   align-self: flex-start;
   color: var(--color-accent-strong, #08515a);
@@ -468,9 +656,21 @@
 .record-actions {
   display: flex;
   flex-wrap: wrap;
-  align-items: flex-start;
+  align-items: center;
   gap: 8px;
   margin-inline-start: auto;
+}
+
+/* What blocks approval sits on one line beside the button, not squeezed under it. */
+.record-actions .review-approve {
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+}
+
+.record-actions .review-blocking {
+  max-inline-size: none;
 }
 
 .record-page .record-actions button {
@@ -529,28 +729,32 @@
   border-radius: var(--radius-lg, 12px);
 }
 
+/* The fields, compact: a line per field, so the whole record fits without scrolling.
+   The value sits beside its confidence, what was read beside how it was read. */
 .record-fields {
   table-layout: fixed;
+  font-size: 0.8125rem;
+  line-height: 1.35;
 }
 
 .record-fields thead th:nth-child(1) {
-  inline-size: 17%;
+  inline-size: 15%;
 }
 
 .record-fields thead th:nth-child(2) {
-  inline-size: 31%;
+  inline-size: 35%;
 }
 
 .record-fields thead th {
-  padding-block: 8px;
+  padding-block: 6px;
   font-size: 0.75rem;
   color: var(--color-text-muted, #52606d);
 }
 
 .record-fields th,
 .record-fields td {
-  padding: 6px 12px;
-  vertical-align: top;
+  padding: 5px 12px;
+  vertical-align: middle;
   white-space: normal;
   overflow-wrap: anywhere;
 }
@@ -586,14 +790,16 @@
   display: none;
 }
 
-/* The value opens its editor on click: plain text, a frame only on hover and focus. */
-/* The value and its "confirm" button side by side, while there is room. */
+/* The value opens its editor on click: plain text, a frame only on hover and focus.
+   The value, its confidence and the "confirm" button on one line, while there is room. */
 .record-page .record-fields .review-cell-value {
-  display: inline-block;
+  display: inline-flex;
+  align-items: baseline;
   vertical-align: middle;
-  margin-inline: -6px 10px;
-  padding: 2px 6px;
+  margin-inline: -6px 8px;
+  padding: 1px 6px;
   inline-size: auto;
+  max-inline-size: 100%;
   background: none;
   border: 1px solid transparent;
   border-radius: 6px;
@@ -604,41 +810,155 @@
   border-color: var(--color-border-strong, #9fb3c8);
 }
 
+.record-fields .review-value,
+.record-fields .review-confidence {
+  display: inline;
+}
+
 .record-fields .review-value {
-  font-size: 0.9375rem;
+  font-size: 0.875rem;
   font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+/* The space is on the label, so an approved record (no button) keeps it too. */
+.record-fields .review-confidence {
+  margin-inline-start: 8px;
+  font-size: 0.85em;
+  white-space: nowrap;
 }
 
 .record-page .record-fields .review-confirm {
   vertical-align: middle;
-  margin-block: 2px;
-  padding: 2px 10px;
+  margin-block: 0;
+  padding: 1px 8px;
   font-size: 0.75rem;
+  white-space: nowrap;
 }
 
-/* What was read, how, and what is wrong with it: one column, a line each. */
+/* What was read and how, on one line; the issues on a line under it. */
 .record-read > span {
   display: block;
 }
 
-.record-raw {
-  font-weight: 500;
+.record-read > .record-read-line {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-inline-size: 0;
 }
 
+.record-raw {
+  flex: none;
+  max-inline-size: 45%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
+}
+
+/* As wide as its text, so it stays next to the raw value; cut only when too long. */
 .record-evidence {
-  margin-block-start: 2px;
-  font-size: 0.8125rem;
+  flex: 0 1 auto;
+  min-inline-size: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.85em;
   color: var(--color-text-muted, #52606d);
 }
 
 .record-field-issues {
-  margin-block-start: 4px;
-  font-size: 0.8125rem;
+  margin-block-start: 1px;
+  font-size: 0.9em;
+  font-weight: 600;
   color: var(--color-warning, #8a5300);
 }
 
 .record-field-issues::before {
   content: "⚠ ";
+}
+
+/* A wide screen: the fields fill what is left of the column, the rows share its
+   height, and the text grows with the window's height. Very short windows still
+   scroll, inside the column. */
+@media (min-width: 901px) {
+  .record-main > .record-card {
+    flex: 1 0 auto;
+  }
+
+  .record-fields {
+    block-size: 100%;
+    font-size: clamp(0.8125rem, 0.34rem + 1.07vh, 1.0625rem);
+  }
+
+  .record-fields .review-value {
+    font-size: clamp(0.875rem, 0.43rem + 1.07vh, 1.1875rem);
+  }
+
+  .record-fields th,
+  .record-fields td {
+    padding-inline: clamp(12px, 1.2vw, 20px);
+  }
+}
+
+/* A phone: each field is a small card. Name and value side by side, what was read
+   under them. The column titles stay for screen readers. */
+@media (max-width: 600px) {
+  .record-fields,
+  .record-fields tbody {
+    display: block;
+  }
+
+  .record-fields thead {
+    position: absolute;
+    inline-size: 1px;
+    block-size: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+
+  .record-fields tbody tr {
+    display: grid;
+    grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
+    align-items: baseline;
+    gap: 4px 12px;
+    padding: 10px 14px;
+    border-block-end: 1px solid var(--color-border, #e1e8ef);
+  }
+
+  .record-fields tbody tr:last-child {
+    border-block-end: 0;
+  }
+
+  /* min-inline-size: a long evidence line is cut, it doesn't widen the card. */
+  .record-fields th,
+  .record-fields td {
+    min-inline-size: 0;
+    padding: 0;
+    border: 0;
+  }
+
+  /* The row carries the color now, not its cells. */
+  .record-fields tbody tr > *,
+  .record-fields tbody tr:hover > *,
+  .record-fields tbody tr.is-flagged > *,
+  .record-fields tbody tr.is-flagged:hover > * {
+    background: none;
+  }
+
+  .record-fields td.record-read {
+    grid-column: 1 / -1;
+  }
+
+  .record-fields tr.is-flagged {
+    background: var(--color-warning-soft, #fff4db);
+    box-shadow: inset -4px 0 0 var(--color-warning-border, #d9a514);
+  }
+
+  .record-fields tr.is-flagged th[scope="row"] {
+    border-inline-start: 0;
+  }
 }
 
 .records-export {
@@ -653,11 +973,13 @@
   font-size: 0.875rem;
 }
 
+/* Small pills: a side action under the list, not the main one. */
 .records-export a {
   display: inline-flex;
   align-items: center;
-  min-block-size: 36px;
-  padding: 0 16px;
+  min-block-size: 28px;
+  padding: 0 12px;
+  font-size: 0.8125rem;
   font-weight: 600;
   color: var(--color-accent-strong, #08515a);
   text-decoration: none;
@@ -843,4 +1165,137 @@
   .record-loading-page {
     animation: none;
   }
+}
+
+/* The record's history (RecordHistory): a button beside approve and delete, so it
+   adds no line to the header, and a window with every action. */
+.record-page .record-actions .record-history-open {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+/* On a wide screen the chips stay on one line: a long file name is cut, and its
+   full name shows on hover (title). */
+@media (min-width: 901px) {
+  .record-meta {
+    flex-wrap: nowrap;
+  }
+
+  .record-meta div {
+    flex: 0 0 auto;
+    min-inline-size: 0;
+  }
+
+  .record-meta div:first-child {
+    flex: 0 1 auto;
+  }
+
+  .record-meta div:first-child dd {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+/* A short laptop screen (720-820px high): tighter rows, so the record still fits. */
+@media (min-width: 901px) and (max-height: 820px) {
+  .layout:has(.record-page) .layout-bar {
+    padding-block: 4px;
+  }
+
+  .record-page {
+    padding-block: 8px;
+  }
+
+  .record-main {
+    gap: 8px;
+  }
+
+  .record-summary {
+    gap: 6px;
+    padding: 8px 14px;
+  }
+
+  .record-fields thead th {
+    padding-block: 5px;
+  }
+
+  .record-fields th,
+  .record-fields td {
+    padding: 3px 10px;
+    line-height: 1.3;
+  }
+}
+
+.history-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  background: rgb(15 27 42 / 0.45);
+}
+
+.history-window {
+  inline-size: min(480px, 100%);
+  max-block-size: min(70svh, 560px);
+  overflow-y: auto;
+  padding: 16px 20px;
+  background: var(--color-surface, #fff);
+  border-radius: var(--radius-lg, 12px);
+  box-shadow: 0 12px 40px rgb(15 27 42 / 0.25);
+}
+
+.history-window-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-block-end: 8px;
+}
+
+.history-window-head h2 {
+  margin: 0;
+  font-size: 1.0625rem;
+}
+
+.history-window-head button {
+  padding: 2px 10px;
+}
+
+.history-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.history-list li {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 2px 12px;
+  padding-block: 8px;
+  border-block-start: 1px solid var(--color-border, #dde3e9);
+}
+
+.history-what {
+  font-weight: 600;
+}
+
+.history-when {
+  grid-row: span 2;
+  align-self: center;
+  font-size: 0.8125rem;
+  color: var(--color-text-muted, #56677a);
+}
+
+.history-who,
+.history-note {
+  font-size: 0.8125rem;
+  color: var(--color-text-muted, #56677a);
+}
+
+.history-note {
+  margin: 8px 0 0;
 }

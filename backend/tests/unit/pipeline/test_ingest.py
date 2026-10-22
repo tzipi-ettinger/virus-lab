@@ -140,6 +140,83 @@ def test_render_rejects_an_odd_rotation(rotation):
         page.render(rotation=rotation)
 
 
+def make_marked_pdf(stored_rotation: int = 0) -> bytes:
+    """A4 with one black rectangle off the center, so every turn moves it elsewhere."""
+    with pymupdf.open() as doc:
+        page = doc.new_page(width=595, height=842)
+        page.draw_rect(pymupdf.Rect(100, 150, 250, 220), color=(0, 0, 0), fill=(0, 0, 0))
+        page.set_rotation(stored_rotation)
+        return doc.tobytes()
+
+
+def dark_box(jpeg: bytes) -> tuple[int, int, int, int]:
+    """Where the dark pixels are, as (top, left, bottom, right) in 0-1000: a model's box."""
+    pixmap = pymupdf.Pixmap(jpeg)
+    width, n, samples = pixmap.width, pixmap.n, pixmap.samples
+    dark = [
+        (y, x)
+        for y in range(pixmap.height)
+        for x in range(width)
+        if samples[(y * width + x) * n] < 100
+    ]
+    ys, xs = [y for y, _ in dark], [x for _, x in dark]
+    return (
+        min(ys) * 1000 // pixmap.height,
+        min(xs) * 1000 // width,
+        (max(ys) + 1) * 1000 // pixmap.height,
+        (max(xs) + 1) * 1000 // width,
+    )
+
+
+def brightness(jpeg: bytes) -> float:
+    samples = pymupdf.Pixmap(jpeg).samples
+    return sum(samples) / len(samples)
+
+
+@pytest.mark.parametrize("stored_rotation", [0, 90])
+@pytest.mark.parametrize("rotation", ingest.ROTATIONS)
+def test_a_crop_cuts_where_the_box_is_on_the_turned_image(stored_rotation, rotation):
+    # The box comes from the model's image, turned: the crop must cut that same place.
+    page = split_pages("f1", "scan.pdf", make_marked_pdf(stored_rotation), **LIMITS)[0]
+    top, left, bottom, right = dark_box(page.render(rotation, max_side=300).jpeg)
+
+    crop = page.render_crop(rotation, (top + 10, left + 10, bottom - 10, right - 10))
+    corner = page.render_crop(rotation, (900, 900, 1000, 1000))
+
+    assert brightness(crop.jpeg) < 40  # inside the rectangle: black
+    assert brightness(corner.jpeg) > 240  # far from it: white
+    assert crop.rotation == rotation
+
+
+def test_a_crop_is_larger_than_the_models_image():
+    page = split_pages("f1", "forms.pdf", make_pdf(1), **LIMITS)[0]
+
+    whole = page.render_crop(0, (0, 0, 1000, 1000))
+
+    width, height = image_size(whole.jpeg)
+    assert max(width, height) == pytest.approx(ingest.NAME_CROP_SCALE * MAX_SIDE_PX, abs=2)
+    assert height > width
+
+
+@pytest.mark.parametrize(
+    "box", [(10, 10, 10, 20), (10, 30, 20, 20), (0, 0, 1001, 50), (-1, 0, 5, 5)]
+)
+def test_a_crop_needs_a_rectangle_on_the_page(box):
+    page = split_pages("f1", "forms.pdf", make_pdf(1), **LIMITS)[0]
+
+    with pytest.raises(ValueError):
+        page.render_crop(0, box)
+
+
+def test_a_crop_renders_on_the_render_thread():
+    page = split_pages("f1", "forms.pdf", make_pdf(1), **LIMITS)[0]
+
+    crop = asyncio.run(page.render_crop_async(90, (0, 0, 500, 500)))
+
+    assert crop.jpeg.startswith(b"\xff\xd8")
+    assert crop.rotation == 90
+
+
 def test_repr_never_carries_the_document():
     page = split_pages("f1", "forms.pdf", make_pdf(1), **LIMITS)[0]
 

@@ -1,4 +1,5 @@
-"""Gemini provider: one page image in, RawExtraction out.
+"""Gemini provider: one page image in, RawExtraction out; and the name's second read
+(read_name: an enlarged crop in, NameReading out), with its own prompt.
 
 Every call counts against the free tier's 20 requests a day, failed ones too, so
 retries are few and deliberate:
@@ -36,15 +37,16 @@ from zoneinfo import ZoneInfo
 import httpx  # comes with google-genai, which raises its transport errors as is
 from google import genai
 from google.genai import errors, types
-from pydantic import ValidationError
+from pydantic import BaseModel, ValidationError
 
 from app.extraction.provider import PageImage, ProviderError, QuotaExhausted
 from app.rules.senders import sender_names
-from app.schemas.extraction import RawExtraction
+from app.schemas.extraction import NameReading, RawExtraction
 
 logger = logging.getLogger(__name__)
 
 PROMPT_FILE = Path(__file__).with_name("prompts") / "v8.md"
+NAME_PROMPT_FILE = Path(__file__).with_name("prompts") / "name_v1.md"
 MAX_ATTEMPTS = 2
 SERVER_ERROR_WAIT_S = 5.0
 MAX_RATE_WAIT_S = 30.0  # if Gemini asks for a longer wait, try the next key instead
@@ -80,6 +82,7 @@ class GeminiProvider:
         max_concurrency: int,
         timeout_s: float,
         prompt: str | None = None,
+        name_prompt: str | None = None,
         sleep: Callable[[float], Awaitable[None]] = asyncio.sleep,
         now: Callable[[], datetime] = lambda: datetime.now(UTC),
     ) -> None:
@@ -95,6 +98,9 @@ class GeminiProvider:
         self._model = model
         self._timeout_s = timeout_s
         self._prompt = prompt if prompt is not None else load_prompt()
+        self._name_prompt = (
+            name_prompt if name_prompt is not None else load_prompt(NAME_PROMPT_FILE)
+        )
         self._sleep = sleep  # tests pass a fake, so a retry doesn't wait for real
         self._semaphore = asyncio.Semaphore(max_concurrency)
         self._config = types.GenerateContentConfig(
@@ -102,20 +108,45 @@ class GeminiProvider:
             response_schema=RawExtraction,
             # "low": "medium" was 4x slower with no gain in the spike (PLAN.md).
             thinking_config=types.ThinkingConfig(thinking_level="low"),
+            # "high": a handwritten name is small on a whole page, and at the default
+            # the model read the crossed-out printed name under it instead.
+            media_resolution=types.MediaResolution.MEDIA_RESOLUTION_HIGH,
             # No tools here: off, so the client neither tries it nor warns on every call.
             automatic_function_calling=types.AutomaticFunctionCallingConfig(disable=True),
         )
+        # The same settings, answering in the name's schema.
+        self._name_config = self._config.model_copy(update={"response_schema": NameReading})
 
     @property
     def fingerprint(self) -> str:
         """What decides the answer besides the image: CachedProvider's key, so a new
-        model, prompt, thinking level or schema reads the pages again."""
-        schema = json.dumps(RawExtraction.model_json_schema(), sort_keys=True)
-        thinking = self._config.thinking_config.thinking_level
-        return "\n".join((self._model, str(thinking), self._prompt, schema))
+        model, prompt, thinking level, image resolution or schema reads the pages again."""
+        return self._fingerprint(self._config, self._prompt, RawExtraction)
+
+    @property
+    def name_fingerprint(self) -> str:
+        """The same for read_name: its own prompt and schema."""
+        return self._fingerprint(self._name_config, self._name_prompt, NameReading)
+
+    def _fingerprint(
+        self, config: types.GenerateContentConfig, prompt: str, schema: type[BaseModel]
+    ) -> str:
+        schema_json = json.dumps(schema.model_json_schema(), sort_keys=True)
+        thinking = config.thinking_config.thinking_level
+        resolution = config.media_resolution
+        return "\n".join((self._model, str(thinking), str(resolution), prompt, schema_json))
 
     async def extract(self, page: PageImage) -> RawExtraction:
-        contents = [types.Part.from_bytes(data=page.jpeg, mime_type="image/jpeg"), self._prompt]
+        image = types.Part.from_bytes(data=page.jpeg, mime_type="image/jpeg")
+        return await self._ask([image, self._prompt], self._config, RawExtraction)
+
+    async def read_name(self, crop: PageImage) -> NameReading:
+        image = types.Part.from_bytes(data=crop.jpeg, mime_type="image/jpeg")
+        return await self._ask([image, self._name_prompt], self._name_config, NameReading)
+
+    async def _ask[T: BaseModel](
+        self, contents: list, config: types.GenerateContentConfig, schema: type[T]
+    ) -> T:
         async with self._semaphore:
             # Every key once, starting from the one in use. The order is fixed here,
             # not read again from _current, which other pages move meanwhile. Wrapping
@@ -129,7 +160,7 @@ class GeminiProvider:
                     failures.append(resting[1])  # known to fail: don't spend a request on it
                     continue
                 try:
-                    result = await self._extract_with(self._clients[key], contents)
+                    result = await self._ask_with(self._clients[key], contents, config, schema)
                 except _KEY_FAILURES as exc:  # this key only: try the next
                     logger.warning("gemini key %d of %d %s", key + 1, count, _why(exc))
                     failures.append(exc)
@@ -145,10 +176,16 @@ class GeminiProvider:
             logger.warning("gemini: none of the %d keys could be used", count)
         raise _no_key_left(failures)
 
-    async def _extract_with(self, client: genai.Client, contents: list) -> RawExtraction:
+    async def _ask_with[T: BaseModel](
+        self,
+        client: genai.Client,
+        contents: list,
+        config: types.GenerateContentConfig,
+        schema: type[T],
+    ) -> T:
         for attempt in range(1, MAX_ATTEMPTS + 1):
             try:
-                return await self._call(client, contents)
+                return await self._call(client, contents, config, schema)
             except errors.APIError as exc:
                 wait = self._retry_wait(exc, attempt)
                 if wait is None:
@@ -168,11 +205,17 @@ class GeminiProvider:
             await self._sleep(wait)
         raise AssertionError("unreachable: the last attempt returns or raises")
 
-    async def _call(self, client: genai.Client, contents: list) -> RawExtraction:
+    async def _call[T: BaseModel](
+        self,
+        client: genai.Client,
+        contents: list,
+        config: types.GenerateContentConfig,
+        schema: type[T],
+    ) -> T:
         try:
             async with asyncio.timeout(self._timeout_s):
                 response = await client.aio.models.generate_content(
-                    model=self._model, contents=contents, config=self._config
+                    model=self._model, contents=contents, config=config
                 )
         except TimeoutError:
             logger.warning("gemini timed out after %ss", self._timeout_s)
@@ -181,7 +224,7 @@ class GeminiProvider:
             logger.warning("gemini returned no text")
             raise ProviderError(BAD_ANSWER_MESSAGE)
         try:
-            return RawExtraction.model_validate_json(response.text)
+            return schema.model_validate_json(response.text)
         except ValidationError:
             # Not logged: the errors quote the model's text, which holds patient data.
             logger.warning("gemini answer did not fit the schema")

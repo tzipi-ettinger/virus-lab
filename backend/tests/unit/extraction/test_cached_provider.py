@@ -6,7 +6,7 @@ import pytest
 from app.extraction.cached_provider import CachedProvider
 from app.extraction.fake_provider import FIXTURES_DIR
 from app.extraction.provider import PageImage, ProviderError, QuotaExhausted
-from app.schemas.extraction import RawExtraction
+from app.schemas.extraction import NamePart, NameReading, RawExtraction
 
 READING = RawExtraction.model_validate_json(
     (FIXTURES_DIR / "03_maccabi_three_centrals.json").read_text(encoding="utf-8")
@@ -127,3 +127,63 @@ def test_logs_carry_no_reading(tmp_path, caplog):
     assert "cache hit" in caplog.text
     assert READING.national_id.value not in caplog.text
     assert "forms.pdf" not in caplog.text
+
+
+NAME = NameReading(
+    first_name=NamePart(value="ישראל", status="found", evidence="שם פרטי"),
+    last_name=NamePart(value="ישראלי", status="found", evidence="שם משפחה"),
+)
+
+
+class Names(Script):
+    """Reads pages like Script, and crops: counts those calls apart."""
+
+    def __init__(self, *answers) -> None:
+        super().__init__(*answers)
+        self.name_calls = 0
+
+    async def read_name(self, crop: PageImage) -> NameReading:
+        self.name_calls += 1
+        return NAME.model_copy(deep=True)
+
+
+def test_a_crop_read_once_is_answered_from_the_cache(tmp_path):
+    inner = Names()
+    cache = CachedProvider(inner, "fp", tmp_path, name_fingerprint="name fp")
+
+    first = run(cache.read_name(PAGE))
+    second = run(cache.read_name(PAGE))
+
+    assert inner.name_calls == 1
+    assert first == second == NAME
+
+
+def test_a_crop_and_a_page_with_the_same_image_are_cached_apart(tmp_path):
+    # The same bytes asked two questions: neither answer may come back for the other.
+    inner = Names()
+    cache = CachedProvider(inner, "fp", tmp_path, name_fingerprint="name fp")
+
+    assert run(cache.extract(PAGE)) == READING
+    assert run(cache.read_name(PAGE)) == NAME
+
+    assert (inner.calls, inner.name_calls) == (1, 1)
+
+
+def test_a_new_name_prompt_reads_the_crops_again(tmp_path):
+    inner = Names()
+
+    run(CachedProvider(inner, "fp", tmp_path, name_fingerprint="name v1").read_name(PAGE))
+    run(CachedProvider(inner, "fp", tmp_path, name_fingerprint="name v2").read_name(PAGE))
+
+    assert inner.name_calls == 2
+
+
+def test_without_a_name_fingerprint_crops_are_not_cached(tmp_path):
+    inner = Names()
+    cache = CachedProvider(inner, "fp", tmp_path)
+
+    run(cache.read_name(PAGE))
+    run(cache.read_name(PAGE))
+
+    assert inner.name_calls == 2
+    assert list(tmp_path.iterdir()) == []

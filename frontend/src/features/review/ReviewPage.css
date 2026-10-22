@@ -187,7 +187,8 @@
   .review-page.is-review .review-scroll {
     flex: 1;
     min-block-size: 0;
-    overflow: auto;
+    overflow-x: hidden;
+    overflow-y: auto;
   }
 
   .review-page.is-review .review-table thead th {
@@ -201,15 +202,6 @@
     position: static;
     min-block-size: 0;
     max-block-size: none;
-  }
-
-  /* The panel is as tall as the window now, so the original page gets more of it. */
-  .review-page.is-review .record-panel-preview .preview-frame {
-    max-block-size: 40vh;
-  }
-
-  .review-page.is-review .record-panel-preview.is-expanded .preview-frame {
-    max-block-size: 75vh;
   }
 }
 

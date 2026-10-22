@@ -79,7 +79,7 @@ export function ReviewTable({ records, selectedId, onSelect, onRecords }: Review
                       <span className="review-page-number">עמוד {r.page_number}</span>
                     </button>
                   </th>
-                  <td>
+                  <td className="review-name">
                     <bdi>{name || "ללא שם"}</bdi>
                   </td>
                   <td className="review-number">

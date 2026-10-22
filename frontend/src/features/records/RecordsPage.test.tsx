@@ -221,12 +221,23 @@ describe("RecordsFilters", () => {
     await user.selectOptions(screen.getByLabelText("סוג טופס"), "lab_report");
     await user.selectOptions(screen.getByLabelText("סטטוס"), "approved");
     await user.type(screen.getByLabelText("מתאריך קבלה"), "2026-10-01");
+    await user.type(screen.getByLabelText("עד תאריך קבלה"), "2026-10-19");
 
     expect(Object.fromEntries(requested())).toMatchObject({
       form_type: "lab_report",
       status: "approved",
       date_from: "2026-10-01",
+      date_to: "2026-10-19",
     });
+  });
+
+  test("the 'needs review only' box comes right after the received-date range", async () => {
+    serve(list([summary()]));
+    renderAt("/records");
+
+    const dates = screen.getByRole("group", { name: "תאריך קבלה" });
+    const check = screen.getByRole("checkbox", { name: "רק דורשות בדיקה" }).closest("label");
+    expect(dates.nextElementSibling).toBe(check);
   });
 
   test("clearing the filters empties the search box too", async () => {
@@ -264,6 +275,15 @@ describe("sorting", () => {
     const name = await screen.findByRole("columnheader", { name: /שם/ });
     expect(name.getAttribute("aria-sort")).toBe("descending");
     expect(requested().get("sort")).toBe("-last_name");
+  });
+
+  test("every cell carries its column's title, for the narrow-screen cards", async () => {
+    serve(list([summary()]));
+    renderAt("/records");
+
+    const headers = (await screen.findAllByRole("columnheader")).map((th) => th.textContent?.replace(/[▲▼]/g, ""));
+    const cells = within(screen.getAllByRole("row")[1]).getAllByRole("cell");
+    expect(cells.map((td) => td.getAttribute("data-label"))).toEqual(headers);
   });
 
   test("central numbers are a list, with nothing to sort by", async () => {

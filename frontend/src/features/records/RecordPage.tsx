@@ -15,11 +15,14 @@ import { useFieldFocus } from "../preview/useFieldFocus";
 import { Skeleton } from "../../shared/ui/Skeleton";
 import { ApproveButton } from "../review/ApproveButton";
 import { DeleteButton } from "../review/DeleteButton";
+import { DuplicateNotice } from "../review/DuplicateNotice";
 import { FieldCell } from "../review/FieldCell";
 import { keepCentrals, useRecordMutations, type FieldEdit, type Saved } from "../review/recordMutations";
 import { FIELD_COLUMNS, FORM_TYPE_TEXT } from "../review/reviewRows";
 import "../review/ReviewTable.css";
 import { formatDateTime, statusView } from "./format";
+import { RecordHistory } from "./RecordHistory";
+import { useRecordHistory } from "./useRecordHistory";
 import type { BackTo } from "./RecordsTable";
 import "./RecordsPage.css";
 
@@ -116,6 +119,7 @@ function RecordDetails({ record, backLink, back, onRecord }: DetailsProps) {
   );
   const { saveField, saveCentrals, approve, remove } = useRecordMutations(onRecords);
   const status = statusView(record);
+  const history = useRecordHistory(record.record_id, record.version);
   const more = record.continuation_pages ?? [];
   const editable = record.status === "pending";
   const name = [record.fields.first_name.value, record.fields.last_name.value].filter(Boolean).join(" ");
@@ -155,19 +159,20 @@ function RecordDetails({ record, backLink, back, onRecord }: DetailsProps) {
             </h1>
             <p className={`records-status is-${status.tone}`}>
               <span aria-hidden="true">{status.icon}</span>{" "}
-              {record.status === "approved" && record.approved_at
-                ? `אושר ב־${formatDateTime(record.approved_at)}`
+              {record.status === "approved" && record.approved_by
+                ? `אושר על ידי ${record.approved_by} ב־${formatDateTime(record.approved_at)}`
                 : status.text}
             </p>
             <div className="record-actions">
               <ApproveButton record={record} onApprove={approve} />
               <DeleteButton record={record} onDelete={remove} onDeleted={() => navigate(back, { replace: true })} />
+              <RecordHistory history={history} />
             </div>
           </div>
           <dl className="record-meta">
             <div>
               <dt>קובץ</dt>
-              <dd>
+              <dd title={record.source_file}>
                 <bdi>{record.source_file}</bdi>, עמוד {record.page_number}
                 {more.length > 0 && ` (ועמודים ${more.join(", ")})`}
               </dd>
@@ -190,6 +195,8 @@ function RecordDetails({ record, backLink, back, onRecord }: DetailsProps) {
             ))}
           </ul>
         )}
+
+        <DuplicateNotice record={record} />
 
         <div className="record-card">
           <table className="records-table record-fields" {...areaProps}>
@@ -215,15 +222,20 @@ function RecordDetails({ record, backLink, back, onRecord }: DetailsProps) {
                     onSave={onSave}
                     options={title === "גורם שולח" && senders.length > 0 ? senders : undefined}
                   />
+                  {/* What was read and how on one line (the evidence whole in the
+                      tooltip), then the issues, never cut. */}
                   <td className="record-read">
-                    <span className="record-raw">
-                      <bdi>{field.raw ?? "—"}</bdi>
-                    </span>
-                    {field.evidence && (
-                      <span className="record-evidence">
-                        <bdi>{field.evidence}</bdi>
+                    <span className="record-read-line" title={field.evidence ?? undefined}>
+                      <span className="record-raw">
+                        <bdi>{field.raw ?? "—"}</bdi>
                       </span>
-                    )}
+                      {/* dir="auto": English evidence is cut at its end, not its start. */}
+                      {field.evidence && (
+                        <span className="record-evidence" dir="auto">
+                          {field.evidence}
+                        </span>
+                      )}
+                    </span>
                     {field.issues.length > 0 && (
                       <span className="record-field-issues">{field.issues.map((i) => i.message).join(" · ")}</span>
                     )}

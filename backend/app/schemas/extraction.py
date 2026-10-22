@@ -89,3 +89,19 @@ class RawExtraction(BaseModel):
             return handler(value)
         except ValidationError:
             return []
+
+
+class NamePart(BaseModel):
+    """A RawField without a box: the crop's coordinates mean nothing on the page."""
+
+    value: str | None
+    status: ModelStatus
+    evidence: str | None
+
+
+class NameReading(BaseModel):
+    """The second read of a page: an enlarged crop of the patient's name only
+    (pipeline/names.py)."""
+
+    first_name: NamePart
+    last_name: NamePart

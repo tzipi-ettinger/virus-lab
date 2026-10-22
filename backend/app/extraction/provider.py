@@ -1,21 +1,24 @@
-"""Protocol: extract(page) -> RawExtraction.
+"""Protocol: extract(page) -> RawExtraction, and optionally read_name(crop).
 
 Every provider (Gemini, fake, cached) takes one rendered page and returns what
 the model read. The pipeline only knows this interface, so swapping the model
-is a settings change.
+is a settings change. A provider that can also read an enlarged crop of the
+patient's name is a NameReader too (Gemini, cached); the fake isn't, and its
+pages are read once.
 
 Owner: A
 """
 
 from dataclasses import dataclass, field
-from typing import Protocol
+from typing import Protocol, runtime_checkable
 
-from app.schemas.extraction import RawExtraction
+from app.schemas.extraction import NameReading, RawExtraction
 
 
 @dataclass(frozen=True)
 class PageImage:
-    """One page as the model sees it: a JPEG, already rotated by `rotation` degrees."""
+    """One page as the model sees it: a JPEG, already rotated by `rotation` degrees.
+    Also a crop of one (render_crop), for the name's second read."""
 
     file_id: str
     filename: str
@@ -30,6 +33,13 @@ class ExtractionProvider(Protocol):
         """Raises ProviderError or QuotaExhausted, and nothing else: a timeout or a
         malformed answer is a ProviderError, so the pipeline can keep a page's
         earlier reading instead of losing it to an unexpected exception."""
+        ...
+
+
+@runtime_checkable
+class NameReader(Protocol):
+    async def read_name(self, crop: PageImage) -> NameReading:
+        """The patient's name from an enlarged crop around it. Raises like extract."""
         ...
 
 

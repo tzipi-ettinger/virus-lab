@@ -30,6 +30,10 @@ SAVE_JPEG_QUALITY = 80
 # larger drawing, so half a page still reaches MAX_SIDE_PX at the same detail.
 CROP_MAX_SIDE_PX = 3300
 CROP_JPEG_QUALITY = 90
+# The name's crop for its second read (render_crop, pipeline/names.py) is drawn from
+# the page itself at twice the model image's scale: the handwriting gets more pixels
+# than the whole page can give it, and up to the scan's own resolution, more detail too.
+NAME_CROP_SCALE = 2
 ROTATIONS = (0, 90, 180, 270)
 # A PNG of 126KB can hold a 108MP image, and rendering decodes all of it first. 100MP
 # leaves room for a 48MP phone photo and a 600 DPI A4 scan (35MP).
@@ -134,12 +138,58 @@ class SourcePage:
         loop = asyncio.get_running_loop()
         return await loop.run_in_executor(_RENDER_THREAD, self.crop, rotation, box, part)
 
+    def render_crop(
+        self, rotation: int, box: tuple[int, int, int, int], *, scale: float = NAME_CROP_SCALE
+    ) -> PageImage:
+        """Part of the page as render(rotation) draws it, `scale` times larger.
+
+        `box` is (top, left, bottom, right) in 0-1000 of that image: the model's
+        box_2d format, so a box read on the model's image cuts the same place.
+        Unlike crop(), the result is an image for the model, not a page of its own.
+        """
+        if rotation not in ROTATIONS:
+            raise ValueError(f"rotation must be one of {ROTATIONS}, got {rotation}")
+        top, left, bottom, right = box
+        if not (0 <= top < bottom <= 1000 and 0 <= left < right <= 1000):
+            raise ValueError(f"box must be a rectangle within 0-1000, got {box}")
+        with pymupdf.open(stream=self._pdf, filetype="pdf") as doc:
+            page = doc[self._index]
+            page.set_rotation((page.rotation + rotation) % 360)
+            rect = page.rect  # as turned: the clip is in the same coordinates
+            clip = pymupdf.Rect(
+                rect.x0 + left / 1000 * rect.width,
+                rect.y0 + top / 1000 * rect.height,
+                rect.x0 + right / 1000 * rect.width,
+                rect.y0 + bottom / 1000 * rect.height,
+            )
+            zoom = scale * MAX_SIDE_PX / max(rect.width, rect.height)
+            pixmap = page.get_pixmap(matrix=pymupdf.Matrix(zoom, zoom), clip=clip)
+            jpeg = pixmap.tobytes("jpeg", jpg_quality=JPEG_QUALITY)
+        return PageImage(
+            file_id=self.file_id,
+            filename=self.filename,
+            page_number=self.page_number,
+            rotation=rotation,
+            jpeg=jpeg,
+        )
+
+    async def render_crop_async(
+        self, rotation: int, box: tuple[int, int, int, int], *, scale: float = NAME_CROP_SCALE
+    ) -> PageImage:
+        loop = asyncio.get_running_loop()
+        crop = partial(self.render_crop, rotation, box, scale=scale)
+        return await loop.run_in_executor(_RENDER_THREAD, crop)
+
+    @property
+    def _index(self) -> int:
+        """Where the page is in _pdf."""
+        return self.page_number - 1 if self._pdf_index is None else self._pdf_index
+
     def _pixmap(self, rotation: int, max_side: int) -> pymupdf.Pixmap:
         if rotation not in ROTATIONS:
             raise ValueError(f"rotation must be one of {ROTATIONS}, got {rotation}")
-        index = self.page_number - 1 if self._pdf_index is None else self._pdf_index
         with pymupdf.open(stream=self._pdf, filetype="pdf") as doc:
-            page = doc[index]
+            page = doc[self._index]
             # Add to the page's own /Rotate (scanners often store pages sideways and
             # rely on it), so rotation 0 means "as the viewer shows it".
             page.set_rotation((page.rotation + rotation) % 360)

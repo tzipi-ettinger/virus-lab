@@ -1,5 +1,7 @@
 """scripts/seed_demo.py loads sample files as pending records, like an upload does."""
 
+from datetime import UTC, datetime
+
 import pymupdf
 import pytest
 
@@ -8,6 +10,7 @@ from app.extraction.provider import PageImage, QuotaExhausted
 from app.settings import Settings
 from scripts.seed_demo import main
 
+NOW = datetime(2026, 10, 19, 12, 0, tzinfo=UTC)
 SETTINGS = Settings(_env_file=None, database_url="")
 
 
@@ -28,10 +31,21 @@ def samples(tmp_path):
     return folder
 
 
+@pytest.fixture
+def dana(db):
+    with db.connect() as conn:
+        conn.execute(
+            "INSERT INTO users (id, username, password_hash, display_name, created_at)"
+            " VALUES ('u1', 'dana', 'x', 'דנה', %s)",
+            (NOW,),
+        )
+    return db
+
+
 def records(db):
     with db.connect() as conn:
         return conn.execute(
-            "SELECT r.status, r.national_id, p.source_filename"
+            "SELECT r.status, r.created_by, r.national_id, p.source_filename"
             " FROM record r JOIN page p ON p.id = r.page_id"
         ).fetchall()
 
@@ -42,12 +56,13 @@ def seed(db, *argv, provider=None):
     )
 
 
-def test_saves_every_form_in_the_folder_as_pending_records(db, samples, capsys):
-    assert seed(db, str(samples)) == 0
+def test_saves_every_form_in_the_folder_as_pending_records_of_the_user(dana, samples, capsys):
+    assert seed(dana, str(samples), "--user", "dana") == 0
 
-    saved = records(db)
+    saved = records(dana)
     assert saved
     assert {r["status"] for r in saved} == {"pending"}
+    assert {r["created_by"] for r in saved} == {"u1"}
     assert {r["source_filename"] for r in saved} <= {"part1.pdf", "part2.pdf"}
     out = capsys.readouterr().out
     assert "part1.pdf: 2 pages" in out
@@ -56,16 +71,23 @@ def test_saves_every_form_in_the_folder_as_pending_records(db, samples, capsys):
     assert not any(r["national_id"] and r["national_id"] in out for r in saved)
 
 
-def test_takes_single_files_too(db, samples):
-    assert seed(db, str(samples / "part2.pdf")) == 0
+def test_takes_single_files_too(dana, samples):
+    assert seed(dana, str(samples / "part2.pdf"), "--user", "dana") == 0
 
-    assert {r["source_filename"] for r in records(db)} == {"part2.pdf"}
+    assert {r["source_filename"] for r in records(dana)} == {"part2.pdf"}
 
 
-def test_missing_path_saves_nothing(db, tmp_path):
-    assert seed(db, str(tmp_path / "nope")) == 1
+def test_unknown_user_saves_nothing(dana, samples, capsys):
+    assert seed(dana, str(samples), "--user", "nobody") == 1
 
-    assert records(db) == []
+    assert records(dana) == []
+    assert "create_user" in capsys.readouterr().out
+
+
+def test_missing_path_saves_nothing(dana, tmp_path):
+    assert seed(dana, str(tmp_path / "nope"), "--user", "dana") == 1
+
+    assert records(dana) == []
 
 
 class NoQuota(FakeProvider):
@@ -73,10 +95,10 @@ class NoQuota(FakeProvider):
         raise QuotaExhausted("המכסה היומית נגמרה")
 
 
-def test_stops_when_the_quota_runs_out(db, samples, capsys):
-    assert seed(db, str(samples), provider=NoQuota()) == 0
+def test_stops_when_the_quota_runs_out(dana, samples, capsys):
+    assert seed(dana, str(samples), "--user", "dana", provider=NoQuota()) == 0
 
     out = capsys.readouterr().out
     assert "quota ran out" in out
     assert "part2.pdf" not in out  # never sent
-    assert records(db) == []
+    assert records(dana) == []

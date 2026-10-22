@@ -93,6 +93,15 @@
   padding-inline: 24px;
 }
 
+.layout-user {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-inline-start: auto;
+  color: var(--color-text-muted, #52606d);
+}
+
+.layout-user button,
 .app-status button {
   padding: 4px 12px;
   font: inherit;
@@ -104,6 +113,7 @@
 
 .layout-brand:focus-visible,
 .layout-nav a:focus-visible,
+.layout-user button:focus-visible,
 .app-status button:focus-visible {
   outline: 2px solid var(--color-focus, #1d4ed8);
   outline-offset: 2px;
