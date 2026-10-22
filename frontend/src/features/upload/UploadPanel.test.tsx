@@ -5,7 +5,7 @@
 import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, expect, test, vi } from "vitest";
 import { UploadPanel } from "./UploadPanel";
-import { EXTRACT_URL, PROGRESS_POLL_MS } from "./useExtract";
+import { EXTRACT_URL, POLL_MS } from "./useExtract";
 
 afterEach(() => {
   cleanup();
@@ -15,17 +15,17 @@ afterEach(() => {
 
 test("a file being read shows its pages and a bar, without a clock", async () => {
   vi.useFakeTimers();
+  // The upload is taken (202), and its job is still being read.
+  const job = { job_id: "job-1", status: "running", done: 3, total: 10, result: null, problem: null };
   vi.stubGlobal("fetch", (url: string) =>
-    url === EXTRACT_URL
-      ? new Promise<Response>(() => {}) // still being read
-      : Promise.resolve(new Response(JSON.stringify({ done: 3, total: 10 }), { status: 200 })),
+    Promise.resolve(new Response(JSON.stringify(job), { status: url === EXTRACT_URL ? 202 : 200 })),
   );
   const { container } = render(<UploadPanel onResult={() => {}} />);
 
   const pdf = new File(["%PDF"], "a.pdf", { type: "application/pdf" });
   fireEvent.change(container.querySelector("input[type=file]")!, { target: { files: [pdf] } });
   await act(async () => {
-    await vi.advanceTimersByTimeAsync(PROGRESS_POLL_MS);
+    await vi.advanceTimersByTimeAsync(POLL_MS);
   });
 
   const sending = container.querySelector(".upload-sending")!;

@@ -1,5 +1,6 @@
-"""POST /api/v1/extract saves each form, against a real Postgres, signed in through
-the real login. The pipeline and the response are tested in test_extract.py."""
+"""POST /api/v1/extract saves each form in its background job, against a real
+Postgres, signed in through the real login. The pipeline and the response are tested
+in test_extract.py."""
 
 import asyncio
 from datetime import UTC, datetime
@@ -11,7 +12,7 @@ from app.api import extract
 from app.auth.passwords import hash_password
 from app.main import create_app
 from app.settings import Settings, get_settings
-from tests.unit.api.uploads import Answers, make_pdf, upload
+from tests.unit.api.uploads import Answers, finish, make_pdf, upload
 
 ORIGIN = "http://localhost:5173"
 PASSWORD = "correct horse battery"
@@ -74,8 +75,7 @@ def test_every_form_is_saved_as_pending_records_by_the_user(client, user, db):
 
     response = client.post("/api/v1/extract", files=upload(("a.pdf", make_pdf(2))))
 
-    assert response.status_code == 200
-    records = response.json()["records"]
+    records = finish(client, response)["result"]["records"]
     assert len(records) == 2
     assert saved_record_ids(db) == {r["record_id"] for r in records}
     with db.connect() as conn:
@@ -89,7 +89,7 @@ def test_every_form_is_saved_as_pending_records_by_the_user(client, user, db):
 def test_the_saved_page_image_is_served_for_the_preview(client, user):
     login(client)
     extracted = client.post("/api/v1/extract", files=upload(("a.pdf", make_pdf(1))))
-    record = extracted.json()["records"][0]
+    record = finish(client, extracted)["result"]["records"][0]
 
     response = client.get(f"/api/v1/pages/{record['page_id']}/image")
 
@@ -106,8 +106,13 @@ def test_without_signing_in_nothing_is_read_or_saved(client, user, db, provider)
     assert saved_record_ids(db) == set()
 
 
-def test_without_signing_in_the_upload_progress_is_refused(client, user):
-    response = client.get("/api/v1/extract/progress/3f0c2a1e-7b9d-4c55-9a10-2d6e8f4b1c77")
+def test_without_signing_in_a_job_is_refused(client, user):
+    login(client)
+    started = client.post("/api/v1/extract", files=upload(("a.pdf", make_pdf(1))))
+    finish(client, started)
+    client.cookies.clear()
+
+    response = client.get(f"/api/v1/extract/jobs/{started.json()['job_id']}")
 
     assert response.status_code == 401
     assert response.json()["type"] == "unauthenticated"
