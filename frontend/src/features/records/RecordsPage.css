@@ -849,11 +849,13 @@
   font-size: 0.875rem;
 }
 
+/* Small pills: a side action under the list, not the main one. */
 .records-export a {
   display: inline-flex;
   align-items: center;
-  min-block-size: 36px;
-  padding: 0 16px;
+  min-block-size: 28px;
+  padding: 0 12px;
+  font-size: 0.8125rem;
   font-weight: 600;
   color: var(--color-accent-strong, #08515a);
   text-decoration: none;
