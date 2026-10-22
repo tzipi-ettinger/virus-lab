@@ -106,6 +106,7 @@ virus-lab/
 │   ├── api/                # client, schema.d.ts (נוצר מ־OpenAPI)
 │   ├── features/           # upload, preview, review, records
 │   └── shared/             # layout, ui (tokens, רכיבים משותפים)
+├── e2e/                    # Playwright: דפדפן אמיתי מול השרת (בדיקות קצה לקצה)
 ├── docs/                   # SPEC.md (איפיון), PLAN-DEV-B.md, GUIDELINES-V2-CHANGES.md
 ├── Dockerfile, render.yaml # השרת החי
 ├── docker-compose.yml      # Postgres מקומי
@@ -170,6 +171,21 @@ npm run dev
 npm run lint
 npm run build
 npm test
+```
+
+### בדיקות קצה לקצה (e2e)
+
+דפדפן אמיתי מול השרת ומסד הנתונים: כניסה, העלאה, מציאת הרשומה, פתיחתה, ייצוא CSV ויציאה ([e2e/tests/smoke.spec.ts](e2e/tests/smoke.spec.ts)). השרת רץ עם `EXTRACTION_PROVIDER=fake`, בלי מפתח ובלי מכסה. ב־CI זה ה־job `e2e`, מול ה־image של Docker.
+
+מקומית, מול שרת שרץ עם `fake` ו־`STATIC_DIR` (או ה־image) ומשתמש `e2e`:
+
+```powershell
+cd e2e
+npm ci
+npx playwright install chromium                 # או: $env:E2E_CHANNEL = "chrome" ל־Chrome המותקן
+$env:E2E_BASE_URL = "http://localhost:8000"
+$env:E2E_PASSWORD = "<הסיסמה של e2e>"
+npx playwright test
 ```
 
 ### עבודה בלי מפתח ובלי מכסה
