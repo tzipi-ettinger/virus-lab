@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **גרסה** | 0.3.3 |
+| **גרסה** | 0.3.4 |
 | **תאריך** | 22.10.2026 |
 | **סטטוס** | מתאר את המערכת לפי הנחיות האתגר המעודכנות (סעיף 0): רשומה לכל התחייבות, שנשמרת במסד, מתוקנת ומאושרת בתוך המערכת. התשובות של ראש הצוות (19.10) ושל מפתחת A ([#15](https://github.com/tzipi-ettinger/virus-lab/issues/15)) הוכנסו. נשארה פתוחה שאלה אחת: הגורם השולח בצילומי שיבא (5.5) |
 | **מסמכים קשורים** | [README](../README.md) · [PLAN](../PLAN.md) · הנחיות האתגר (PDF) · "חלוקת עבודה" (PDF) |
@@ -359,8 +359,8 @@ records(form) =
 | `POST` | `/api/v1/auth/login` | `LoginRequest {username, password}` | `User {id, username, display_name}` ועוגיית סשן |
 | `POST` | `/api/v1/auth/logout` | — | `204` |
 | `GET` | `/api/v1/auth/me` | — | `User {id, username, display_name}` |
-| `POST` | `/api/v1/extract` | `multipart/form-data`, שדה `files`. אופציונלי: `X-Upload-Id` (8–64 אותיות, ספרות או `-`) | `ExtractResponse` (9.3). הרשומות כבר נשמרו כממתינות |
-| `GET` | `/api/v1/extract/progress/{upload_id}` | — | `{done, total}`: כמה עמודים נקראו (כולל שנכשלו) מתוך כמה. `total` הוא 0 עד שהקבצים פוצלו לעמודים. `404 upload_not_found` לפני שההעלאה התחילה ואחרי שהסתיימה. בזיכרון של השרת בלבד, רק מספרים [החלטה, 22.10] |
+| `POST` | `/api/v1/extract` | `multipart/form-data`, שדה `files` | `202` עם `ExtractJob` מיד כשהקבצים התקבלו. הקריאה רצה ברקע, וכל טופס נשמר כממתין ברגע שנקרא [החלטה, 22.10] |
+| `GET` | `/api/v1/extract/jobs/{job_id}` | — | `ExtractJob {job_id, status, done, total, result, problem}`. `status`: `running` (עם `done` מתוך `total` עמודים, כולל שנכשלו; `total` הוא 0 עד שהקבצים פוצלו), `done` (`result` הוא `ExtractResponse`, 9.3) או `failed` (`problem`, ראו 9.5). `404 job_not_found` לעבודה של משתמש אחר, אחרי הפעלה מחדש של השרת, ו־15 דקות אחרי שהסתיימה. בזיכרון של השרת בלבד [החלטה, 22.10] |
 | `GET` | `/api/v1/records` | `q`, `status`, `needs_review`, `sender`, `form_type`, `date_from`, `date_to`, `limit`, `offset` | `RecordList {items: RecordSummary[], total, limit, offset, counts}` |
 | `GET` | `/api/v1/records/{id}` | — | `Record` (9.2) |
 | `PATCH` | `/api/v1/records/{id}` | `RecordPatch` (9.4) | `RecordPatchResponse {record, siblings}` |
@@ -451,19 +451,22 @@ records(form) =
 { "type": "too_many_files", "title": "אפשר להעלות עד 20 קבצים בבקשה אחת", "status": 400 }
 ```
 
-**`POST /api/v1/extract`** (עודכן 19.10, לפי הקוד). הכלל: **קוד שגיאה רק כשלא נשמר כלום**, ולכן אפשר לשלוח שוב. כל כישלון של קובץ או עמוד מדווח בתוך תשובת `200`.
+**`POST /api/v1/extract`** (עודכן 22.10, לפי הקוד). הכלל: **קוד שגיאה רק כשלא נשמר כלום**, ולכן אפשר לשלוח שוב. בקשה שאי אפשר להשתמש בה נדחית מיד. מה שמתגלה רק בזמן הקריאה מגיע ב־`problem` של העבודה, עם הקוד שהבקשה הייתה מחזירה. כל כישלון של קובץ או עמוד מדווח ב־`result` של עבודה שהסתיימה (`done`).
 
 | מצב | קוד | `type` |
 |---|---|---|
 | לא נבחרו קבצים | `400` | `no_files` |
 | יותר מ־`MAX_FILES_PER_REQUEST` קבצים | `400` | `too_many_files` |
 | העלאה שנקטעה באמצע או פגומה | `400` | `invalid_upload` |
-| בקשה מעל `MAX_REQUEST_MB`, או מעל `MAX_PAGES_PER_REQUEST` עמודים | `413` | `request_too_large` / `too_many_pages` |
+| בקשה מעל `MAX_REQUEST_MB` | `413` | `request_too_large` |
 | לא נשלח כ־`multipart/form-data` | `415` | `unsupported_media_type` |
-| מכסת Gemini נגמרה בכל המפתחות **לפני** שנשמר עמוד | `503` | `quota_exhausted` |
-| מכסת Gemini נגמרה בכל המפתחות **אחרי** שנשמר עמוד | `200`, `quota_exhausted: true`, והעמודים שלא נקראו ב־`failed_pages` עם `QUOTA_EXHAUSTED` | — |
-| קובץ לא תקין (סוג לא נתמך, גדול מ־`MAX_FILE_MB`, מוצפן, פגום) | `200`, `FileResult.status: "error"`, `INVALID_FILE` | — |
-| עמוד שנכשל, גם אם נכשלו כל העמודים | `200`, העמוד ב־`failed_pages` עם `EXTRACTION_FAILED` | — |
+| כבר רצות 10 העלאות בשרת, או 3 של אותו משתמש | `503` | `too_many_uploads` |
+| מעל `MAX_PAGES_PER_REQUEST` עמודים (ידוע רק אחרי הפיצול) | עבודה `failed`, `problem` עם `413` | `too_many_pages` |
+| מכסת Gemini נגמרה בכל המפתחות **לפני** שנשמר עמוד | עבודה `failed`, `problem` עם `503` | `quota_exhausted` |
+| העבודה נעצרה באמצע: באג, או השרת נסגר (פריסה). ייתכן שחלק מהטפסים נשמרו, ולכן לא שולחים שוב לפני בדיקה במסך הרשומות | עבודה `failed`, `problem` עם `500` | `extraction_stopped` |
+| מכסת Gemini נגמרה בכל המפתחות **אחרי** שנשמר עמוד | עבודה `done`, `quota_exhausted: true`, והעמודים שלא נקראו ב־`failed_pages` עם `QUOTA_EXHAUSTED` | — |
+| קובץ לא תקין (סוג לא נתמך, גדול מ־`MAX_FILE_MB`, מוצפן, פגום) | עבודה `done`, `FileResult.status: "error"`, `INVALID_FILE` | — |
+| עמוד שנכשל, גם אם נכשלו כל העמודים | עבודה `done`, העמוד ב־`failed_pages` עם `EXTRACTION_FAILED` | — |
 
 > הגרסה הקודמת של הסעיף קבעה `422` לקובץ לא תקין ו־`502` כשכל העמודים נכשלו. הוחלף: קובץ לא תקין לא מבטל את שאר הקבצים בבקשה, ועמודים שנכשלו מוצגים מעל טבלת הבדיקה, כל אחד עם הסיבה שלו.
 
@@ -639,3 +642,4 @@ Q1–Q6 נשלחו למנטוריות ב־18.10, וראש הצוות ענתה ע
 | 0.3.1 | 21.10.2026 | ההתחברות הוסרה: האתר פתוח לכל מי שיש לו את הקישור, ונשארה רק בדיקת ה־`Origin` על שינויים. בלי `approved_by` ו־`updated_by`, ובלי משתמש ביומן הפעולות (1, 3, 7, 9, 11.1) |
 | 0.3.2 | 21.10.2026 | אישור רשומה נחסם רק בשדות מסומנים. issue ברמת הרשומה נשאר מוצג ולא חוסם, לפי ההחלטה מ־19.10 (#57) שנכנסה לקוד ול־PLAN-DEV-B אבל לא לכאן (7.5) |
 | 0.3.3 | 22.10.2026 | ההתחברות חזרה, אחרי תשובת המנטורית: כניסה חובה, ותיעוד של מי עשה כל שינוי. `approved_by`, משתמש ביומן הפעולות ובייצוא. מה שנשמר בלי כניסה (21.10–22.10) שייך למשתמש `legacy`, שאי אפשר להיכנס איתו (1, 3, 7, 9, 11.1) |
+| 0.3.4 | 22.10.2026 | הקריאה רצה ברקע: `POST /extract` עונה `202` עם עבודה, ו־`GET /extract/jobs/{job_id}` נותן את ההתקדמות ואת התוצאה, במקום בקשה אחת שמחכה עד הסוף ובמקום `extract/progress` (9.1, 9.5) |
