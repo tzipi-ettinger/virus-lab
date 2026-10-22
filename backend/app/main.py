@@ -7,6 +7,7 @@ import logging
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from pathlib import Path
+from typing import Any
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -58,7 +59,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         )
     # The live server doesn't describe its API to strangers: no /docs, /redoc or
     # /openapi.json. scripts/export_openapi still builds the contract from the code.
-    hidden = {"docs_url": None, "redoc_url": None, "openapi_url": None}
+    hidden: dict[str, Any] = {"docs_url": None, "redoc_url": None, "openapi_url": None}
     app = FastAPI(
         title="virus-lab",
         lifespan=_lifespan(settings),
