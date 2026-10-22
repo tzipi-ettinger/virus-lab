@@ -90,7 +90,7 @@ describe("approve", () => {
   afterEach(() => vi.unstubAllGlobals());
 
   test("sends the version and puts the approved record in place", async () => {
-    const approved = record({ status: "approved", version: 4 });
+    const approved = record({ status: "approved", version: 4, approved_by: "esty" });
     fetchMock.mockResolvedValue(
       new Response(JSON.stringify(approved), { status: 200, headers: { "Content-Type": "application/json" } }),
     );

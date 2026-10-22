@@ -23,7 +23,7 @@ from python_multipart.multipart import parse_options_header
 from starlette.datastructures import UploadFile
 from starlette.formparsers import MultiPartException, MultiPartParser
 
-from app.api.deps import get_pool, same_origin
+from app.api.deps import get_pool, require_user
 from app.api.errors import ProblemError
 from app.clock import israel_today
 from app.extraction.cached_provider import CachedProvider
@@ -37,7 +37,7 @@ from app.pipeline.service import (
     UploadedFile,
     extract_files,
 )
-from app.schemas.api import ExtractProgress, ExtractResponse, Problem
+from app.schemas.api import ExtractProgress, ExtractResponse, Problem, User
 from app.settings import Settings, get_settings
 from app.storage.service import form_saver
 
@@ -71,6 +71,7 @@ _PROBLEMS = {
     for status, description in {
         400: 'No files ("no_files"), more than MAX_FILES_PER_REQUEST ("too_many_files"), '
         'or an upload that is cut off or broken ("invalid_upload")',
+        401: 'Not signed in ("unauthenticated"). Nothing was read, so the file can be sent again',
         403: 'The request did not come from our own page ("origin_not_allowed")',
         413: 'Request over MAX_REQUEST_MB ("request_too_large") or over '
         'MAX_PAGES_PER_REQUEST ("too_many_pages")',
@@ -166,9 +167,12 @@ def get_provider(settings: SettingsDep) -> ExtractionProvider:
             assert_never(unknown)
 
 
-def get_save_form(pool: Annotated[AsyncConnectionPool, Depends(get_pool)]) -> SaveForm:
+def get_save_form(
+    pool: Annotated[AsyncConnectionPool, Depends(get_pool)],
+    user: Annotated[User, Depends(require_user)],
+) -> SaveForm:
     """Each form is saved as pending records as soon as it is read (B's form_saver)."""
-    return form_saver(pool)
+    return form_saver(pool, user)
 
 
 _PROGRESS = UploadProgress()
@@ -187,8 +191,9 @@ ProgressDep = Annotated[UploadProgress, Depends(get_progress)]
     response_model=ExtractResponse,
     responses=_PROBLEMS,
     openapi_extra=_UPLOAD_BODY,
-    # No sign-in (removed 21.10). The upload must still come from our own page.
-    dependencies=[Depends(same_origin)],
+    # Here and not only in get_save_form, so a test that overrides the saver can't
+    # turn sign-in off. FastAPI runs require_user once per request either way.
+    dependencies=[Depends(require_user)],
 )
 async def extract(
     request: Request,
@@ -250,6 +255,7 @@ async def extract(
 @router.get(
     "/extract/progress/{upload_id}",
     responses={404: {"model": Problem, "description": 'Not running ("upload_not_found")'}},
+    dependencies=[Depends(require_user)],
 )
 def extract_progress(upload_id: str, progress: ProgressDep) -> ExtractProgress:
     """How many pages of a running upload are read. 404 before it starts, after it

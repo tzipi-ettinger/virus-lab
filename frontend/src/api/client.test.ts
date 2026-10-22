@@ -1,8 +1,8 @@
 // The API client: what each kind of answer becomes (PLAN-DEV-B 3.4, 3.5).
 // Owner: B
 
-import { describe, expect, test, vi } from "vitest";
-import { ApiError, NETWORK_ERROR, apiFetch } from "./client";
+import { afterEach, describe, expect, test, vi } from "vitest";
+import { ApiError, NETWORK_ERROR, apiFetch, onUnauthorized } from "./client";
 
 function answer(status: number, body?: unknown, contentType = "application/json") {
   const init = { status, headers: { "Content-Type": contentType } };
@@ -24,7 +24,10 @@ const problem = (status: number, type: string, extra: object = {}) =>
   answer(status, { type, title: "כותרת", status, ...extra }, "application/problem+json");
 
 describe("apiFetch", () => {
-  test("sends JSON on the same origin and returns the JSON answer", async () => {
+  let stop = () => {};
+  afterEach(() => stop());
+
+  test("sends JSON with the session cookie and returns the JSON answer", async () => {
     const fetchImpl = answer(200, { ok: true });
 
     const result = await apiFetch<{ ok: boolean }>("/api/v1/records/approve", {
@@ -76,5 +79,25 @@ describe("apiFetch", () => {
     const fetchImpl = vi.fn<typeof fetch>().mockRejectedValue(aborted);
 
     await expect(apiFetch("/x", { fetchImpl, signal: controller.signal })).rejects.toBe(aborted);
+  });
+
+  test("a 401 calls the sign-in handler", async () => {
+    const handler = vi.fn();
+    stop = onUnauthorized(handler);
+
+    await apiFetch("/api/v1/records", { fetchImpl: problem(401, "unauthenticated") }).catch(() => {});
+
+    expect(handler).toHaveBeenCalledOnce();
+  });
+
+  test("a failed login does not: the login page shows that error itself", async () => {
+    const handler = vi.fn();
+    stop = onUnauthorized(handler);
+
+    await apiFetch("/api/v1/auth/login", { method: "POST", fetchImpl: problem(401, "unauthenticated") }).catch(
+      () => {},
+    );
+
+    expect(handler).not.toHaveBeenCalled();
   });
 });

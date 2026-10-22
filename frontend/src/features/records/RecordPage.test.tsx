@@ -64,7 +64,9 @@ function record(over: Partial<ApiRecord> = {}): ApiRecord {
 }
 
 const fetchMock = vi.fn<typeof fetch>();
+let history: unknown[] = [];
 beforeEach(() => {
+  history = [];
   fetchMock.mockReset();
   vi.stubGlobal("fetch", fetchMock);
 });
@@ -83,6 +85,7 @@ const json = (status: number, body: unknown) =>
 function serve(status: number, body: unknown, others: Record<string, () => Response> = {}) {
   fetchMock.mockImplementation(async (url, init) => {
     if (String(url).endsWith("/senders")) return json(200, ["מכבי", "כללית"]);
+    if (String(url).endsWith("/history")) return json(200, history);
     const other = others[init?.method ?? "GET"];
     return other ? other() : json(status, body);
   });
@@ -141,11 +144,11 @@ describe("RecordPage", () => {
     expect(screen.getByText(/דורש בדיקה/)).toBeTruthy();
   });
 
-  test("an approved record says when it was approved", async () => {
-    serve(200, record({ status: "approved", approved_at: "2026-10-19T11:05:00Z" }));
+  test("an approved record says who approved it and when", async () => {
+    serve(200, record({ status: "approved", approved_by: "esty", approved_at: "2026-10-19T11:05:00Z" }));
     renderPage();
 
-    expect(await screen.findByText(/אושר ב־19\/10\/2026 14:05/)).toBeTruthy();
+    expect(await screen.findByText(/אושר על ידי esty ב־19\/10\/2026 14:05/)).toBeTruthy();
   });
 
   test("back to the records keeps the filters", async () => {
@@ -207,7 +210,7 @@ describe("RecordPage", () => {
       needs_review: false,
     });
     serve(200, ready, {
-      POST: () => json(200, { ...ready, status: "approved", approved_at: "2026-10-19T11:05:00Z" }),
+      POST: () => json(200, { ...ready, status: "approved", approved_by: "esty", approved_at: "2026-10-19T11:05:00Z" }),
     });
     renderPage();
     await screen.findByRole("heading", { name: "דנה לוי" });
@@ -215,7 +218,7 @@ describe("RecordPage", () => {
     await userEvent.setup().click(screen.getByRole("button", { name: "אישור" }));
 
     expect(call("POST")?.[0]).toBe("/api/v1/records/r1/approve");
-    expect(await screen.findByText(/אושר ב־19\/10\/2026/)).toBeTruthy();
+    expect(await screen.findByText(/אושר על ידי esty/)).toBeTruthy();
     expect(screen.queryByRole("button", { name: /לעריכה/ })).toBeNull();
   });
 
@@ -236,5 +239,33 @@ describe("RecordPage", () => {
 
     expect(await screen.findByText(/הרשומה לא נמצאה/)).toBeTruthy();
     expect(screen.getByRole("link", { name: /חזרה לרשומות/ }).getAttribute("href")).toBe("/records");
+  });
+
+  test("the history button beside approve opens a window that lists every action", async () => {
+    history = [
+      { at: "2026-10-19T09:00:00Z", action: "created", field: null, username: "legacy", display_name: "לפני הכניסה" },
+      { at: "2026-10-22T07:14:00Z", action: "corrected", field: "national_id", username: "dana", display_name: "דנה" },
+      { at: "2026-10-22T07:15:00Z", action: "confirmed", field: "central_numbers[0]", username: "rachel", display_name: "רחל" },
+    ];
+    serve(200, record());
+    renderPage();
+
+    const open = await screen.findByRole("button", { name: "היסטוריה (3)" });
+    expect(open.closest(".record-actions")).not.toBeNull(); // no line of its own: the page fits the screen
+    expect(screen.queryByRole("dialog")).toBeNull();
+
+    await userEvent.click(open);
+    const window = screen.getByRole("dialog", { name: "היסטוריית הרשומה" });
+    const lines = within(window).getAllByRole("listitem").map((li) => li.textContent);
+    expect(lines).toEqual([
+      "נקלטעל ידי לפני הכניסה19/10/2026 12:00",
+      "תוקן: ת״זעל ידי דנה22/10/2026 10:14",
+      "סומן כנבדק: מספר מרכזי 1על ידי רחל22/10/2026 10:15",
+    ]);
+    expect(fetchMock.mock.calls.some(([url]) => url === "/api/v1/records/r1/history")).toBe(true);
+
+    await userEvent.keyboard("{Escape}");
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(document.activeElement).toBe(open);
   });
 });

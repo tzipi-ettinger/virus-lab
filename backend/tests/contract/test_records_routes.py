@@ -2,8 +2,8 @@
 
 No database here: the pool is a stub that raises Reached when a handler asks it
 for a connection, so Reached means the request got past validation and reached
-the right handler. What the handlers do is tested in tests/unit/api/. The Origin
-check is turned off here: it is tested there too.
+the right handler. What the handlers do is tested in tests/unit/api/. The session
+check is replaced by a fixed user: login itself is tested in tests/unit/auth/.
 
 Owner: shared
 """
@@ -13,7 +13,7 @@ from typing import get_args
 import pytest
 from fastapi.testclient import TestClient
 
-from app.api.deps import get_pool, same_origin
+from app.api.deps import get_pool, require_user
 from app.main import app
 from app.schemas import api
 
@@ -31,11 +31,13 @@ class StubPool:
 
 
 @pytest.fixture(autouse=True)
-def stub_pool():
-    app.dependency_overrides[same_origin] = lambda: None
+def signed_in():
+    app.dependency_overrides[require_user] = lambda: api.User(
+        id="u1", username="tester", display_name="Tester"
+    )
     app.dependency_overrides[get_pool] = StubPool
     yield
-    app.dependency_overrides.pop(same_origin, None)
+    app.dependency_overrides.pop(require_user, None)
     app.dependency_overrides.pop(get_pool, None)
 
 

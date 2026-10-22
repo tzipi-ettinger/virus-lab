@@ -191,6 +191,12 @@ class Record(BaseModel):
     created_at: datetime
     updated_at: datetime
     approved_at: datetime | None
+    approved_by: str | None = Field(
+        default=None, description="Display name of who approved it; null until approved."
+    )
+    updated_by: str | None = Field(
+        default=None, description="Display name of who last edited it; null if never edited."
+    )
 
 
 class RecordSummary(BaseModel):
@@ -355,6 +361,43 @@ class BulkApproveResponse(BaseModel):
 
     approved: list[Record]
     skipped: list[SkippedRecord]
+
+
+# --- GET /api/v1/records/{record_id}/history
+
+EventAction = Literal["created", "corrected", "confirmed", "approved"]
+
+
+class RecordEvent(BaseModel):
+    """One line of a record's history: who did what, to which field, and when.
+    Never the values (D13)."""
+
+    at: datetime
+    action: EventAction
+    field: str | None = Field(
+        description='The field, e.g. "national_id" or "central_numbers[0]"; null for '
+        "created and approved."
+    )
+    username: str
+    display_name: str = Field(
+        description='"לפני הכניסה" for what was saved while the site had no sign-in (21.10-22.10).'
+    )
+
+
+# --- Auth (Dev-B plan 2.6): users are created only by scripts/create_user.py
+
+
+class User(BaseModel):
+    """The signed-in user, as require_user gives it to the endpoints."""
+
+    id: str
+    username: str
+    display_name: str
+
+
+class LoginRequest(BaseModel):
+    username: str = Field(min_length=1, max_length=100)
+    password: str = Field(min_length=1, max_length=1024)
 
 
 # --- Errors (application/problem+json, SPEC 9.5)

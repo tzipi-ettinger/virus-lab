@@ -20,6 +20,8 @@ import { keepCentrals, useRecordMutations, type FieldEdit, type Saved } from "..
 import { FIELD_COLUMNS, FORM_TYPE_TEXT } from "../review/reviewRows";
 import "../review/ReviewTable.css";
 import { formatDateTime, statusView } from "./format";
+import { RecordHistory } from "./RecordHistory";
+import { useRecordHistory } from "./useRecordHistory";
 import type { BackTo } from "./RecordsTable";
 import "./RecordsPage.css";
 
@@ -116,6 +118,7 @@ function RecordDetails({ record, backLink, back, onRecord }: DetailsProps) {
   );
   const { saveField, saveCentrals, approve, remove } = useRecordMutations(onRecords);
   const status = statusView(record);
+  const history = useRecordHistory(record.record_id, record.version);
   const more = record.continuation_pages ?? [];
   const editable = record.status === "pending";
   const name = [record.fields.first_name.value, record.fields.last_name.value].filter(Boolean).join(" ");
@@ -155,19 +158,20 @@ function RecordDetails({ record, backLink, back, onRecord }: DetailsProps) {
             </h1>
             <p className={`records-status is-${status.tone}`}>
               <span aria-hidden="true">{status.icon}</span>{" "}
-              {record.status === "approved" && record.approved_at
-                ? `אושר ב־${formatDateTime(record.approved_at)}`
+              {record.status === "approved" && record.approved_by
+                ? `אושר על ידי ${record.approved_by} ב־${formatDateTime(record.approved_at)}`
                 : status.text}
             </p>
             <div className="record-actions">
               <ApproveButton record={record} onApprove={approve} />
               <DeleteButton record={record} onDelete={remove} onDeleted={() => navigate(back, { replace: true })} />
+              <RecordHistory history={history} />
             </div>
           </div>
           <dl className="record-meta">
             <div>
               <dt>קובץ</dt>
-              <dd>
+              <dd title={record.source_file}>
                 <bdi>{record.source_file}</bdi>, עמוד {record.page_number}
                 {more.length > 0 && ` (ועמודים ${more.join(", ")})`}
               </dd>

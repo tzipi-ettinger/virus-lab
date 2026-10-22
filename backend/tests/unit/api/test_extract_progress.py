@@ -3,11 +3,11 @@
 from fastapi.testclient import TestClient
 
 from app.api import extract
-from app.api.deps import same_origin
+from app.api.deps import require_user
 from app.main import create_app
 from app.pipeline.progress import Progress, UploadProgress
 from app.settings import Settings, get_settings
-from tests.unit.api.test_extract import unsaved_records
+from tests.unit.api.test_extract import SIGNED_IN, unsaved_records
 from tests.unit.api.uploads import Answers, make_pdf, upload
 
 ID = "3f0c2a1e-7b9d-4c55-9a10-2d6e8f4b1c77"
@@ -31,7 +31,7 @@ def make_client(progress: UploadProgress, provider=None) -> TestClient:
     app.dependency_overrides[get_settings] = lambda: Settings(_env_file=None, max_concurrency=1)
     app.dependency_overrides[extract.get_provider] = lambda: provider or Answers()
     app.dependency_overrides[extract.get_save_form] = lambda: unsaved_records
-    app.dependency_overrides[same_origin] = lambda: None
+    app.dependency_overrides[require_user] = lambda: SIGNED_IN
     app.dependency_overrides[extract.get_progress] = lambda: progress
     return TestClient(app)
 
