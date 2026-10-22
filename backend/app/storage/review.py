@@ -34,6 +34,7 @@ from app.schemas.api import (
     RecordList,
     RecordPatch,
     RecordPatchResponse,
+    RecordStats,
     RecordSummary,
     SkippedRecord,
     User,
@@ -172,6 +173,12 @@ async def list_records(
         offset=offset,
         counts=RecordCounts(**counts),
     )
+
+
+async def get_stats(conn: AsyncConnection) -> RecordStats:
+    """The overview screen's numbers, over every record."""
+    async with conn.transaction():
+        return RecordStats(**await repo.record_stats(conn))
 
 
 # A file, not a page: enough for every record of the demo, small enough to build in memory.

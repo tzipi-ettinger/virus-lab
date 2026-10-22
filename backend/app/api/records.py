@@ -1,5 +1,5 @@
 """Records endpoints: list/search/filter, export, get, patch, approve (one or many),
-delete, page image and the senders list.
+delete, page image, the senders list and the overview numbers.
 
 Only parses the request and calls storage/review.py, which holds the logic.
 The export file itself is written by export/records_export.py.
@@ -32,6 +32,7 @@ from app.schemas.api import (
     RecordPatch,
     RecordPatchResponse,
     RecordSort,
+    RecordStats,
     RecordStatus,
     User,
 )
@@ -241,6 +242,14 @@ async def delete_record(record_id: str, pool: PoolDep) -> Response:
     async with pool.connection() as conn:
         await _run(review.delete_record(conn, record_id))
     return Response(status_code=204)
+
+
+@router.get("/stats")
+async def stats(pool: PoolDep) -> RecordStats:
+    """The overview screen: records left to approve, pending fields still flagged,
+    and how often each field was corrected by hand (from the records' history)."""
+    async with pool.connection() as conn:
+        return await review.get_stats(conn)
 
 
 @router.get("/senders")

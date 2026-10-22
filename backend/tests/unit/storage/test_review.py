@@ -479,3 +479,60 @@ def test_too_many_records_is_refused_and_not_logged(db, monkeypatch):
     refused = problem(db, review.export_records, USER, export_format="csv", now=NOW)
     assert (refused.status, refused.type) == (422, "export_too_large")
     assert export_log(db) == []
+
+
+# --- The overview screen
+
+
+def test_stats_with_no_records_are_zero(db):
+    stats = call(db, review.get_stats)
+    assert stats.model_dump() == {
+        "pending": 0,
+        "approved": 0,
+        "needs_review": 0,
+        "fields_total": 0,
+        "fields_flagged": 0,
+        "corrections": 0,
+        "corrected_records": 0,
+        "by_field": [],
+    }
+
+
+def test_stats_count_pending_fields_and_corrections_per_field(db):
+    [clean] = save(db, "clean", file_id="f1")
+    first, _ = save(db, "multi_values", file_id="f2")
+    [unclear] = save(db, "unclear", file_id="f3")
+    approve(db, clean)
+    # A shared field: logged on both records of the form, counted once.
+    first = patch(db, first, fields={"last_name": {"value": "כהן"}}).record
+    patch(db, first, central_numbers=[{"idx": 0}, {"value": "123456"}])
+    unclear = patch(db, unclear, fields={"national_id": {"value": "11223344"}}).record
+    again = RecordPatch.model_validate(
+        {"version": unclear.version, "fields": {"national_id": {"value": "22334455"}}}
+    )
+    later = NOW + timedelta(minutes=1)
+    call(db, review.patch_record, unclear.record_id, again, USER, today=TODAY, now=later)
+
+    stats = call(db, review.get_stats)
+
+    pending = [r for r in call(db, review.list_records).items if r.status == "pending"]
+    records = [call(db, review.get_record, r.record_id) for r in pending]
+    flags = [
+        field.needs_review
+        for r in records
+        for field in [
+            *(getattr(r.fields, name) for name in type(r.fields).model_fields),
+            *r.central_numbers,
+        ]
+    ]
+    assert (stats.pending, stats.approved) == (3, 1)
+    assert stats.needs_review == sum(r.needs_review for r in records)
+    assert stats.fields_total == len(flags) == 3 * 6 + sum(len(r.central_numbers) for r in records)
+    assert stats.fields_flagged == sum(flags) > 0
+    assert [(f.field, f.corrections) for f in stats.by_field] == [
+        ("national_id", 2),
+        ("central_numbers", 1),
+        ("last_name", 1),
+    ]
+    assert stats.corrections == 4
+    assert stats.corrected_records == 3
