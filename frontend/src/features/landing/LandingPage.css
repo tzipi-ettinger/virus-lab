@@ -33,17 +33,17 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 14px;
+  gap: clamp(8px, 1.6vh, 14px);
   inline-size: min(1040px, 100% - 32px);
   margin-inline: auto;
-  padding-block: 40px 24px;
+  padding-block: clamp(12px, 3vh, 40px) 8px;
   text-align: center;
 }
 
 .landing-logo {
-  inline-size: min(300px, 70vw);
+  inline-size: min(300px, 70vw, 28vh);
   block-size: auto;
-  margin-block-end: 8px;
+  margin-block-end: 0;
   animation: landing-rise 0.6s ease both;
 }
 
@@ -62,7 +62,7 @@
 .landing-title {
   margin: 0;
   color: var(--color-text, #12233a);
-  font-size: clamp(2rem, 5vw, 3.25rem);
+  font-size: clamp(1.75rem, min(5vw, 5.5vh), 3.25rem);
   font-weight: 800;
   line-height: 1.15;
   animation: landing-rise 0.6s 0.1s ease both;
@@ -139,7 +139,7 @@
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 16px;
   inline-size: 100%;
-  margin: 36px 0 0;
+  margin: clamp(10px, 3vh, 36px) 0 0;
   padding: 0;
   list-style: none;
 }
@@ -150,7 +150,7 @@
   flex-direction: column;
   align-items: flex-start;
   gap: 6px;
-  padding: 22px;
+  padding: clamp(12px, 2.2vh, 22px) 22px;
   text-align: start;
   background: rgb(255 255 255 / 0.85);
   border: 1px solid var(--color-border, #e1e8ef);
@@ -198,7 +198,7 @@
 
 .landing-footer {
   position: relative;
-  padding: 16px;
+  padding: 8px 16px 12px;
   color: var(--color-text-muted, #56677a);
   font-size: 0.8125rem;
   text-align: center;
