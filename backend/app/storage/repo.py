@@ -7,6 +7,7 @@ Owner: B
 """
 
 import hashlib
+from collections.abc import Mapping
 from datetime import date, datetime
 
 from psycopg import AsyncConnection
@@ -207,6 +208,13 @@ async def get_siblings(conn: AsyncConnection, record: dict, *, lock: bool = Fals
         return await cur.fetchall()
 
 
+async def _count(cur) -> int:
+    """The `n` of a count(*), which always returns one row."""
+    row = await cur.fetchone()
+    assert row is not None
+    return row["n"]
+
+
 def _like(text: str) -> str:
     """A LIKE pattern that matches `text` anywhere, with % and _ taken literally."""
     escaped = text.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
@@ -225,14 +233,14 @@ _FILTER_SQL = {
 }
 
 
-def _where(conditions: dict[str, object]) -> tuple[str, list[object]]:
+def _where(conditions: Mapping[str, object]) -> tuple[str, list[object]]:
     """AND of the filters that are set."""
     parts, params = [], []
     for key, value in conditions.items():
         if value is None:
             continue
         parts.append(_FILTER_SQL[key])
-        params.append(_like(value) if key == "search" else value)
+        params.append(_like(str(value)) if key == "search" else value)
     return (" WHERE " + " AND ".join(parts)) if parts else "", params
 
 
@@ -299,7 +307,7 @@ async def list_records(
         )
         rows = await cur.fetchall()
         await cur.execute(f"SELECT count(*) AS n FROM record r{where}", params)
-        total = (await cur.fetchone())["n"]
+        total = await _count(cur)
         await cur.execute(
             "SELECT count(*) FILTER (WHERE r.status = 'pending') AS pending,"
             " count(*) FILTER (WHERE r.status = 'approved') AS approved,"
@@ -308,6 +316,7 @@ async def list_records(
             count_params,
         )
         counts = await cur.fetchone()
+    assert counts is not None  # count(*) always returns a row
     return rows, total, counts
 
 
