@@ -141,16 +141,45 @@
 /* Upload mode looks like the landing page: soft blue, turquoise and green light
    behind the content, and the steps as a centered pill. */
 .layout:has(.review-page.is-upload) {
-  min-block-size: 100svh;
   background:
     radial-gradient(60rem 40rem at 105% -10%, rgb(14 165 198 / 0.16), transparent 60%),
     radial-gradient(50rem 36rem at -10% 105%, rgb(156 195 59 / 0.18), transparent 60%),
     var(--color-page, #f2f6fa);
 }
 
+/* Upload mode fits one screen: the bar on top, the panel takes the rest. If a
+   window is too short even so, the frame scrolls inside, background and all. */
+.layout:has(.review-page.is-upload) {
+  display: flex;
+  flex-direction: column;
+  block-size: 100svh;
+  overflow-y: auto;
+}
+
+.layout:has(.review-page.is-upload) .layout-main {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-block-size: 0;
+}
+
 .review-page.is-upload {
-  gap: 20px;
-  padding-block: 24px 40px;
+  flex: 1;
+  min-block-size: 0;
+  box-sizing: border-box;
+  gap: clamp(8px, 2vh, 20px);
+  padding-block: clamp(10px, 2.5vh, 24px);
+}
+
+.review-page.is-upload .review-page-head {
+  flex: none;
+}
+
+.review-page.is-upload .review-page-upload {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-block-size: 0;
 }
 
 .review-page.is-upload .review-page-head {
