@@ -4,6 +4,7 @@
 // Owner: B
 
 import { useState, type KeyboardEvent } from "react";
+import { FileName } from "../../shared/FileName";
 import { ApproveAllBar } from "./ApproveAllBar";
 import { useRecordMutations, type ApiRecord } from "./recordMutations";
 import { blockingFields, fieldTitle } from "./reviewRows";
@@ -75,7 +76,7 @@ export function ReviewTable({ records, selectedId, onSelect, onRecords }: Review
                       aria-pressed={selected}
                       onKeyDown={(event) => onKeyDown(event, index)}
                     >
-                      <bdi>{r.source_file}</bdi>
+                      <FileName name={r.source_file} />
                       <span className="review-page-number">עמוד {r.page_number}</span>
                     </button>
                   </th>

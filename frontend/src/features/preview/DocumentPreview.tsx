@@ -3,6 +3,7 @@
 // Owner: A
 
 import { useEffect, useRef, useState, type HTMLAttributes } from "react";
+import { FileName } from "../../shared/FileName";
 import {
   MAX_ZOOM,
   boxStyle,
@@ -88,7 +89,7 @@ function Pages({ record, highlight, fit }: { record: ApiRecord; highlight: Highl
   return (
     <>
       <p className="preview-source">
-        <bdi>{record.source_file}</bdi>, עמוד {page.pageNumber}
+        <FileName name={record.source_file} />, עמוד {page.pageNumber}
         {pages.length > 1 && ` (${at + 1} מתוך ${pages.length} בטופס)`}
       </p>
       {/* Always there, a line high, so a note coming or going never moves what is below. */}
