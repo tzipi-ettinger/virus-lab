@@ -1,9 +1,10 @@
-// The record's history (D22): who created, corrected, confirmed and approved it,
-// and when, oldest first. Never the values (D13). Closed until opened, so the
-// record page still fits the screen. Loaded again after each change (version).
+// The record's history (D22), in the record's header: one line with who received
+// it and who last changed it, and a window with every action, oldest first: who
+// created, corrected, confirmed and approved it, and when. Never the values (D13).
+// Loaded again after each change (version).
 // Owner: B
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ApiError, apiFetch } from "../../api/client";
 import type { components } from "../../api/schema";
 import { FIELD_COLUMNS } from "../review/reviewRows";
@@ -34,11 +35,22 @@ function eventText(event: RecordEvent): string {
   return event.field ? `${what}: ${fieldTitle(event.field)}` : what;
 }
 
+/** Who received the record and who last changed a field. The approval is in the status. */
+function summary(events: RecordEvent[]): { label: string; name: string }[] {
+  const created = events.find((e) => e.action === "created");
+  const changed = events.findLast((e) => e.action === "corrected" || e.action === "confirmed");
+  return [
+    ...(created ? [{ label: "נקלט על ידי", name: created.display_name }] : []),
+    ...(changed ? [{ label: "שונה לאחרונה על ידי", name: changed.display_name }] : []),
+  ];
+}
+
 type Loaded = { key: string; events: RecordEvent[] } | { key: string; error: string };
 
 export function RecordHistory({ recordId, version }: { recordId: string; version: number }) {
   const key = `${recordId}#${version}`;
   const [loaded, setLoaded] = useState<Loaded | null>(null);
+  const [open, setOpen] = useState(false);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -55,34 +67,77 @@ export function RecordHistory({ recordId, version }: { recordId: string; version
   }, [recordId, key]);
 
   const current = loaded?.key === key ? loaded : null;
+  const events = current && "events" in current ? current.events : null;
   return (
-    <details className="record-card record-history">
-      <summary>
-        היסטוריה{current && "events" in current && ` (${current.events.length})`}
-      </summary>
-      {current === null ? (
-        <p className="record-history-note">טוען…</p>
-      ) : "error" in current ? (
-        <p className="record-history-note" role="alert">
-          ⚠ {current.error}
-        </p>
-      ) : current.events.length === 0 ? (
-        <p className="record-history-note">אין פעולות רשומות.</p>
-      ) : (
-        <ol className="record-history-list">
-          {current.events.map((event, i) => (
-            <li key={i}>
-              <span className="record-history-what">{eventText(event)}</span>{" "}
-              <span className="record-history-who">
-                על ידי <bdi>{event.display_name}</bdi>
-              </span>{" "}
-              <time className="record-history-when" dateTime={event.at}>
-                {formatDateTime(event.at)}
-              </time>
-            </li>
-          ))}
-        </ol>
-      )}
-    </details>
+    <div className="record-who">
+      {events && summary(events).map(({ label, name }) => (
+        <span key={label}>
+          {label} <bdi className="record-who-name">{name}</bdi>
+        </span>
+      ))}
+      {current && "error" in current && <span role="alert">⚠ {current.error}</span>}
+      <button type="button" className="record-who-open" onClick={() => setOpen(true)} disabled={!events}>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <circle cx="12" cy="12" r="9" />
+          <path d="M12 7v5l3 2" />
+        </svg>
+        היסטוריה מלאה{events && ` (${events.length})`}
+      </button>
+      {open && events && <HistoryWindow events={events} onClose={() => setOpen(false)} />}
+    </div>
+  );
+}
+
+function HistoryWindow({ events, onClose }: { events: RecordEvent[]; onClose: () => void }) {
+  const closeRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    const opener = document.activeElement as HTMLElement | null;
+    closeRef.current?.focus();
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") onClose();
+    };
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      opener?.focus(); // back to "היסטוריה מלאה"
+    };
+  }, [onClose]);
+
+  return (
+    <div className="history-backdrop" onClick={onClose}>
+      <div
+        className="history-window"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="history-title"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <div className="history-window-head">
+          <h2 id="history-title">היסטוריית הרשומה</h2>
+          <button type="button" ref={closeRef} onClick={onClose} aria-label="סגירה">
+            ✕
+          </button>
+        </div>
+        {events.length === 0 ? (
+          <p className="history-note">אין פעולות רשומות.</p>
+        ) : (
+          <ol className="history-list">
+            {events.map((event, i) => (
+              <li key={i}>
+                <span className="history-what">{eventText(event)}</span>
+                <span className="history-who">
+                  על ידי <bdi>{event.display_name}</bdi>
+                </span>
+                <time className="history-when" dateTime={event.at}>
+                  {formatDateTime(event.at)}
+                </time>
+              </li>
+            ))}
+          </ol>
+        )}
+        <p className="history-note">רק מה נעשה ומתי, בלי הערכים עצמם.</p>
+      </div>
+    </div>
   );
 }

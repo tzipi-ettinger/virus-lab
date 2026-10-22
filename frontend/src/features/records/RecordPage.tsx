@@ -165,6 +165,7 @@ function RecordDetails({ record, backLink, back, onRecord }: DetailsProps) {
               <DeleteButton record={record} onDelete={remove} onDeleted={() => navigate(back, { replace: true })} />
             </div>
           </div>
+          <RecordHistory recordId={record.record_id} version={record.version} />
           <dl className="record-meta">
             <div>
               <dt>קובץ</dt>
@@ -234,8 +235,6 @@ function RecordDetails({ record, backLink, back, onRecord }: DetailsProps) {
             </tbody>
           </table>
         </div>
-
-        <RecordHistory recordId={record.record_id} version={record.version} />
       </div>
       <DocumentPreview record={record} highlight={highlight} pointerArea={areaProps} fit="page" />
     </div>
