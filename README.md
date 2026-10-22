@@ -167,13 +167,13 @@ npm run dev
 .\.venv\Scripts\python.exe -m ruff check .
 .\.venv\Scripts\python.exe -m ruff format --check .
 .\.venv\Scripts\python.exe -m mypy                    # טיפוסים, הגדרות ב־pyproject.toml
-.\.venv\Scripts\python.exe -m pytest
+.\.venv\Scripts\python.exe -m pytest --cov            # כיסוי: נכשל מתחת ל־95%
 .\.venv\Scripts\python.exe -m scripts.export_openapi --check   # אחרי שינוי בחוזה: בלי --check, ואז npm run gen:api
 
 # frontend/
 npm run lint
 npm run build
-npm test
+npm run test:coverage   # כיסוי: הסף ב־vite.config.ts
 ```
 
 ### בדיקות קצה לקצה (e2e)
