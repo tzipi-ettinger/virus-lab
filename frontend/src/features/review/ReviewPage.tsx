@@ -2,6 +2,9 @@
 // row. UploadPanel (A) sends records up; the list picks one and RecordPanel opens it,
 // with A's DocumentPreview inside (#32). The selection is kept as an id, so a newer
 // copy of the record shows.
+// Two steps on one screen: the upload first, then, once every file is read, the list
+// and the open record, sized to the window. Both stay mounted, so files keep being
+// read while the list is shown, and the list keeps its state while uploading more.
 // Owner: B
 
 import { useCallback, useState } from "react";
@@ -12,9 +15,15 @@ import { ReviewTable } from "./ReviewTable";
 import { findRecord, mergeRecords, replaceRecords } from "./reviewRows";
 import "./ReviewPage.css";
 
+// "auto": the list once there are records and nothing is being read; the others
+// are the user's own pick, until new files are added.
+type View = "auto" | "upload" | "review";
+
 export function ReviewPage() {
   const [records, setRecords] = useState<ApiRecord[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [view, setView] = useState<View>("auto");
   // Nothing picked (yet, or the picked one was deleted): the first record is open,
   // so the panel isn't empty while there is something to review.
   const selected = findRecord(records, selectedId) ?? records[0] ?? null;
@@ -27,11 +36,53 @@ export function ReviewPage() {
     setRecords((current) => current.filter((r) => r.record_id !== recordId));
     setSelectedId((picked) => (picked === recordId ? null : picked));
   }, []);
+  const onBusyChange = useCallback((sending: boolean) => {
+    setBusy(sending);
+    // New files: when they are all read, move on to the list.
+    if (sending) setView("auto");
+  }, []);
+  const showReview = view === "review" || (view === "auto" && !busy && records.length > 0);
 
   return (
-    <div className="review-page">
-      <UploadPanel onResult={(result) => setRecords((current) => mergeRecords(current, result.records))} />
-      <div className="review-page-work">
+    <div className={showReview ? "review-page is-review" : "review-page is-upload"}>
+      <div className="review-page-head">
+        <ol className="review-steps" aria-label="שלבים">
+          <li className={showReview ? "is-done" : "is-current"} aria-current={showReview ? undefined : "step"}>
+            <span className="review-step-dot" aria-hidden="true">{showReview ? "✓" : "1"}</span>
+            העלאת טפסים
+          </li>
+          <li className={showReview ? "is-current" : undefined} aria-current={showReview ? "step" : undefined}>
+            <span className="review-step-dot" aria-hidden="true">2</span>
+            בדיקה ואישור
+          </li>
+        </ol>
+        {busy && showReview && (
+          <span className="review-page-busy" role="status">
+            <span className="review-page-pulse" aria-hidden="true" />
+            ממשיכה לקרוא קבצים…
+          </span>
+        )}
+        {showReview ? (
+          <button type="button" className="review-page-switch" onClick={() => setView("upload")}>
+            {busy ? "להתקדמות ההעלאה" : "+ העלאת קבצים נוספים"}
+          </button>
+        ) : (
+          records.length > 0 && (
+            <button type="button" className="review-page-switch is-primary" onClick={() => setView("review")}>
+              {busy ? `לרשומות שכבר נקראו (${records.length})` : `לרשימת הרשומות (${records.length})`} ←
+            </button>
+          )
+        )}
+      </div>
+
+      <div className="review-page-upload" hidden={showReview}>
+        <UploadPanel
+          onResult={(result) => setRecords((current) => mergeRecords(current, result.records))}
+          onBusyChange={onBusyChange}
+        />
+      </div>
+
+      <div className="review-page-work" hidden={!showReview}>
         <ReviewTable
           records={records}
           selectedId={selected?.record_id ?? null}

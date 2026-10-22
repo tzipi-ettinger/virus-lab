@@ -1,32 +1,43 @@
 /* Design tokens: the only place colors and radii are set. Components use
    var(--name, fallback), so the names below are the contract between the
-   screens (#32). The values are temporary until the Claude Design tokens land.
-   RTL via CSS logical properties. Owner: shared */
+   screens (#32). The palette follows the Ministry of Health logo: its blue,
+   turquoise and green. RTL via CSS logical properties. Owner: shared */
 
 :root {
+  /* Brand, from the logo */
+  --color-brand-blue: #1f6fb2;
+  --color-brand-teal: #0ea5c6;
+  --color-brand-green: #9cc33b;
+  --gradient-brand: linear-gradient(120deg, #17588f 0%, #1f6fb2 45%, #0e8fb0 100%);
+
   /* Page and text */
+  --color-page: #f2f6fa;
   --color-surface: #ffffff;
-  --color-surface-muted: #f7f9fb;
-  --color-text: #0f1b2a;
-  --color-text-muted: #52606d;
-  --color-border: #dde3e9;
-  --color-border-strong: #9fb3c8;
+  --color-surface-muted: #f5f8fb;
+  --color-text: #12233a;
+  --color-text-muted: #56677a;
+  --color-border: #e1e8ef;
+  --color-border-strong: #a9bccf;
   --color-focus: #1d4ed8;
 
   /* Main action */
-  --color-accent: #0b6e79;
-  --color-accent-strong: #08515a;
-  --color-accent-soft: #e5f1f2;
+  --color-accent: #1f6fb2;
+  --color-accent-strong: #17588f;
+  --color-accent-soft: #e7f1fa;
 
   /* Status. Always shown with text and an icon too, never by color alone.
      Warning is "needs review", the orange of the challenge's walkthrough. */
   --color-success: #1e6b3a;
+  --color-success-soft: #e6f4ea;
   --color-warning: #8a5300;
   --color-warning-soft: #fff4db;
   --color-warning-border: #d9a514;
   --color-danger: #a12222;
   --color-danger-soft: #fdecec;
 
-  --radius-md: 8px;
-  --radius-lg: 12px;
+  --radius-md: 10px;
+  --radius-lg: 16px;
+
+  --shadow-card: 0 1px 2px rgb(18 35 58 / 0.05), 0 6px 20px rgb(18 35 58 / 0.06);
+  --shadow-raised: 0 2px 6px rgb(18 35 58 / 0.08), 0 16px 40px rgb(18 35 58 / 0.12);
 }

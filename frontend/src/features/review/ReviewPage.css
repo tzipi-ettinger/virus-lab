@@ -1,4 +1,6 @@
-/* ReviewPage layout: upload on top, then the short list with the open record beside it.
+/* ReviewPage layout: the steps on top, then either the upload, centered, or the short
+   list with the open record beside it. On a wide screen the list fits the window:
+   the list and the record scroll inside their own cards, the page does not.
    Logical properties only (RTL). Owner: B */
 
 .review-page {
@@ -6,6 +8,134 @@
   flex-direction: column;
   gap: 16px;
   padding-block: 16px;
+}
+
+.review-page-upload[hidden],
+.review-page-work[hidden] {
+  display: none;
+}
+
+.review-page-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+}
+
+.review-steps {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.review-steps li {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--color-text-muted, #56677a);
+  font-weight: 600;
+}
+
+/* A short line between the steps. */
+.review-steps li + li::before {
+  content: "";
+  inline-size: 32px;
+  block-size: 2px;
+  margin-inline-end: 2px;
+  background: var(--color-border-strong, #a9bccf);
+  border-radius: 1px;
+}
+
+.review-step-dot {
+  display: inline-grid;
+  place-items: center;
+  inline-size: 28px;
+  block-size: 28px;
+  color: var(--color-text-muted, #56677a);
+  background: var(--color-surface, #ffffff);
+  border: 2px solid var(--color-border-strong, #a9bccf);
+  border-radius: 50%;
+  font-size: 0.875rem;
+  font-weight: 700;
+}
+
+.review-steps li.is-current {
+  color: var(--color-accent-strong, #17588f);
+}
+
+.review-steps li.is-current .review-step-dot {
+  color: #ffffff;
+  background: var(--gradient-brand, #1f6fb2);
+  border-color: transparent;
+  box-shadow: 0 0 0 4px var(--color-accent-soft, #e7f1fa);
+}
+
+.review-steps li.is-done .review-step-dot {
+  color: #ffffff;
+  background: var(--color-success, #1e6b3a);
+  border-color: transparent;
+}
+
+.review-page-busy {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 12px;
+  color: var(--color-accent-strong, #17588f);
+  background: var(--color-accent-soft, #e7f1fa);
+  border-radius: 999px;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.review-page-pulse {
+  inline-size: 8px;
+  block-size: 8px;
+  background: var(--color-brand-teal, #0ea5c6);
+  border-radius: 50%;
+  animation: review-pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes review-pulse {
+  50% {
+    opacity: 0.3;
+    transform: scale(0.7);
+  }
+}
+
+.review-page-switch {
+  margin-inline-start: auto;
+  min-block-size: 40px;
+  padding-inline: 18px;
+  color: var(--color-accent-strong, #17588f);
+  background: var(--color-surface, #ffffff);
+  border: 1px solid var(--color-border-strong, #a9bccf);
+  border-radius: 999px;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.review-page-switch.is-primary {
+  color: #ffffff;
+  background: var(--gradient-brand, #1f6fb2);
+  border-color: transparent;
+  box-shadow: 0 6px 16px rgb(31 111 178 / 0.3);
+}
+
+.review-page-switch:focus-visible {
+  outline: 3px solid var(--color-focus, #1d4ed8);
+  outline-offset: 2px;
+}
+
+/* The upload on its own: a wide card in the middle of the page, the steps above it. */
+.review-page.is-upload .review-page-head,
+.review-page-upload {
+  inline-size: min(880px, 100%);
+  margin-inline: auto;
 }
 
 .review-page-work {
@@ -23,6 +153,66 @@
   overflow-y: auto;
 }
 
+/* Wide screen, list shown: everything fits the window, nothing to scroll on the page. */
+@media (min-width: 901px) {
+  .layout:has(.review-page.is-review) {
+    display: flex;
+    flex-direction: column;
+    block-size: 100svh;
+  }
+
+  .layout:has(.review-page.is-review) .layout-main {
+    flex: 1;
+    min-block-size: 0;
+  }
+
+  .review-page.is-review {
+    block-size: 100%;
+    box-sizing: border-box;
+    gap: 12px;
+    padding-block: 12px;
+  }
+
+  .review-page.is-review .review-page-work {
+    flex: 1;
+    min-block-size: 0;
+    grid-template-rows: minmax(0, 1fr);
+    align-items: stretch;
+  }
+
+  .review-page.is-review .review-page-work > .review {
+    min-block-size: 0;
+  }
+
+  .review-page.is-review .review-scroll {
+    flex: 1;
+    min-block-size: 0;
+    overflow: auto;
+  }
+
+  .review-page.is-review .review-table thead th {
+    position: sticky;
+    inset-block-start: 0;
+    z-index: 1;
+    background: var(--color-surface, #ffffff);
+  }
+
+  .review-page.is-review .review-page-work > .record-panel {
+    position: static;
+    min-block-size: 0;
+    max-block-size: none;
+  }
+
+  /* The panel is as tall as the window now, so the original page gets more of it. */
+  .review-page.is-review .record-panel-preview .preview-frame {
+    max-block-size: 40vh;
+  }
+
+  .review-page.is-review .record-panel-preview.is-expanded .preview-frame {
+    max-block-size: 75vh;
+  }
+}
+
 @media (max-width: 900px) {
   .review-page-work {
     grid-template-columns: minmax(0, 1fr);
@@ -31,5 +221,11 @@
   .review-page-work > .record-panel {
     position: static;
     max-block-size: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .review-page-pulse {
+    animation: none;
   }
 }

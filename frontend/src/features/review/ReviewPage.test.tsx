@@ -14,10 +14,24 @@ import { field, flagged, record } from "./testRecords";
 
 const uploaded = vi.hoisted(() => ({ records: [] as unknown[] }));
 vi.mock("../upload/UploadPanel", () => ({
-  UploadPanel: ({ onResult }: { onResult: (result: { records: unknown[] }) => void }) => (
-    <button type="button" onClick={() => onResult({ records: uploaded.records })}>
-      העלאה
-    </button>
+  UploadPanel: ({
+    onResult,
+    onBusyChange,
+  }: {
+    onResult: (result: { records: unknown[] }) => void;
+    onBusyChange?: (busy: boolean) => void;
+  }) => (
+    <>
+      <button type="button" onClick={() => onResult({ records: uploaded.records })}>
+        העלאה
+      </button>
+      <button type="button" onClick={() => onBusyChange?.(true)}>
+        שליחה
+      </button>
+      <button type="button" onClick={() => onBusyChange?.(false)}>
+        סוף שליחה
+      </button>
+    </>
   ),
 }));
 
@@ -57,6 +71,29 @@ const toFix = (over: Partial<ApiRecord> = {}) =>
 const panel = () => screen.getByRole("complementary");
 
 describe("ReviewPage", () => {
+  test("the upload shows first, and the list replaces it once every file is read", async () => {
+    uploaded.records = [record()];
+    render(<ReviewPage />);
+    const user = userEvent.setup();
+    expect(screen.queryByRole("complementary")).toBeNull();
+
+    await user.click(screen.getByRole("button", { name: "שליחה" }));
+    await user.click(screen.getByRole("button", { name: "העלאה" }));
+    // Still reading: the upload stays, with a way to the records read so far.
+    expect(screen.queryByRole("complementary")).toBeNull();
+    expect(screen.getByRole("button", { name: "לרשומות שכבר נקראו (1) ←" })).toBeTruthy();
+
+    await user.click(screen.getByRole("button", { name: "סוף שליחה" }));
+    expect(within(panel()).getByRole("heading", { name: "דנה לוי" })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "העלאה" })).toBeNull();
+
+    // Back to the upload for more files, then on to the list again.
+    await user.click(screen.getByRole("button", { name: "+ העלאת קבצים נוספים" }));
+    expect(screen.queryByRole("complementary")).toBeNull();
+    await user.click(screen.getByRole("button", { name: "לרשימת הרשומות (1) ←" }));
+    expect(panel()).toBeTruthy();
+  });
+
   test("the first record opens in the panel, and a row click opens another", async () => {
     const user = await upload([record(), named("יוסי", "כהן", { record_id: "r2" })]);
 

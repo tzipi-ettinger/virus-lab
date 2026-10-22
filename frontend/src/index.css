@@ -1,16 +1,56 @@
 /* Base page styles. Design tokens live in shared/ui/tokens.css. Use logical properties (RTL). */
 
 :root {
-  font-family: system-ui, 'Segoe UI', Arial, sans-serif;
+  font-family: Assistant, Heebo, Rubik, 'Segoe UI', system-ui, Arial, sans-serif;
   line-height: 1.5;
-  color-scheme: light dark;
+  /* The tokens are light only, so the browser's own controls stay light too. */
+  color-scheme: light;
 }
 
 body {
   margin: 0;
+  background: var(--color-page, #f2f6fa);
+  color: var(--color-text, #12233a);
 }
 
 #root {
   min-height: 100svh;
-  padding-inline: 16px;
+}
+
+/* The cards of every screen: a soft lift off the page. */
+.upload,
+.review,
+.record-panel,
+.preview {
+  border-color: var(--color-border, #e1e8ef);
+  box-shadow: var(--shadow-card, none);
+}
+
+/* The screen's main action: the brand gradient and a small lift on hover. */
+.upload-button,
+.review-approve-all button:not(:disabled),
+.review-approve button:not(:disabled) {
+  background: var(--gradient-brand, #1f6fb2);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.upload-button:hover,
+.review-approve-all button:not(:disabled):hover,
+.review-approve button:not(:disabled):hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgb(31 111 178 / 0.3);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .upload-button,
+  .review-approve-all button,
+  .review-approve button {
+    transition: none;
+  }
+
+  .upload-button:hover,
+  .review-approve-all button:hover,
+  .review-approve button:hover {
+    transform: none;
+  }
 }

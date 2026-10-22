@@ -3,6 +3,7 @@
 
 import { useEffect, useRef, useState, type DragEvent } from "react";
 import {
+  hasUnsentFiles,
   progressText,
   useExtract,
   type ExtractResponse,
@@ -15,6 +16,8 @@ import "./UploadPanel.css";
 interface UploadPanelProps {
   // Called once per file, as soon as that file's 200 answer arrives.
   onResult: (result: ExtractResponse) => void;
+  // Called when files start or stop being sent: true while any is queued or sending.
+  onBusyChange?: (busy: boolean) => void;
 }
 
 const STATUS_TEXT: Record<FileStatus, string> = {
@@ -92,12 +95,17 @@ function detail(item: UploadItem) {
   return parts.join(" · ");
 }
 
-export function UploadPanel({ onResult }: UploadPanelProps) {
+export function UploadPanel({ onResult, onBusyChange }: UploadPanelProps) {
   const { items, add, retry } = useExtract(onResult);
   const input = useRef<HTMLInputElement>(null);
   const [dragging, setDragging] = useState(false);
   const [now, setNow] = useState(() => Date.now());
   const isSending = items.some((i) => i.status === "sending");
+  const isBusy = hasUnsentFiles(items);
+
+  useEffect(() => {
+    onBusyChange?.(isBusy);
+  }, [isBusy, onBusyChange]);
 
   // A file can take minutes; the clock shows it is still being read.
   useEffect(() => {
@@ -130,12 +138,13 @@ export function UploadPanel({ onResult }: UploadPanelProps) {
         onDragLeave={() => setDragging(false)}
         onDrop={onDrop}
       >
-        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <svg className="upload-drop-icon" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
           <path d="M12 16V4" />
           <path d="m6 10 6-6 6 6" />
           <path d="M4 20h16" />
         </svg>
-        <p className="upload-drop-text">גררי לכאן קבצי PDF או תמונות (JPG, PNG), קובץ אחד או כמה</p>
+        <p className="upload-drop-text">גררי לכאן קבצי PDF או תמונות</p>
+        <p className="upload-drop-hint">JPG, PNG או PDF · קובץ אחד או כמה בבת אחת</p>
         <button type="button" className="upload-button" onClick={() => input.current?.click()}>
           בחירת קבצים
         </button>
