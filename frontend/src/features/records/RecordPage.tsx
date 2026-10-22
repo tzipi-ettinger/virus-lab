@@ -12,6 +12,7 @@ import { useSenders } from "../../shared/useSenders";
 import { DocumentPreview } from "../preview/DocumentPreview";
 import { fieldHighlight } from "../preview/previewPages";
 import { useFieldFocus } from "../preview/useFieldFocus";
+import { Skeleton } from "../../shared/ui/Skeleton";
 import { ApproveButton } from "../review/ApproveButton";
 import { DeleteButton } from "../review/DeleteButton";
 import { FieldCell } from "../review/FieldCell";
@@ -62,7 +63,18 @@ export function RecordPage() {
     </Link>
   );
 
-  if (loaded === null || loaded.id !== request) return <p className="records-empty">טוען…</p>;
+  if (loaded === null || loaded.id !== request) {
+    return (
+      <div className="record-page is-loading">
+        <div className="record-main">
+          <div className="record-card">
+            <Skeleton rows={9} label="טוען את הרשומה…" />
+          </div>
+        </div>
+        <div className="record-loading-page" aria-hidden="true" />
+      </div>
+    );
+  }
   if ("notFound" in loaded) {
     return (
       <div className="records-empty">
@@ -132,6 +144,12 @@ function RecordDetails({ record, backLink, back, onRecord }: DetailsProps) {
         {backLink}
         <header className="record-summary">
           <div className="record-head">
+            <span className="record-avatar" aria-hidden="true">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="8" r="4" />
+                <path d="M4 21c0-4 3.6-7 8-7s8 3 8 7" />
+              </svg>
+            </span>
             <h1 className="records-title">
               <bdi>{name || "ללא שם"}</bdi>
             </h1>

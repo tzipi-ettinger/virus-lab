@@ -1,0 +1,76 @@
+/* The loading bars. Logical properties only (RTL). Owner: shared */
+
+.skeleton {
+  display: flex;
+  flex-direction: column;
+  padding: 6px 0;
+}
+
+/* Hidden on screen, read aloud. */
+.skeleton-label {
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.skeleton-row {
+  display: grid;
+  grid-template-columns: 1.4fr 1fr 1fr 0.8fr;
+  gap: 24px;
+  padding: 14px 18px;
+  border-block-end: 1px solid var(--color-border, #e1e8ef);
+}
+
+.skeleton-row:last-child {
+  border-block-end: 0;
+}
+
+.skeleton-row span {
+  block-size: 12px;
+  border-radius: 999px;
+  background: linear-gradient(
+    90deg,
+    var(--color-surface-muted, #f5f8fb) 0%,
+    var(--color-border, #e1e8ef) 40%,
+    var(--color-surface-muted, #f5f8fb) 80%
+  );
+  background-size: 300% 100%;
+  animation: skeleton-shimmer 1.4s ease-in-out infinite;
+}
+
+/* Rows of uneven length, so it reads as text and not as stripes. */
+.skeleton-row:nth-child(odd) span:nth-child(1) {
+  inline-size: 70%;
+}
+
+.skeleton-row:nth-child(3n) span:nth-child(2) {
+  inline-size: 55%;
+}
+
+.skeleton-row span:nth-child(4) {
+  inline-size: 60%;
+}
+
+.skeleton-row.is-head span {
+  block-size: 8px;
+  inline-size: 40%;
+  opacity: 0.7;
+}
+
+@keyframes skeleton-shimmer {
+  from {
+    background-position: 100% 0;
+  }
+  to {
+    background-position: 0 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton-row span {
+    animation: none;
+  }
+}

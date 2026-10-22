@@ -693,3 +693,154 @@
   color: var(--color-accent, #0b6e79);
   font-size: 0.75rem;
 }
+
+/* ---- The record page, dressed like the rest of the site ---- */
+
+/* The way back, as a soft pill. */
+.record-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 14px;
+  font-weight: 600;
+  background: var(--color-surface, #fff);
+  border: 1px solid var(--color-border, #e1e8ef);
+  border-radius: 999px;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.record-back:hover {
+  text-decoration: none;
+  background: var(--color-accent-soft, #e7f1fa);
+  border-color: var(--color-accent, #1f6fb2);
+}
+
+/* The summary card: a brand stripe along its top, a soft shadow. */
+.record-summary {
+  position: relative;
+  overflow: hidden;
+  padding-block-start: 16px;
+  border-color: var(--color-border, #e1e8ef);
+  box-shadow: var(--shadow-card, none);
+}
+
+.record-summary::before {
+  content: "";
+  position: absolute;
+  inset-inline: 0;
+  inset-block-start: 0;
+  block-size: 4px;
+  background: linear-gradient(90deg, var(--color-brand-green, #9cc33b), var(--color-brand-teal, #0ea5c6) 50%, var(--color-brand-blue, #1f6fb2));
+}
+
+.record-avatar {
+  display: grid;
+  place-items: center;
+  flex: none;
+  inline-size: 42px;
+  block-size: 42px;
+  color: #ffffff;
+  background: var(--gradient-brand, #1f6fb2);
+  border-radius: 50%;
+  box-shadow: 0 4px 12px rgb(31 111 178 / 0.3);
+}
+
+.record-head .records-title {
+  font-weight: 800;
+}
+
+/* Approve: the main action, in the brand gradient. Blocked: plain, with the reason. */
+.record-page .record-actions .review-approve button {
+  min-block-size: 36px;
+  padding: 0 20px;
+  color: #ffffff;
+  background: var(--gradient-brand, #1f6fb2);
+  border: 0;
+  border-radius: 999px;
+  box-shadow: 0 4px 12px rgb(31 111 178 / 0.25);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.record-page .record-actions .review-approve button:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgb(31 111 178 / 0.35);
+}
+
+.record-page .record-actions .review-approve button:disabled {
+  color: var(--color-text-muted, #56677a);
+  background: var(--color-surface-muted, #f5f8fb);
+  border: 1px solid var(--color-border, #e1e8ef);
+  box-shadow: none;
+}
+
+.record-page .record-actions .review-delete {
+  min-block-size: 36px;
+  padding: 0 18px;
+  color: var(--color-danger, #a12222);
+  background: var(--color-surface, #fff);
+  border: 1px solid var(--color-danger, #a12222);
+  border-radius: 999px;
+  transition: background 0.15s ease;
+}
+
+.record-page .record-actions .review-delete:hover {
+  background: var(--color-danger-soft, #fdecec);
+}
+
+.record-page .record-actions .review-approved {
+  padding: 6px 14px;
+  background: var(--color-success-soft, #e6f4ea);
+  border-radius: 999px;
+}
+
+/* File, form type and intake time as small chips. */
+.record-meta {
+  gap: 8px;
+  padding-block-start: 10px;
+}
+
+.record-meta div {
+  padding: 3px 12px;
+  background: var(--color-surface-muted, #f5f8fb);
+  border: 1px solid var(--color-border, #e1e8ef);
+  border-radius: 999px;
+}
+
+.record-issues {
+  border-radius: var(--radius-lg, 16px);
+}
+
+.record-card {
+  border-color: var(--color-border, #e1e8ef);
+  border-radius: var(--radius-lg, 16px);
+  box-shadow: var(--shadow-card, none);
+}
+
+.record-fields thead th {
+  letter-spacing: 0.01em;
+}
+
+.record-page > .preview {
+  border-radius: var(--radius-lg, 16px);
+  box-shadow: var(--shadow-card, none);
+}
+
+/* While it loads: bars for the fields, and a gray page where the form will be. */
+.record-loading-page {
+  min-block-size: 420px;
+  background: linear-gradient(
+    90deg,
+    var(--color-surface-muted, #f5f8fb) 0%,
+    var(--color-border, #e1e8ef) 40%,
+    var(--color-surface-muted, #f5f8fb) 80%
+  );
+  background-size: 300% 100%;
+  border-radius: var(--radius-lg, 16px);
+  animation: skeleton-shimmer 1.4s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .record-loading-page {
+    animation: none;
+  }
+}
