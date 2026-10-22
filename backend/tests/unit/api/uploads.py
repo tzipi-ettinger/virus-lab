@@ -2,6 +2,7 @@
 from a fixture. No sample data."""
 
 import os
+import time
 
 import pymupdf
 
@@ -47,3 +48,20 @@ class Answers:
 
 def upload(*files):
     return [("files", (name, data, "application/pdf")) for name, data in files]
+
+
+def finish(client, response, timeout_s: float = 10) -> dict:
+    """The job a 202 from POST /extract started, once it is over (polls like the page).
+
+    The client must be used as a context manager (`with TestClient(app)`): otherwise
+    each request gets its own event loop, and the job dies with the first one."""
+    assert response.status_code == 202, response.text
+    job = response.json()
+    deadline = time.monotonic() + timeout_s
+    while job["status"] == "running":
+        assert time.monotonic() < deadline, f"the job is still running: {job}"
+        time.sleep(0.01)
+        polled = client.get(f"/api/v1/extract/jobs/{job['job_id']}")
+        assert polled.status_code == 200, polled.text
+        job = polled.json()
+    return job

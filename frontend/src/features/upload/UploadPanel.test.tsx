@@ -49,12 +49,13 @@ function item(over: Partial<UploadItem>): UploadItem {
 const row = (name: string) => screen.getByText(name).closest("li") as HTMLElement;
 
 describe("UploadPanel", () => {
-  test("with no files, only the drop zone shows", () => {
+  test("with no files, the drop zone shows, and no file list", () => {
     render(<UploadPanel onResult={() => {}} />);
 
-    expect(screen.getByRole("heading", { name: "העלאת טפסים" })).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "העלאת טפסי התחייבות" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "בחירת קבצים" })).toBeTruthy();
-    expect(screen.queryByRole("list")).toBeNull();
+    expect(screen.queryByRole("heading", { name: "הקבצים שלך" })).toBeNull();
+    expect(screen.queryByText(/מתוך .* קבצים/)).toBeNull();
   });
 
   test("a read file says how many pages and records, and the summary adds them up", () => {
