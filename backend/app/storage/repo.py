@@ -464,14 +464,20 @@ async def record_stats(conn: AsyncConnection) -> dict:
             " count(*) FILTER (WHERE status = 'pending' AND needs_review) AS needs_review"
             " FROM record"
         )
-        stats = dict(await cur.fetchone())
+        counts = await cur.fetchone()
+        assert counts is not None  # count(*) always returns a row
+        stats = dict(counts)
         await cur.execute(_PENDING_FIELDS)
-        stats |= await cur.fetchone()
+        pending_fields = await cur.fetchone()
+        assert pending_fields is not None  # count(*) always returns a row
+        stats |= pending_fields
         await cur.execute(
             "SELECT count(DISTINCT record_id) AS corrected_records FROM record_event"
             " WHERE action = 'corrected'"
         )
-        stats |= await cur.fetchone()
+        corrected = await cur.fetchone()
+        assert corrected is not None  # count(*) always returns a row
+        stats |= corrected
         await cur.execute(_CORRECTIONS)
         stats["by_field"] = await cur.fetchall()
     stats["corrections"] = sum(row["corrections"] for row in stats["by_field"])
