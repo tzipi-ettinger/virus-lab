@@ -4,7 +4,7 @@
 // boxed on the page, where the model read it (field boxes).
 // Owner: B
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useSenders } from "../../shared/useSenders";
 import { DocumentPreview } from "../preview/DocumentPreview";
 import { fieldHighlight } from "../preview/previewPages";
@@ -14,8 +14,9 @@ import { CentralNumbersCell } from "./CentralNumbersCell";
 import { DeleteButton } from "./DeleteButton";
 import { DuplicateNotice } from "./DuplicateNotice";
 import { FieldCell } from "./FieldCell";
+import { idProblem } from "./nationalId";
 import { useRecordMutations, type ApiRecord } from "./recordMutations";
-import { FIELD_COLUMNS, FORM_TYPE_TEXT, nextToFix, type FieldName } from "./reviewRows";
+import { blockingFields, FIELD_COLUMNS, fieldTitle, FORM_TYPE_TEXT, nextToFix, type FieldName } from "./reviewRows";
 import "./RecordPanel.css";
 
 interface RecordPanelProps {
@@ -27,13 +28,29 @@ interface RecordPanelProps {
   onRecords: (records: ApiRecord[]) => void;
   /** A record deleted on the server: take it off. */
   onRemoved: (recordId: string) => void;
+  /** Approve and delete with "undo" (useUndo): the page sends them later. Without
+   *  these, approve and delete go to the server at once, delete after asking. */
+  onApproveLater?: (record: ApiRecord) => void;
+  onDeleteLater?: (record: ApiRecord) => void;
+  /** Approved on screen, waiting for its "undo" to run out. */
+  approvingId?: string | null;
 }
 
-export function RecordPanel({ record, records, onSelect, onRecords, onRemoved }: RecordPanelProps) {
+export function RecordPanel({
+  record,
+  records,
+  onSelect,
+  onRecords,
+  onRemoved,
+  onApproveLater,
+  onDeleteLater,
+  approvingId = null,
+}: RecordPanelProps) {
   const { saveField, saveCentrals, approve, remove } = useRecordMutations(onRecords);
   const senders = useSenders();
   const [expanded, setExpanded] = useState(false);
   const { focused, rowProps, areaProps } = useFieldFocus<FieldName | "central_numbers">(record?.record_id ?? "");
+  const fields = useRef<HTMLTableElement>(null);
 
   if (record === null) {
     return (
@@ -42,7 +59,9 @@ export function RecordPanel({ record, records, onSelect, onRecords, onRemoved }:
       </aside>
     );
   }
-  const editable = record.status === "pending";
+  const queued = record.record_id === approvingId;
+  const editable = record.status === "pending" && !queued;
+  const blocking = blockingFields(record);
   const name = [record.fields.first_name.value, record.fields.last_name.value].filter(Boolean).join(" ");
   const position = records.findIndex((r) => r.record_id === record.record_id) + 1;
   const next = nextToFix(records, record.record_id);
@@ -83,10 +102,23 @@ export function RecordPanel({ record, records, onSelect, onRecords, onRemoved }:
 
         <div className="record-panel-side">
           {/* Keyed by the record, so an editor left open doesn't carry over to the next one. */}
-          <table key={record.record_id} className="record-panel-fields" {...areaProps}>
+          {editable && (
+            <FixSummary
+              blocking={blocking}
+              onPick={(name) => {
+                // Open the field's editor (the list's first button for a central number).
+                const row = fields.current?.querySelector(`tr[data-field="${name.replace(/\[\d+\]$/, "")}"]`);
+                const target = row?.querySelector<HTMLButtonElement>(".review-cell-value") ?? row?.querySelector("button");
+                if (target?.classList.contains("review-cell-value")) target.click();
+                else target?.focus();
+              }}
+            />
+          )}
+
+          <table key={record.record_id} ref={fields} className="record-panel-fields" {...areaProps}>
             <tbody>
               {FIELD_COLUMNS.map((c) => (
-                <tr key={c.name} {...rowProps(c.name)}>
+                <tr key={c.name} data-field={c.name} {...rowProps(c.name)}>
                   <th scope="row">{c.title}</th>
                   <FieldCell
                     title={c.title}
@@ -94,10 +126,11 @@ export function RecordPanel({ record, records, onSelect, onRecords, onRemoved }:
                     editable={editable}
                     onSave={(edit) => saveField(record, c.name, edit)}
                     options={c.name === "sender" && senders.length > 0 ? senders : undefined}
+                    check={c.name === "national_id" ? idProblem : undefined}
                   />
                 </tr>
               ))}
-              <tr {...rowProps("central_numbers")}>
+              <tr data-field="central_numbers" {...rowProps("central_numbers")}>
                 <th scope="row">מספרים מרכזיים</th>
                 <CentralNumbersCell
                   items={record.central_numbers}
@@ -111,8 +144,35 @@ export function RecordPanel({ record, records, onSelect, onRecords, onRemoved }:
           <DuplicateNotice record={record} newTab />
 
           <div key={`actions-${record.record_id}`} className="record-panel-actions">
-            <ApproveButton record={record} onApprove={approve} />
-            <DeleteButton record={record} onDelete={remove} onDeleted={(gone) => onRemoved(gone.record_id)} />
+            <ApproveButton
+              record={record}
+              queued={queued}
+              onApprove={
+                onApproveLater
+                  ? (r) => {
+                      onApproveLater(r);
+                      return Promise.resolve(null);
+                    }
+                  : approve
+              }
+            />
+            {!queued && (
+              <DeleteButton
+                record={record}
+                confirm={onDeleteLater ? () => true : undefined}
+                onDelete={
+                  onDeleteLater
+                    ? (r) => {
+                        onDeleteLater(r);
+                        return Promise.resolve(null);
+                      }
+                    : remove
+                }
+                onDeleted={(gone) => {
+                  if (!onDeleteLater) onRemoved(gone.record_id);
+                }}
+              />
+            )}
             {next && (
               <button type="button" className="record-panel-next" onClick={() => onSelect(next.record_id)}>
                 הבאה לתיקון ←
@@ -122,6 +182,34 @@ export function RecordPanel({ record, records, onSelect, onRecords, onRemoved }:
         </div>
       </div>
     </aside>
+  );
+}
+
+/** Above the fields: how many are left to fix, each a button to it, or that all is good. */
+function FixSummary({ blocking, onPick }: { blocking: string[]; onPick: (name: string) => void }) {
+  if (blocking.length === 0) {
+    return (
+      <p className="record-panel-summary is-ready">
+        <span aria-hidden="true">✓</span> הכל תקין. אפשר לאשר
+      </p>
+    );
+  }
+  return (
+    <div className="record-panel-summary is-flagged">
+      <p className="record-panel-summary-title">
+        <span aria-hidden="true">⚠</span>{" "}
+        {blocking.length === 1 ? "נשאר שדה אחד לתיקון לפני אישור" : `נשארו ${blocking.length} שדות לתיקון לפני אישור`}
+      </p>
+      <ul className="record-panel-summary-list">
+        {blocking.map((name) => (
+          <li key={name}>
+            <button type="button" className="record-panel-summary-chip" onClick={() => onPick(name)}>
+              {fieldTitle(name)}
+            </button>
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }
 

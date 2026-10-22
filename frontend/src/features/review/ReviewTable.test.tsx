@@ -114,11 +114,10 @@ describe("ReviewTable", () => {
     expect(within(row2).getByText("לא אושרה: עודכנה בינתיים בחלון אחר")).toBeTruthy();
   });
 
-  test("nothing ready, nothing to send", () => {
+  test("nothing ready, no button to press, just a note", () => {
     render(<Table initial={[blocked()]} />);
 
-    expect((screen.getByRole("button", { name: /אשרי את כל המוכנות \(0\)/ }) as HTMLButtonElement).disabled).toBe(
-      true,
-    );
+    expect(screen.queryByRole("button", { name: /אשרי את כל המוכנות/ })).toBeNull();
+    expect(screen.getByText("אישור גורף יופיע כשיהיו רשומות מוכנות")).toBeTruthy();
   });
 });

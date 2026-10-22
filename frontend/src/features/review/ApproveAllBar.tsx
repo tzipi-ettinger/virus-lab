@@ -1,6 +1,7 @@
 // "Approve all ready" (D20): one click for every pending record with nothing left
 // to fix. The server checks each one again, so some may be skipped; the summary
-// says how many were approved and how many are left.
+// says how many were approved and how many are left. With nothing ready there is no
+// button (a big button that can't be pressed only draws the eye), just a short note.
 // Owner: B
 
 import { useState } from "react";
@@ -41,9 +42,13 @@ export function ApproveAllBar({ records, onApproveMany, onSkipped }: Props) {
 
   return (
     <div className="review-approve-all">
-      <button type="button" disabled={busy || ready.length === 0} onClick={() => void approveAll()}>
-        {busy ? "מאשרת…" : `✓ אשרי את כל המוכנות (${ready.length})`}
-      </button>
+      {ready.length > 0 || busy ? (
+        <button type="button" disabled={busy} onClick={() => void approveAll()}>
+          {busy ? "מאשרת…" : `✓ אשרי את כל המוכנות (${ready.length})`}
+        </button>
+      ) : (
+        !summary && <span className="review-approve-all-note">אישור גורף יופיע כשיהיו רשומות מוכנות</span>
+      )}
       {summary && (
         <span className={summary.failed ? "review-cell-error" : "review-summary"} role="status">
           {summary.text}

@@ -115,6 +115,21 @@ export function nextToFix(records: ApiRecord[], currentId: string): ApiRecord | 
   return null;
 }
 
+/**
+ * Where to go after approving or deleting a record: the next one to fix, else the
+ * next one still pending, else none (the current one stays open).
+ */
+export function nextAfter(records: ApiRecord[], currentId: string): ApiRecord | null {
+  const toFix = nextToFix(records, currentId);
+  if (toFix) return toFix;
+  const start = records.findIndex((r) => r.record_id === currentId);
+  for (let step = 1; step < records.length; step++) {
+    const r = records[(start + step) % records.length];
+    if (r.status === "pending") return r;
+  }
+  return null;
+}
+
 /** A blocking field's name in Hebrew: "national_id" → ת״ז, "central_numbers[1]" → מספר מרכזי 2. */
 export function fieldTitle(name: string): string {
   const central = /^central_numbers\[(\d+)\]$/.exec(name);

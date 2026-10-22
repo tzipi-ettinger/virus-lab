@@ -221,3 +221,41 @@
     animation: none;
   }
 }
+
+/* How many are approved: a line and a bar, beside the steps. */
+.review-progress {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  flex: 0 1 280px;
+  min-inline-size: 160px;
+}
+
+.review-progress-text {
+  color: var(--color-text-muted, #56677a);
+  font-size: 0.875rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.review-progress-bar {
+  flex: 1;
+  block-size: 8px;
+  overflow: hidden;
+  background: var(--color-border, #e1e8ef);
+  border-radius: 999px;
+}
+
+.review-progress-bar > span {
+  display: block;
+  block-size: 100%;
+  background: var(--color-success, #1e6b3a);
+  border-radius: inherit;
+  transition: inline-size 0.3s ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .review-progress-bar > span {
+    transition: none;
+  }
+}

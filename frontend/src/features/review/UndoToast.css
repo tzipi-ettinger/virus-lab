@@ -1,0 +1,90 @@
+/* UndoToast: a dark note at the bottom center, over the page. Logical properties
+   only (RTL). Owner: B */
+
+.undo-toast-area {
+  position: fixed;
+  inset-block-end: 24px;
+  inset-inline: 16px;
+  z-index: 20;
+  display: flex;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.undo-toast {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  max-inline-size: min(560px, 100%);
+  padding-block: 12px;
+  padding-inline: 20px 12px;
+  overflow: hidden;
+  color: #ffffff;
+  background: var(--color-text, #12233a);
+  border-radius: var(--radius-md, 10px);
+  box-shadow: var(--shadow-raised, 0 16px 40px rgb(18 35 58 / 0.2));
+  font-weight: 600;
+  pointer-events: auto;
+  animation: undo-toast-in 0.2s ease-out;
+}
+
+.undo-toast.is-error {
+  background: var(--color-danger, #a12222);
+}
+
+.undo-toast-text {
+  flex: 1;
+}
+
+.undo-toast-button {
+  min-block-size: 36px;
+  padding-inline: 14px;
+  color: #ffffff;
+  background: transparent;
+  border: 1px solid rgb(255 255 255 / 0.6);
+  border-radius: var(--radius-md, 8px);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.undo-toast-button:hover {
+  background: rgb(255 255 255 / 0.12);
+}
+
+.undo-toast-button:focus-visible {
+  outline: 3px solid #ffffff;
+  outline-offset: 2px;
+}
+
+/* How long is left to undo: a line that empties along the bottom. */
+.undo-toast-timer {
+  position: absolute;
+  inset-block-end: 0;
+  inset-inline: 0;
+  block-size: 3px;
+  background: var(--color-brand-teal, #0ea5c6);
+  transform-origin: right;
+  animation: undo-toast-timer linear forwards;
+}
+
+@keyframes undo-toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+
+@keyframes undo-toast-timer {
+  to {
+    transform: scaleX(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .undo-toast,
+  .undo-toast-timer {
+    animation: none;
+  }
+}

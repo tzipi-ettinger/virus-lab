@@ -7,6 +7,7 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, test, vi } from "vitest";
 import type { components } from "../../api/schema";
 import { FieldCell } from "./FieldCell";
+import { idProblem } from "./nationalId";
 import type { FieldEdit, Saved } from "./recordMutations";
 import { field, flagged } from "./testRecords";
 
@@ -170,5 +171,33 @@ describe("FieldCell", () => {
 
     expect(screen.queryByRole("button")).toBeNull();
     expect(screen.getByText("011223344")).toBeTruthy();
+  });
+
+  test("a check while typing names a wrong ID at once, and saving still works", async () => {
+    const onSave = vi.fn<(edit: FieldEdit) => Promise<Saved>>().mockResolvedValue(null);
+    render(
+      <table>
+        <tbody>
+          <tr>
+            <FieldCell title="ת״ז" field={field("011223344")} editable onSave={onSave} check={idProblem} />
+          </tr>
+        </tbody>
+      </table>,
+    );
+    const user = await open();
+    const input = screen.getByRole("textbox", { name: "עריכת ת״ז" });
+
+    await user.clear(input);
+    await user.type(input, "011223345");
+    expect(input.getAttribute("aria-invalid")).toBe("true");
+    expect(document.getElementById(input.getAttribute("aria-describedby") ?? "")?.textContent).toContain(
+      "ספרת הביקורת",
+    );
+
+    await user.type(input, "{Backspace}4");
+    expect(input.getAttribute("aria-invalid")).toBeNull();
+
+    await user.type(input, "{Backspace}5{Enter}");
+    expect(onSave).toHaveBeenCalledExactlyOnceWith({ value: "011223345" });
   });
 });
