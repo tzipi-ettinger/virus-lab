@@ -215,15 +215,20 @@ function RecordDetails({ record, backLink, back, onRecord }: DetailsProps) {
                     onSave={onSave}
                     options={title === "גורם שולח" && senders.length > 0 ? senders : undefined}
                   />
+                  {/* What was read and how on one line (the evidence whole in the
+                      tooltip), then the issues, never cut. */}
                   <td className="record-read">
-                    <span className="record-raw">
-                      <bdi>{field.raw ?? "—"}</bdi>
-                    </span>
-                    {field.evidence && (
-                      <span className="record-evidence">
-                        <bdi>{field.evidence}</bdi>
+                    <span className="record-read-line" title={field.evidence ?? undefined}>
+                      <span className="record-raw">
+                        <bdi>{field.raw ?? "—"}</bdi>
                       </span>
-                    )}
+                      {/* dir="auto": English evidence is cut at its end, not its start. */}
+                      {field.evidence && (
+                        <span className="record-evidence" dir="auto">
+                          {field.evidence}
+                        </span>
+                      )}
+                    </span>
                     {field.issues.length > 0 && (
                       <span className="record-field-issues">{field.issues.map((i) => i.message).join(" · ")}</span>
                     )}
