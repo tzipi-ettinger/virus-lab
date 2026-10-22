@@ -35,6 +35,10 @@ services:
       # Comma-separated, one key per Google project.
       - key: GEMINI_API_KEYS
         sync: false
+      # Pages read at once (default 4). The calls take the keys in turn, each with its
+      # own per-minute limit, so with several keys more pages at once are in reach.
+      - key: MAX_CONCURRENCY
+        value: "6"
       # The public address, e.g. https://virus-lab.onrender.com. The CSRF check
       # refuses a change whose Origin is anything else.
       - key: FRONTEND_ORIGIN

@@ -240,7 +240,7 @@ docker run --rm -p 8000:8000 -e EXTRACTION_PROVIDER=fake -e FRONTEND_ORIGIN=http
 
 | משתנה | ברירת מחדל | תיאור |
 |---|---|---|
-| `GEMINI_API_KEYS` | — | **חובה** כש־`EXTRACTION_PROVIDER=gemini`. מפתח אחד לכל פרויקט ב־Google, מופרדים בפסיקים. כשהמכסה היומית של מפתח נגמרת, עוברים למפתח הבא. לא נכנס ל־Git |
+| `GEMINI_API_KEYS` | — | **חובה** כש־`EXTRACTION_PROVIDER=gemini`. מפתח אחד לכל פרויקט ב־Google, מופרדים בפסיקים. כל פנייה מתחילה מהמפתח הבא בתור, כך שקובץ ארוך מתחלק בין המגבלות לדקה של כל המפתחות. מפתח שהגיע למגבלה לדקה מעביר את הפנייה מיד למפתח הבא, ומפתח שהמכסה היומית שלו נגמרה מדולג עד שהיא מתחדשת. לא נכנס ל־Git |
 | `GEMINI_API_KEY` | — | השם הישן למפתח יחיד. עדיין נקרא, ונוסף אחרי `GEMINI_API_KEYS` |
 | `GEMINI_MODEL` | — | **חובה** כש־`EXTRACTION_PROVIDER=gemini`. ב־`.env.example` וב־`render.yaml`: `gemini-3.8-flash`. החלפת מודל בלי שינוי קוד |
 | `EXTRACTION_PROVIDER` | `fake` | `fake`: תשובות שמורות מ־`tests/fixtures/`, בלי מפתח ובלי מכסה. `gemini`: קריאה אמיתית, בשרת החי (`render.yaml`) |
@@ -255,7 +255,7 @@ docker run --rm -p 8000:8000 -e EXTRACTION_PROVIDER=fake -e FRONTEND_ORIGIN=http
 | `MAX_REQUEST_MB` | `60` | גודל ההעלאה כולה, כל הקבצים יחד. היא נשמרת בזיכרון ולא בדיסק |
 | `MAX_FILES_PER_REQUEST` | `20` | קבצים בבקשה אחת |
 | `MAX_PAGES_PER_REQUEST` | `60` | עמודים בבקשה אחת |
-| `MAX_CONCURRENCY` | `4` | עמודים שנקראים במקביל. אותה מגבלה חלה על כל השרת, גם כששתי העלאות רצות יחד |
+| `MAX_CONCURRENCY` | `4` | עמודים שנקראים במקביל. אותה מגבלה חלה על כל השרת, גם כששתי העלאות רצות יחד. בשרת החי `6` (`render.yaml`), כי הפניות מתחלקות בין כמה מפתחות |
 
 ### `frontend/.env.local`
 
