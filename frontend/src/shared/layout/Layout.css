@@ -1,45 +1,108 @@
-/* The top bar of every signed-in screen. Logical properties only (RTL). Owner: B */
+/* The top bar of every screen: white, the logo at the start, a thin brand stripe
+   under it. Logical properties only (RTL). Owner: B */
 
 .layout-bar {
+  position: relative;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
+  justify-content: space-between;
   gap: 8px 24px;
-  padding-block: 12px;
-  border-block-end: 1px solid var(--color-border, #dde3e9);
+  padding-block: 10px;
+  padding-inline: 24px;
+  background: var(--color-surface, #ffffff);
+  box-shadow: 0 1px 0 var(--color-border, #e1e8ef), 0 4px 16px rgb(18 35 58 / 0.04);
+}
+
+/* The logo's colors, as a line along the bottom of the bar. */
+.layout-bar::after {
+  content: "";
+  position: absolute;
+  inset-inline: 0;
+  inset-block-end: 0;
+  block-size: 3px;
+  background: linear-gradient(90deg, var(--color-brand-green, #9cc33b), var(--color-brand-teal, #0ea5c6) 50%, var(--color-brand-blue, #1f6fb2));
+}
+
+.layout-brand {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  color: inherit;
+  text-decoration: none;
+  border-radius: var(--radius-md, 10px);
+}
+
+.layout-logo {
+  display: block;
+  block-size: 44px;
+  inline-size: auto;
+}
+
+.layout-names {
+  display: flex;
+  flex-direction: column;
+  padding-inline-start: 14px;
+  border-inline-start: 1px solid var(--color-border, #e1e8ef);
+  line-height: 1.25;
 }
 
 .layout-title {
-  font-weight: 700;
+  font-weight: 800;
+  font-size: 1.05rem;
+  color: var(--color-accent-strong, #17588f);
+}
+
+.layout-subtitle {
+  color: var(--color-text-muted, #56677a);
+  font-size: 0.8125rem;
 }
 
 .layout-nav {
   display: flex;
-  gap: 4px;
+  gap: 6px;
+  padding: 4px;
+  background: var(--color-surface-muted, #f5f8fb);
+  border: 1px solid var(--color-border, #e1e8ef);
+  border-radius: 999px;
 }
 
 .layout-nav a {
-  padding: 6px 12px;
-  color: var(--color-text, #0f1b2a);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 16px;
+  color: var(--color-text-muted, #56677a);
+  font-weight: 600;
   text-decoration: none;
-  border-radius: var(--radius-md, 8px);
+  border-radius: 999px;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.layout-nav a:hover {
+  color: var(--color-accent-strong, #17588f);
 }
 
 .layout-nav a.active {
-  color: var(--color-accent-strong, #08515a);
-  background: var(--color-accent-soft, #e5f1f2);
-  font-weight: 600;
+  color: #ffffff;
+  background: var(--gradient-brand, #1f6fb2);
+  box-shadow: 0 2px 8px rgb(31 111 178 / 0.3);
+}
+
+.layout-main {
+  padding-inline: 24px;
 }
 
 .app-status button {
   padding: 4px 12px;
   font: inherit;
   background: none;
-  border: 1px solid var(--color-border-strong, #9fb3c8);
-  border-radius: var(--radius-md, 8px);
+  border: 1px solid var(--color-border-strong, #a9bccf);
+  border-radius: var(--radius-md, 10px);
   cursor: pointer;
 }
 
+.layout-brand:focus-visible,
 .layout-nav a:focus-visible,
 .app-status button:focus-visible {
   outline: 2px solid var(--color-focus, #1d4ed8);
@@ -49,4 +112,25 @@
 .app-status {
   padding: 24px;
   text-align: center;
+}
+
+@media (max-width: 640px) {
+  .layout-bar,
+  .layout-main {
+    padding-inline: 12px;
+  }
+
+  .layout-logo {
+    block-size: 34px;
+  }
+
+  .layout-subtitle {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .layout-nav a {
+    transition: none;
+  }
 }

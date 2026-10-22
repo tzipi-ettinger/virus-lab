@@ -3,19 +3,94 @@
 .records {
   display: flex;
   flex-direction: column;
-  gap: 16px;
-  padding-block: 16px;
+  gap: 14px;
+  padding-block: 18px;
+}
+
+/* The title, with the counts beside it as cards that filter the list. */
+.records-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px 24px;
 }
 
 .records-title {
   margin: 0;
-  font-size: 1.4rem;
+  font-size: 1.6rem;
+  font-weight: 800;
+  color: var(--color-text, #12233a);
 }
 
 .records-counts {
   display: flex;
   flex-wrap: wrap;
+  gap: 10px;
+}
+
+.records .records-counts button {
+  display: inline-flex;
+  align-items: center;
   gap: 8px;
+  min-block-size: 44px;
+  padding: 6px 16px;
+  font-weight: 600;
+  background: var(--color-surface, #fff);
+  border: 1px solid var(--color-border, #e1e8ef);
+  border-radius: 999px;
+  box-shadow: var(--shadow-card, none);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.records .records-counts button:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-raised, none);
+}
+
+.records-counts strong {
+  min-inline-size: 2ch;
+  padding: 2px 10px;
+  font-size: 1.05rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-accent-strong, #17588f);
+  background: var(--color-accent-soft, #e7f1fa);
+  border-radius: 999px;
+}
+
+.records-counts button:nth-child(2) strong {
+  color: var(--color-warning, #8a5300);
+  background: var(--color-warning-soft, #fff4db);
+}
+
+.records-counts button:nth-child(3) strong {
+  color: var(--color-success, #1e6b3a);
+  background: var(--color-success-soft, #e6f4ea);
+}
+
+/* Search, filters and export, together on one white card. */
+.records-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  justify-content: space-between;
+  gap: 12px 20px;
+  padding: 14px 18px;
+  background: var(--color-surface, #fff);
+  border: 1px solid var(--color-border, #e1e8ef);
+  border-radius: var(--radius-lg, 16px);
+  box-shadow: var(--shadow-card, none);
+}
+
+/* The list and its paging, on a card of their own. */
+.records-card {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--color-surface, #fff);
+  border: 1px solid var(--color-border, #e1e8ef);
+  border-radius: var(--radius-lg, 16px);
+  box-shadow: var(--shadow-card, none);
 }
 
 .records button,
@@ -34,10 +109,11 @@
   cursor: default;
 }
 
-.records-counts button[aria-pressed="true"] {
+.records .records-counts button[aria-pressed="true"] {
   color: var(--color-accent-strong, #08515a);
   background: var(--color-accent-soft, #e5f1f2);
   border-color: var(--color-accent, #0b6e79);
+  box-shadow: 0 0 0 2px var(--color-accent, #1f6fb2);
 }
 
 .records button:focus-visible,
@@ -72,11 +148,30 @@
 
 .records-filters input,
 .records-filters select {
-  padding: 6px 8px;
+  min-block-size: 38px;
+  padding: 6px 10px;
   font: inherit;
   color: var(--color-text, #0f1b2a);
-  border: 1px solid var(--color-border-strong, #9fb3c8);
+  background: var(--color-surface-muted, #f5f8fb);
+  border: 1px solid var(--color-border, #e1e8ef);
   border-radius: var(--radius-md, 8px);
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.records-filters input:hover,
+.records-filters select:hover {
+  border-color: var(--color-border-strong, #a9bccf);
+}
+
+.records-filters input:focus,
+.records-filters select:focus {
+  background: var(--color-surface, #fff);
+  border-color: var(--color-accent, #1f6fb2);
+}
+
+.records-filters .records-check input {
+  min-block-size: 0;
+  accent-color: var(--color-accent, #1f6fb2);
 }
 
 .records-search input {
@@ -105,40 +200,81 @@
 
 .records-table {
   inline-size: 100%;
-  border-collapse: collapse;
+  border-collapse: separate;
+  border-spacing: 0;
 }
 
 .records-table th,
 .records-table td {
-  padding: 8px 10px;
+  padding: 10px 14px;
   text-align: start;
   border-block-end: 1px solid var(--color-border, #dde3e9);
   white-space: nowrap;
 }
 
+/* The header stays on top while the list scrolls under it. */
 .records-table th {
-  font-weight: 600;
+  position: sticky;
+  inset-block-start: 0;
+  z-index: 1;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  color: var(--color-text-muted, #56677a);
   background: var(--color-surface-muted, #f7f9fb);
 }
 
 .records-table tbody tr {
   cursor: pointer;
+  transition: background 0.12s ease;
+}
+
+.records-table tbody tr:nth-child(even) {
+  background: rgb(245 248 251 / 0.6);
 }
 
 .records-table tbody tr:hover {
-  background: var(--color-surface-muted, #f7f9fb);
+  background: var(--color-accent-soft, #e7f1fa);
+}
+
+.records-table tbody tr:last-child td {
+  border-block-end: 0;
+}
+
+.records-table td a {
+  color: var(--color-accent-strong, #17588f);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.records-table tbody tr:hover td a {
+  text-decoration: underline;
 }
 
 .records-number {
   font-variant-numeric: tabular-nums;
 }
 
+/* The status as a pill: icon, text and color together. */
+.records-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 12px;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--color-accent-strong, #17588f);
+  background: var(--color-accent-soft, #e7f1fa);
+  border-radius: 999px;
+}
+
 .records-status.is-approved {
   color: var(--color-success, #1e6b3a);
+  background: var(--color-success-soft, #e6f4ea);
 }
 
 .records-status.is-review {
   color: var(--color-warning, #8a5300);
+  background: var(--color-warning-soft, #fff4db);
 }
 
 .records-pages {
@@ -146,6 +282,41 @@
   align-items: center;
   justify-content: center;
   gap: 12px;
+  padding: 10px;
+  color: var(--color-text-muted, #56677a);
+  font-size: 0.875rem;
+  border-block-start: 1px solid var(--color-border, #e1e8ef);
+}
+
+/* On a wide screen the list fits the window: the page is as high as what is left
+   under the top bar, and only the rows scroll, under their header. */
+@media (min-width: 901px) {
+  .layout:has(.records) {
+    display: flex;
+    flex-direction: column;
+    block-size: 100svh;
+  }
+
+  .layout:has(.records) .layout-main {
+    flex: 1;
+    min-block-size: 0;
+  }
+
+  .records {
+    block-size: 100%;
+    box-sizing: border-box;
+  }
+
+  .records-card {
+    flex: 1;
+    min-block-size: 0;
+  }
+
+  .records-card .records-scroll {
+    flex: 1;
+    min-block-size: 0;
+    overflow: auto;
+  }
 }
 
 .record-page {
@@ -477,12 +648,22 @@
   gap: 8px;
 }
 
+.records-export-label {
+  color: var(--color-text-muted, #56677a);
+  font-size: 0.875rem;
+}
+
 .records-export a {
-  padding: 6px 12px;
+  display: inline-flex;
+  align-items: center;
+  min-block-size: 36px;
+  padding: 0 16px;
+  font-weight: 600;
   color: var(--color-accent-strong, #08515a);
   text-decoration: none;
   border: 1px solid var(--color-accent, #0b6e79);
-  border-radius: var(--radius-md, 8px);
+  border-radius: 999px;
+  transition: background 0.15s ease;
 }
 
 .records-export a:hover {

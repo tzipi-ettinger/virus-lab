@@ -1,5 +1,6 @@
 // The records screen (PLAN-DEV-B 3.1): counts, search and filters, the list and
-// paging, all driven by the filters in the URL.
+// paging, all driven by the filters in the URL. On a wide screen it fits the
+// window and only the list scrolls, under its own header.
 // Owner: B
 
 import { useCallback } from "react";
@@ -29,12 +30,16 @@ export function RecordsPage() {
 
   return (
     <section className="records" aria-labelledby="records-title" aria-busy={query.status === "loading"}>
-      <h1 id="records-title" className="records-title">
-        רשומות
-      </h1>
-      {data && <Counts counts={data.counts} filters={filters} onPick={change} />}
-      <RecordsFilters filters={filters} onChange={change} />
-      {data && <ExportButton filters={filters} total={data.total} />}
+      <div className="records-head">
+        <h1 id="records-title" className="records-title">
+          רשומות
+        </h1>
+        {data && <Counts counts={data.counts} filters={filters} onPick={change} />}
+      </div>
+      <div className="records-toolbar">
+        <RecordsFilters filters={filters} onChange={change} />
+        {data && <ExportButton filters={filters} total={data.total} />}
+      </div>
       {query.status === "error" && (
         <div className="records-banner" role="alert">
           ⚠ {query.message}
@@ -59,10 +64,10 @@ export function RecordsPage() {
         </div>
       )}
       {data && data.items.length > 0 && (
-        <>
+        <div className="records-card">
           <RecordsTable items={data.items} sort={filters.sort} onSort={(sort) => change({ sort })} />
           <Pagination total={data.total} page={filters.page} onPage={(page) => change({ page })} />
-        </>
+        </div>
       )}
     </section>
   );

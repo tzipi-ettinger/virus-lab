@@ -16,7 +16,7 @@
 
 .upload-title {
   margin: 0;
-  font-size: 1.125rem;
+  font-size: 1.25rem;
 }
 
 .upload-drop {
@@ -24,13 +24,30 @@
   flex-direction: column;
   align-items: center;
   gap: 10px;
-  padding-block: 28px;
+  padding-block: 40px;
   padding-inline: 16px;
   border: 2px dashed var(--color-border-strong, #9fb3c8);
   border-radius: var(--radius-lg, 12px);
-  background: var(--color-surface-muted, #f7f9fb);
+  background:
+    radial-gradient(28rem 12rem at 50% 0%, rgb(14 165 198 / 0.08), transparent 70%),
+    var(--color-surface-muted, #f7f9fb);
   color: var(--color-text-muted, #52606d);
   text-align: center;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.upload-drop:hover {
+  border-color: var(--color-accent, #0b6e79);
+}
+
+/* The arrow in a round badge of the brand colors. */
+.upload-drop-icon {
+  box-sizing: content-box;
+  padding: 14px;
+  color: #ffffff;
+  background: var(--gradient-brand, #1f6fb2);
+  border-radius: 50%;
+  box-shadow: 0 8px 20px rgb(31 111 178 / 0.3);
 }
 
 .upload-drop.is-dragging {
@@ -41,6 +58,14 @@
 
 .upload-drop-text {
   margin: 0;
+  color: var(--color-text, #0f1b2a);
+  font-size: 1.125rem;
+  font-weight: 700;
+}
+
+.upload-drop-hint {
+  margin: 0;
+  font-size: 0.875rem;
 }
 
 .upload-button,
