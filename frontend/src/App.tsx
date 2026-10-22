@@ -14,6 +14,7 @@ import { LandingPage } from "./features/landing/LandingPage";
 import { RecordPage } from "./features/records/RecordPage";
 import { RecordsPage } from "./features/records/RecordsPage";
 import { ReviewPage } from "./features/review/ReviewPage";
+import { StatsPage } from "./features/stats/StatsPage";
 import { Layout } from "./shared/layout/Layout";
 import { ErrorBoundary } from "./shared/ui/ErrorBoundary";
 
@@ -39,6 +40,7 @@ export function AppRoutes() {
         <Route path="upload" element={<ReviewPage />} />
         <Route path="records" element={<RecordsPage />} />
         <Route path="records/:recordId" element={<RecordPage />} />
+        <Route path="stats" element={<StatsPage />} />
         <Route path="*" element={<NotFound />} />
       </Route>
     </Routes>

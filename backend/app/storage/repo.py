@@ -425,3 +425,54 @@ async def delete_record(conn: AsyncConnection, record_id: str, page_id: str) -> 
         "DELETE FROM page WHERE id = %s AND NOT EXISTS (SELECT 1 FROM record WHERE page_id = %s)",
         (page_id, page_id),
     )
+
+
+# --- The overview screen
+
+# Every field of a pending record: the RecordFields in `fields`, and each central number.
+_PENDING_FIELDS = """
+SELECT count(*) AS fields_total,
+       count(*) FILTER (WHERE (f.field ->> 'needs_review')::boolean) AS fields_flagged
+  FROM record r
+ CROSS JOIN LATERAL (
+       SELECT value FROM jsonb_each(r.fields)
+        UNION ALL
+       SELECT value FROM jsonb_array_elements(r.central_numbers)
+       ) AS f(field)
+ WHERE r.status = 'pending'
+"""
+
+# A shared field corrected once is logged on each record of the form, all with the
+# same time and field name, so DISTINCT (form, at, field) counts it once.
+# "central_numbers[2]" counts as "central_numbers".
+_CORRECTIONS = r"""
+SELECT regexp_replace(c.field, '\[\d+\]$', '') AS field, count(*) AS corrections
+  FROM (SELECT DISTINCT r.page_id, e.at, e.field
+          FROM record_event e JOIN record r ON r.id = e.record_id
+         WHERE e.action = 'corrected' AND e.field IS NOT NULL) AS c
+ GROUP BY 1
+ ORDER BY corrections DESC, field
+"""
+
+
+async def record_stats(conn: AsyncConnection) -> dict:
+    """The record counts, the pending fields still flagged, and corrections per field."""
+    async with conn.cursor(row_factory=dict_row) as cur:
+        await cur.execute(
+            "SELECT count(*) FILTER (WHERE status = 'pending') AS pending,"
+            " count(*) FILTER (WHERE status = 'approved') AS approved,"
+            " count(*) FILTER (WHERE status = 'pending' AND needs_review) AS needs_review"
+            " FROM record"
+        )
+        stats = dict(await cur.fetchone())
+        await cur.execute(_PENDING_FIELDS)
+        stats |= await cur.fetchone()
+        await cur.execute(
+            "SELECT count(DISTINCT record_id) AS corrected_records FROM record_event"
+            " WHERE action = 'corrected'"
+        )
+        stats |= await cur.fetchone()
+        await cur.execute(_CORRECTIONS)
+        stats["by_field"] = await cur.fetchall()
+    stats["corrections"] = sum(row["corrections"] for row in stats["by_field"])
+    return stats

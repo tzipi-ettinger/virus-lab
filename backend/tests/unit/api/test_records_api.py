@@ -213,3 +213,16 @@ def test_the_history_of_an_unknown_record_is_a_404(signed_in):
 def test_the_history_needs_sign_in(client, records):
     response = client.get(f"/api/v1/records/{records['ready'].record_id}/history")
     assert response.status_code == 401
+
+
+def test_stats(signed_in, records):
+    response = signed_in.get("/api/v1/stats")
+    assert response.status_code == 200
+    stats = response.json()
+    assert (stats["pending"], stats["approved"], stats["needs_review"]) == (2, 0, 1)
+    assert stats["fields_flagged"] >= 1
+    assert stats["by_field"] == []
+
+
+def test_stats_need_sign_in(client, records):
+    assert client.get("/api/v1/stats").status_code == 401

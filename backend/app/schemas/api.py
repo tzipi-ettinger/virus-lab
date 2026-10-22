@@ -253,6 +253,36 @@ class RecordList(BaseModel):
     counts: RecordCounts
 
 
+# --- GET /api/v1/stats
+
+
+class FieldCorrections(BaseModel):
+    field: str = Field(
+        description='A RecordFields name, or "central_numbers" for any central number.'
+    )
+    corrections: int
+
+
+class RecordStats(BaseModel):
+    """The overview screen: how much work is left and which fields needed a hand.
+
+    Over every record, with no filters.
+    """
+
+    pending: int
+    approved: int
+    needs_review: int = Field(description="Pending records with a field still flagged.")
+    fields_total: int = Field(
+        description="Fields in pending records, each central number counted on its own."
+    )
+    fields_flagged: int = Field(description="Of fields_total, the ones still flagged.")
+    corrections: int = Field(
+        description="Corrections by hand. Changing a field shared by a form's records counts once."
+    )
+    corrected_records: int = Field(description="Records with at least one correction.")
+    by_field: list[FieldCorrections] = Field(description="Most corrected first.")
+
+
 # --- POST /api/v1/extract
 
 
