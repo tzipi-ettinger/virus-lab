@@ -102,6 +102,9 @@ class GeminiProvider:
             response_schema=RawExtraction,
             # "low": "medium" was 4x slower with no gain in the spike (PLAN.md).
             thinking_config=types.ThinkingConfig(thinking_level="low"),
+            # "high": a handwritten name is small on a whole page, and at the default
+            # the model read the crossed-out printed name under it instead.
+            media_resolution=types.MediaResolution.MEDIA_RESOLUTION_HIGH,
             # No tools here: off, so the client neither tries it nor warns on every call.
             automatic_function_calling=types.AutomaticFunctionCallingConfig(disable=True),
         )
@@ -109,10 +112,11 @@ class GeminiProvider:
     @property
     def fingerprint(self) -> str:
         """What decides the answer besides the image: CachedProvider's key, so a new
-        model, prompt, thinking level or schema reads the pages again."""
+        model, prompt, thinking level, image resolution or schema reads the pages again."""
         schema = json.dumps(RawExtraction.model_json_schema(), sort_keys=True)
         thinking = self._config.thinking_config.thinking_level
-        return "\n".join((self._model, str(thinking), self._prompt, schema))
+        resolution = self._config.media_resolution
+        return "\n".join((self._model, str(thinking), str(resolution), self._prompt, schema))
 
     async def extract(self, page: PageImage) -> RawExtraction:
         contents = [types.Part.from_bytes(data=page.jpeg, mime_type="image/jpeg"), self._prompt]

@@ -129,6 +129,7 @@ def test_a_page_comes_back_as_raw_extraction():
     assert config.response_schema is RawExtraction
     assert config.response_mime_type == "application/json"
     assert config.thinking_config.thinking_level == types.ThinkingLevel.LOW
+    assert config.media_resolution == types.MediaResolution.MEDIA_RESOLUTION_HIGH
     assert config.automatic_function_calling.disable
 
 
