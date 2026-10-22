@@ -130,8 +130,8 @@ def test_logs_carry_no_reading(tmp_path, caplog):
 
 
 NAME = NameReading(
-    first_name=NamePart(value="ישראל", status="found", evidence="שם פרטי"),
-    last_name=NamePart(value="ישראלי", status="found", evidence="שם משפחה"),
+    first_name=NamePart(letters=list("ישראל"), value="ישראל", status="found", evidence="שם פרטי"),
+    last_name=NamePart(letters=list("ישראלי"), value="ישראלי", status="found", evidence="שם משפחה"),
 )
 
 

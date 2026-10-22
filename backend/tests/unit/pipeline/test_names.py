@@ -18,8 +18,11 @@ def name(value: str | None, status: str = "found", box: list[int] | None = FIRST
     return RawField(value=value, status=status, evidence="שם", box_2d=box)
 
 
-def closer(value: str | None, status: str = "found") -> NamePart:
-    return NamePart(value=value, status=status, evidence="בהגדלה")
+def closer(value: str | None, status: str = "found", letters: list[str] | None = None) -> NamePart:
+    """A crop's reading. Its letters spell the value unless given."""
+    if letters is None:
+        letters = list((value or "").replace(" ", ""))
+    return NamePart(letters=letters, value=value, status=status, evidence="בהגדלה")
 
 
 def reading(first: RawField, last: RawField) -> RawExtraction:
@@ -128,6 +131,48 @@ def test_merge(page_read, closer_read, expected):
 
     assert (merged.value, merged.status) == expected
     assert merged.box_2d == page_read.box_2d
+
+
+@pytest.mark.parametrize(
+    "closer_read",
+    [
+        # Sure of a name its own letters don't spell: the name was made up.
+        closer("יוסף", letters=list("ישראל")),
+        # A letter it couldn't read.
+        closer("ישראל", letters=["י", "ש", "?", "א", "ל"]),
+        # No letters at all, so nothing backs the name.
+        closer("ישראל", letters=[]),
+        # Two letters in one item: not copied letter by letter.
+        closer("ישראל", letters=["יש", "ר", "א", "ל"]),
+        # Latin letters: cursive Hebrew often looks Latin.
+        closer("plce"),
+    ],
+)
+def test_a_name_its_letters_dont_back_goes_to_review(closer_read):
+    merged = merge(name("יוסף"), closer_read)
+
+    assert (merged.value, merged.status) == (None, "unclear")
+
+
+@pytest.mark.parametrize(
+    ("value", "letters"),
+    [
+        ("ישראל", list("ישראל")),
+        # A final letter matches its plain form, either way round.
+        ("אברהם", list("אברהמ")),
+        ("אברהמ", list("אברהם")),
+        # A space between words, in the value or as a letter.
+        ("בן דוד", list("בןדוד")),
+        ("בן דוד", ["ב", "ן", " ", "ד", "ו", "ד"]),
+        # The marks names are written with.
+        ("ג'ורג'", list("ג'ורג'")),
+        ("בן-דוד", list("בן-דוד")),
+    ],
+)
+def test_a_name_its_letters_spell_is_found(value, letters):
+    merged = merge(name(None, "unclear"), closer(value, letters=letters))
+
+    assert (merged.value, merged.status) == (value, "found")
 
 
 @pytest.mark.parametrize(

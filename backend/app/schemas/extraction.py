@@ -69,8 +69,16 @@ class RawExtraction(BaseModel):
 
 
 class NamePart(BaseModel):
-    """A RawField without a box: the crop's coordinates mean nothing on the page."""
+    """A RawField without a box: the crop's coordinates mean nothing on the page.
 
+    `letters` comes first, so the model writes each letter it sees before it writes
+    a name, and can't slide into a common name that looks alike. names.py keeps a
+    name only when the letters spell it (prompt name_v2).
+    """
+
+    letters: list[str] = Field(
+        description='Each letter seen, one per item, in reading order; "?" for one not read.'
+    )
     value: str | None
     status: ModelStatus
     evidence: str | None

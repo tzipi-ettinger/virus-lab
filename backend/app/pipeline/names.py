@@ -16,6 +16,11 @@ again from a crop around it (ingest.render_crop), and the crop decides:
 That is one more model call per page. If it fails, the page read stays: the page
 was read, and losing it to the second call would cost more than it saves.
 
+"Sure" is checked here, not taken from the model: the crop first lists the letters
+it sees, and a name counts as found only when those letters spell it, every one
+read and Hebrew (spelled()). A model that slides into a common name that looks
+alike says "found" about it, but rarely lists its letters to match.
+
 Owner: A
 """
 
@@ -88,7 +93,7 @@ def merge(page_read: RawField, closer: NamePart) -> RawField:
     """One name part after both reads. The box stays the page read's: the crop's
     coordinates mean nothing on the page."""
     value = " ".join((closer.value or "").split())
-    if closer.status == "found" and value:
+    if closer.status == "found" and spelled(value, closer.letters):
         return page_read.model_copy(
             update={"value": value, "status": "found", "evidence": closer.evidence}
         )
@@ -102,6 +107,37 @@ def merge(page_read: RawField, closer: NamePart) -> RawField:
             "evidence": closer.evidence or page_read.evidence,
         }
     )
+
+
+def spelled(value: str, letters: list[str]) -> bool:
+    """Whether `letters` spell `value`, one Hebrew letter each and none unread.
+
+    Spaces don't count, and a final letter (ם) matches its plain form (מ), so a
+    name isn't sent to review for writing a letter's other form. A name in Latin
+    letters goes to review too: cursive Hebrew can look Latin ("plce" for ישראל).
+    """
+    letters = [letter for letter in letters if letter.strip()]  # a space between words
+    if not value or not letters:
+        return False
+    if any(len(letter) != 1 or not _is_name_letter(letter) for letter in letters):
+        return False  # "?" for a letter not read, or more than one letter in an item
+    written = value.replace(" ", "")
+    if not all(_is_name_letter(char) for char in written):
+        return False
+    return _plain(written) == _plain("".join(letters))
+
+
+# Hebrew letters (finals included), and the geresh and hyphen names are written with.
+_NAME_MARKS = frozenset("'׳-")
+_FINALS = str.maketrans("ךםןףץ", "כמנפצ")
+
+
+def _is_name_letter(char: str) -> bool:
+    return "א" <= char <= "ת" or char in _NAME_MARKS
+
+
+def _plain(text: str) -> str:
+    return text.translate(_FINALS)
 
 
 def _is_box(box: list[int] | None) -> bool:

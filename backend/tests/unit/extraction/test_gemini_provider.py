@@ -18,8 +18,18 @@ ANSWER = (FIXTURES_DIR / "03_maccabi_three_centrals.json").read_text(encoding="u
 PAGE = PageImage("f1", "forms.pdf", 1, 0, b"\xff\xd8 jpeg bytes")
 NAME_ANSWER = json.dumps(
     {
-        "first_name": {"value": "ישראל", "status": "found", "evidence": "שם פרטי"},
-        "last_name": {"value": "ישראלי", "status": "found", "evidence": "שם משפחה"},
+        "first_name": {
+            "letters": list("ישראל"),
+            "value": "ישראל",
+            "status": "found",
+            "evidence": "שם פרטי",
+        },
+        "last_name": {
+            "letters": list("ישראלי"),
+            "value": "ישראלי",
+            "status": "found",
+            "evidence": "שם משפחה",
+        },
     }
 )
 CROP = PageImage("f1", "forms.pdf", 1, 0, b"\xff\xd8 the name, enlarged")

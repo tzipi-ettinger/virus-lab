@@ -1,5 +1,5 @@
 <!--
-Name prompt v1, the second read (pipeline/names.py): sent to Gemini with an enlarged
+Name prompt v2, the second read (pipeline/names.py): sent to Gemini with an enlarged
 crop of the page around the patient's name. Everything outside this comment is sent
 as is.
 
@@ -12,6 +12,9 @@ first read took the page as upright): hence the line on direction.
 From the first measurement with the crop (48 pages): a name written under the ID with
 no label of its own was "not_found" (part 1 p21), and a whole name in one field came
 back with first and last swapped (part 1 p1): hence the lines on both.
+v2 (22.10): the model still said "found" about a common name that only looks like the
+handwriting. It now lists the letters it sees before the name (`letters`), and
+pipeline/names.py keeps a name only when those letters spell it, every one read.
 Owner: A
 -->
 This image is an enlarged crop of a scanned Hebrew medical form (טופס התחייבות), cut
@@ -34,6 +37,11 @@ PATIENT's first name and last name.
 - Labels such as "שם פרטי" (first name) and "שם משפחה" (last name) tell which is which.
   Names next to "אב:" (father), "אם:" (mother), a doctor, a signature or a clerk are NOT
   the patient's name.
+- letters: before you write the name, copy the letters you see, one letter per item,
+  in reading order (for Hebrew, the rightmost letter first), each exactly as it is
+  written. Put "?" for a letter you cannot read. Copy what is on the page, not the
+  name it reminds you of: a name you know is no reason to read a letter as its letter.
+  value must be exactly these letters.
 - status="found" only when you are certain of every letter. Otherwise status="unclear",
   value=null, and your partial reading in evidence. If the crop shows no patient name,
   status="not_found", value=null. Never guess or complete a name.
