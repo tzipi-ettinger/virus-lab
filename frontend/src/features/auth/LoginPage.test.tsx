@@ -8,6 +8,7 @@ import { MemoryRouter, Route, Routes } from "react-router";
 import { afterEach, describe, expect, test, vi } from "vitest";
 import { ApiError } from "../../api/client";
 import { AuthContext, type Auth, type AuthState } from "./authContext";
+import { greeting } from "./greeting";
 import { LoginPage } from "./LoginPage";
 import { loginError } from "./loginError";
 
@@ -35,6 +36,14 @@ async function signIn(password = "correct horse battery") {
 }
 
 describe("LoginPage", () => {
+  test("opens the site with the ministry's logo and a greeting", () => {
+    renderLogin(vi.fn());
+
+    expect(screen.getByRole("img", { name: "משרד הבריאות" })).toBeTruthy();
+    expect(screen.getByRole("heading", { level: 2, name: "כניסה למערכת" })).toBeTruthy();
+    expect(screen.getByText(/טוב לראות אותך/)).toBeTruthy();
+  });
+
   test("the username field has the focus", () => {
     renderLogin(vi.fn());
 
@@ -95,6 +104,22 @@ describe("LoginPage", () => {
     renderLogin(vi.fn(), { status: "signed_in", user: { id: "u1", username: "dana", display_name: "דנה" } });
 
     expect(screen.getByText("מסך הרשומות")).toBeTruthy();
+  });
+});
+
+describe("greeting", () => {
+  test.each([
+    [5, "בוקר טוב"],
+    [11, "בוקר טוב"],
+    [12, "צהריים טובים"],
+    [16, "צהריים טובים"],
+    [17, "ערב טוב"],
+    [21, "ערב טוב"],
+    [22, "לילה טוב"],
+    [0, "לילה טוב"],
+    [4, "לילה טוב"],
+  ])("at %i o'clock: %s", (hour, expected) => {
+    expect(greeting(hour)).toBe(expected);
   });
 });
 

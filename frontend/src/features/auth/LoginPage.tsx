@@ -1,15 +1,24 @@
 // Sign in with a username and password (PLAN-DEV-B 3.1). There is no sign-up:
 // users are created with scripts/create_user. After signing in, back to the
 // screen that asked for it.
+// It is the first screen anyone sees, so it opens the site: the ministry's
+// logo, what the system does, and the sign-in card beside them.
 // Owner: B
 
 import { useState, type FormEvent } from "react";
 import { Navigate, useLocation, useNavigate } from "react-router";
 import { useAuth } from "./authContext";
+import { greeting } from "./greeting";
 import { loginError } from "./loginError";
 import "./LoginPage.css";
 
 export type LoginRedirect = { from?: string };
+
+const POINTS = [
+  "קורא שבעה שדות מכל טופס, גם בכתב יד",
+  "מסמן לבדיקה כל ערך שאינו ודאי",
+  "שומר מי אישר, מי תיקן ומתי",
+];
 
 export function LoginPage() {
   const { state, login } = useAuth();
@@ -20,6 +29,7 @@ export function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [hello] = useState(() => greeting(new Date().getHours()));
 
   if (state.status === "signed_in") return <Navigate to={from} replace />;
 
@@ -39,55 +49,82 @@ export function LoginPage() {
   }
 
   return (
-    <main className="login-page">
-      <form className="login-card" onSubmit={submit} noValidate>
-        <h1>כניסה למערכת</h1>
-        <p className="login-hint">מטפסי התחייבות לנתונים מובנים</p>
-        <label>
-          שם משתמש
-          <input
-            name="username"
-            autoComplete="username"
-            autoFocus
-            required
-            value={username}
-            onChange={(event) => setUsername(event.target.value)}
-          />
-        </label>
-        <label>
-          סיסמה
-          {/* The eye shows the password as text, and hides it again. */}
-          <span className="login-password">
+    <div className="login">
+      <div className="login-glow" aria-hidden="true" />
+      <main className="login-main">
+        <section className="login-brand">
+          <img className="login-logo" src="/moh-logo.png" alt="משרד הבריאות" />
+          <p className="login-kicker">המעבדה המרכזית לנגיפים</p>
+          <h1 className="login-title">
+            מטופס סרוק{" "}
+            <br />
+            <span className="login-title-accent">לרשומה מאושרת</span>
+          </h1>
+          <ul className="login-points">
+            {POINTS.map((point) => (
+              <li key={point}>
+                <span className="login-point-icon" aria-hidden="true">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M5 12.5 10 17l9-10" />
+                  </svg>
+                </span>
+                {point}
+              </li>
+            ))}
+          </ul>
+        </section>
+
+        <form className="login-card" onSubmit={submit} noValidate>
+          <h2>כניסה למערכת</h2>
+          <p className="login-hint">{hello}, טוב לראות אותך.</p>
+          <label>
+            שם משתמש
             <input
-              name="password"
-              type={showPassword ? "text" : "password"}
-              autoComplete="current-password"
+              name="username"
+              autoComplete="username"
+              autoFocus
               required
-              value={password}
-              onChange={(event) => setPassword(event.target.value)}
+              value={username}
+              onChange={(event) => setUsername(event.target.value)}
             />
-            <button
-              type="button"
-              className="login-eye"
-              aria-label={showPassword ? "הסתרת הסיסמה" : "הצגת הסיסמה"}
-              aria-pressed={showPassword}
-              title={showPassword ? "הסתרת הסיסמה" : "הצגת הסיסמה"}
-              onClick={() => setShowPassword((shown) => !shown)}
-            >
-              <EyeIcon open={!showPassword} />
-            </button>
-          </span>
-        </label>
-        {error && (
-          <p className="login-error" role="alert">
-            ⚠ {error}
-          </p>
-        )}
-        <button type="submit" disabled={busy || !username.trim() || !password}>
-          {busy ? "נכנסת…" : "כניסה"}
-        </button>
-      </form>
-    </main>
+          </label>
+          <label>
+            סיסמה
+            {/* The eye shows the password as text, and hides it again. */}
+            <span className="login-password">
+              <input
+                name="password"
+                type={showPassword ? "text" : "password"}
+                autoComplete="current-password"
+                required
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+              />
+              <button
+                type="button"
+                className="login-eye"
+                aria-label={showPassword ? "הסתרת הסיסמה" : "הצגת הסיסמה"}
+                aria-pressed={showPassword}
+                title={showPassword ? "הסתרת הסיסמה" : "הצגת הסיסמה"}
+                onClick={() => setShowPassword((shown) => !shown)}
+              >
+                <EyeIcon open={!showPassword} />
+              </button>
+            </span>
+          </label>
+          {error && (
+            <p className="login-error" role="alert">
+              ⚠ {error}
+            </p>
+          )}
+          <button type="submit" className="login-submit" disabled={busy || !username.trim() || !password}>
+            {busy ? "נכנסת…" : "כניסה"}
+            {!busy && <span aria-hidden="true">←</span>}
+          </button>
+        </form>
+      </main>
+      <footer className="login-footer">משרד הבריאות · המעבדה המרכזית לנגיפים</footer>
+    </div>
   );
 }
 
