@@ -17,6 +17,7 @@ export function LoginPage() {
   const from = (useLocation().state as LoginRedirect | null)?.from ?? "/";
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -55,14 +56,27 @@ export function LoginPage() {
         </label>
         <label>
           סיסמה
-          <input
-            name="password"
-            type="password"
-            autoComplete="current-password"
-            required
-            value={password}
-            onChange={(event) => setPassword(event.target.value)}
-          />
+          {/* The eye shows the password as text, and hides it again. */}
+          <span className="login-password">
+            <input
+              name="password"
+              type={showPassword ? "text" : "password"}
+              autoComplete="current-password"
+              required
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+            />
+            <button
+              type="button"
+              className="login-eye"
+              aria-label={showPassword ? "הסתרת הסיסמה" : "הצגת הסיסמה"}
+              aria-pressed={showPassword}
+              title={showPassword ? "הסתרת הסיסמה" : "הצגת הסיסמה"}
+              onClick={() => setShowPassword((shown) => !shown)}
+            >
+              <EyeIcon open={!showPassword} />
+            </button>
+          </span>
         </label>
         {error && (
           <p className="login-error" role="alert">
@@ -74,5 +88,26 @@ export function LoginPage() {
         </button>
       </form>
     </main>
+  );
+}
+
+/** An open eye ("show"), or a crossed one ("hide"). */
+function EyeIcon({ open }: { open: boolean }) {
+  return (
+    <svg
+      width="20"
+      height="20"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z" />
+      <circle cx="12" cy="12" r="3" />
+      {!open && <path d="M3 3l18 18" />}
+    </svg>
   );
 }
