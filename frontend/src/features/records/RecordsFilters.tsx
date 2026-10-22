@@ -67,14 +67,25 @@ export function RecordsFilters({ filters, onChange }: Props) {
           ))}
         </select>
       </label>
-      <label>
-        מתאריך קבלה
-        <input type="date" value={filters.dateFrom} onChange={(e) => onChange({ dateFrom: e.target.value })} />
-      </label>
-      <label>
-        עד תאריך
-        <input type="date" value={filters.dateTo} onChange={(e) => onChange({ dateTo: e.target.value })} />
-      </label>
+      {/* One range field, so the two dates never end up on different rows. */}
+      <fieldset className="records-dates">
+        <legend>תאריך קבלה</legend>
+        <div className="records-dates-inputs">
+          <input
+            type="date"
+            aria-label="מתאריך קבלה"
+            value={filters.dateFrom}
+            onChange={(e) => onChange({ dateFrom: e.target.value })}
+          />
+          <span aria-hidden="true">–</span>
+          <input
+            type="date"
+            aria-label="עד תאריך קבלה"
+            value={filters.dateTo}
+            onChange={(e) => onChange({ dateTo: e.target.value })}
+          />
+        </div>
+      </fieldset>
     </form>
   );
 }

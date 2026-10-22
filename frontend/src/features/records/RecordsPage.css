@@ -178,6 +178,28 @@
   min-inline-size: 260px;
 }
 
+/* The received-date range: one title over "from – to". */
+.records-dates {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-inline-size: 0;
+}
+
+.records-dates legend {
+  padding: 0;
+  margin-block-end: 4px;
+  font-size: 0.9rem;
+  color: var(--color-text-muted, #52606d);
+}
+
+.records-dates-inputs {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--color-text-muted, #52606d);
+}
+
 .records-banner {
   display: flex;
   align-items: center;
