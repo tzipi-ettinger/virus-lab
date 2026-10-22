@@ -42,8 +42,9 @@
   text-align: center;
 }
 
+/* Rows wrap instead of scrolling sideways. */
 .review-scroll {
-  overflow-x: auto;
+  overflow-x: hidden;
 }
 
 .review-table {
@@ -86,10 +87,18 @@
   transition: background-color 0.12s ease;
 }
 
+/* The source takes two lines: the file name, then the page under it. */
+.review-table tbody th,
+.review-table .review-name {
+  white-space: normal;
+}
+
 .review-select {
-  display: inline-flex;
-  align-items: baseline;
-  gap: 6px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  overflow-wrap: anywhere;
   padding: 0;
   border: 0;
   background: none;
