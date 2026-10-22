@@ -34,14 +34,6 @@ export function RecordsFilters({ filters, onChange }: Props) {
           <option value="approved">מאושר</option>
         </select>
       </label>
-      <label className="records-check">
-        <input
-          type="checkbox"
-          checked={filters.needsReview}
-          onChange={(e) => onChange({ needsReview: e.target.checked })}
-        />
-        רק דורשות בדיקה
-      </label>
       <label className="records-filter-sender">
         גורם שולח
         <select value={filters.sender} onChange={(e) => onChange({ sender: e.target.value })}>
@@ -86,6 +78,14 @@ export function RecordsFilters({ filters, onChange }: Props) {
           />
         </div>
       </fieldset>
+      <label className="records-check">
+        <input
+          type="checkbox"
+          checked={filters.needsReview}
+          onChange={(e) => onChange({ needsReview: e.target.checked })}
+        />
+        רק דורשות בדיקה
+      </label>
     </form>
   );
 }
