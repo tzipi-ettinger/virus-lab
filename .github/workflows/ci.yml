@@ -46,7 +46,8 @@ jobs:
       - run: pip install -r requirements.txt
       - run: ruff check .
       - run: ruff format --check .
-      - run: python -m pytest
+      # Fails under fail_under in pyproject.toml.
+      - run: python -m pytest --cov
 
   frontend:
     runs-on: ubuntu-latest
@@ -63,7 +64,8 @@ jobs:
       - run: npm ci
       - run: npm run lint
       - run: npm run build
-      - run: npm test
+      # Fails under the thresholds in vite.config.ts.
+      - run: npm run test:coverage
 
   # openapi.json matches the backend code, and schema.d.ts matches openapi.json.
   contract:
