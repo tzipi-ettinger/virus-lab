@@ -83,12 +83,12 @@ export function RecordsTable({ items, sort, onSort }: Props) {
                 <td className="records-number">
                   <bdi>{r.commitment_number ?? "—"}</bdi>
                 </td>
-                <td className="records-number">
+                <td className="records-number records-centrals">
                   <bdi>{r.central_numbers.join(", ") || "—"}</bdi>
                 </td>
                 <td>{r.sender ?? "—"}</td>
                 <td>{FORM_TYPE_TEXT[r.form_type]}</td>
-                <td>{formatDate(r.received_date)}</td>
+                <td className="records-number">{formatDate(r.received_date)}</td>
                 <td>
                   <span className={`records-status is-${status.tone}`}>
                     <span aria-hidden="true">{status.icon}</span> {status.text}

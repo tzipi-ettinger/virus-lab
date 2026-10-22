@@ -204,12 +204,13 @@
   border-spacing: 0;
 }
 
+/* Text may wrap, so the table fits its card instead of scrolling sideways.
+   Single values (numbers, dates, the status) stay on one line. */
 .records-table th,
 .records-table td {
-  padding: 10px 14px;
+  padding: 10px clamp(8px, 1vw, 14px);
   text-align: start;
   border-block-end: 1px solid var(--color-border, #dde3e9);
-  white-space: nowrap;
 }
 
 /* The header stays on top while the list scrolls under it. */
@@ -240,10 +241,12 @@
   border-block-end: 0;
 }
 
+/* The name is how a row is found: it keeps one line, others wrap first. */
 .records-table td a {
   color: var(--color-accent-strong, #17588f);
   font-weight: 600;
   text-decoration: none;
+  white-space: nowrap;
 }
 
 .records-table tbody tr:hover td a {
@@ -252,6 +255,12 @@
 
 .records-number {
   font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* A list of numbers wraps between them, never inside one. */
+.records-centrals {
+  white-space: normal;
 }
 
 /* The status as a pill: icon, text and color together. */
@@ -262,6 +271,7 @@
   padding: 3px 12px;
   font-size: 0.8125rem;
   font-weight: 600;
+  white-space: nowrap;
   color: var(--color-accent-strong, #17588f);
   background: var(--color-accent-soft, #e7f1fa);
   border-radius: 999px;
