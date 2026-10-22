@@ -42,7 +42,7 @@ export function LandingPage() {
         <img className="landing-logo" src="/moh-logo.png" alt="משרד הבריאות" />
         <p className="landing-kicker">המעבדה המרכזית לנגיפים</p>
         <h1 className="landing-title">
-          מטופס סרוק
+          מטופס סרוק{" "}
           <br />
           <span className="landing-title-accent">לרשומה מאושרת</span>
         </h1>
