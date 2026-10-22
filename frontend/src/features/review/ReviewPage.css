@@ -187,7 +187,8 @@
   .review-page.is-review .review-scroll {
     flex: 1;
     min-block-size: 0;
-    overflow: auto;
+    overflow-x: hidden;
+    overflow-y: auto;
   }
 
   .review-page.is-review .review-table thead th {
