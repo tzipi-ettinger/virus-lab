@@ -33,6 +33,10 @@ const COLUMNS: { title: string; sort: SortColumn | null }[] = [
 
 const ARROW = { ascending: "▲", descending: "▼", none: "" };
 
+// Each cell carries its column's title: on a narrow screen a row turns into a
+// card, and the title shows above the value.
+const [NAME, ID, COMMITMENT, CENTRALS, SENDER, FORM, DATE, STATUS] = COLUMNS.map((c) => c.title);
+
 export function RecordsTable({ items, sort, onSort }: Props) {
   const navigate = useNavigate();
   const { search } = useLocation();
@@ -71,25 +75,25 @@ export function RecordsTable({ items, sort, onSort }: Props) {
             const name = [r.first_name, r.last_name].filter(Boolean).join(" ") || "ללא שם";
             return (
               <tr key={r.record_id} onClick={() => navigate(`/records/${r.record_id}`, { state: back })}>
-                <td>
+                <td data-label={NAME}>
                   {/* A real link too, for the keyboard and for opening in a new tab. */}
                   <Link to={`/records/${r.record_id}`} state={back} onClick={(e) => e.stopPropagation()}>
                     <bdi>{name}</bdi>
                   </Link>
                 </td>
-                <td className="records-number">
+                <td className="records-number" data-label={ID}>
                   <bdi>{r.national_id ?? "—"}</bdi>
                 </td>
-                <td className="records-number">
+                <td className="records-number" data-label={COMMITMENT}>
                   <bdi>{r.commitment_number ?? "—"}</bdi>
                 </td>
-                <td className="records-number records-centrals">
+                <td className="records-number records-centrals" data-label={CENTRALS}>
                   <bdi>{r.central_numbers.join(", ") || "—"}</bdi>
                 </td>
-                <td>{r.sender ?? "—"}</td>
-                <td>{FORM_TYPE_TEXT[r.form_type]}</td>
-                <td className="records-number">{formatDate(r.received_date)}</td>
-                <td>
+                <td data-label={SENDER}>{r.sender ?? "—"}</td>
+                <td data-label={FORM}>{FORM_TYPE_TEXT[r.form_type]}</td>
+                <td className="records-number" data-label={DATE}>{formatDate(r.received_date)}</td>
+                <td data-label={STATUS}>
                   <span className={`records-status is-${status.tone}`}>
                     <span aria-hidden="true">{status.icon}</span> {status.text}
                   </span>
