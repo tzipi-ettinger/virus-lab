@@ -148,7 +148,9 @@ def _gemini_provider(
 @lru_cache
 def _cached(provider: GeminiProvider) -> CachedProvider:
     # One per provider, so its hit and miss counts add up across requests.
-    return CachedProvider(provider, provider.fingerprint)
+    return CachedProvider(
+        provider, provider.fingerprint, name_fingerprint=provider.name_fingerprint
+    )
 
 
 def get_provider(settings: SettingsDep) -> ExtractionProvider:

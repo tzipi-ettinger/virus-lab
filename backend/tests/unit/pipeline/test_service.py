@@ -17,7 +17,7 @@ from app.pipeline.service import (
     UploadedFile,
     extract_files,
 )
-from app.schemas.extraction import RawExtraction, RawField
+from app.schemas.extraction import NamePart, NameReading, RawExtraction, RawField
 
 LIMITS = {"today": date(2026, 10, 19), "max_bytes": 20_000_000, "max_pages": 60}
 # An upright page with real values (Meuhedet; national ID read as 0011223344).
@@ -496,3 +496,48 @@ def test_no_progress_for_an_upload_over_the_page_limit():
         )
 
     assert seen == []
+
+
+class NameScript(PageScript):
+    """Reads crops too, the way Gemini does: every name comes back sure, up close."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.crops: list[PageImage] = []
+
+    async def read_name(self, crop: PageImage) -> NameReading:
+        self.crops.append(crop)
+        return NameReading(
+            first_name=NamePart(value="ישראל", status="found", evidence="שם פרטי"),
+            last_name=NamePart(value="ישראלי", status="found", evidence="שם משפחה"),
+        )
+
+
+def test_a_name_unclear_on_the_page_is_read_again_from_a_crop():
+    unclear = RawField(value=None, status="unclear", evidence="שם", box_2d=[300, 500, 320, 600])
+    provider = NameScript()
+    provider.readings[("forms.pdf", 1)] = UPRIGHT.model_copy(
+        update={"first_name": unclear, "last_name": unclear}
+    )
+
+    result = run([upload(1)], provider)
+
+    [page] = result.forms
+    first, last = page.form.fields.first_name, page.form.fields.last_name
+    assert (first.raw, first.model_status, last.raw, last.model_status) == (
+        "ישראל",
+        "found",
+        "ישראלי",
+        "found",
+    )
+    assert page.calls == 2  # the page, then the crop
+    assert len(provider.crops) == 1
+
+
+def test_a_page_with_no_name_on_it_costs_no_second_call():
+    provider = NameScript()  # UPRIGHT: its names are unclear, with no box to cut out
+
+    result = run([upload(1)], provider)
+
+    assert provider.crops == []
+    assert result.forms[0].calls == 1
