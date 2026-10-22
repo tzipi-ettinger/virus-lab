@@ -138,6 +138,42 @@
   margin-inline: auto;
 }
 
+/* Upload mode looks like the landing page: soft blue, turquoise and green light
+   behind the content, and the steps as a centered pill. */
+.layout:has(.review-page.is-upload) {
+  min-block-size: 100svh;
+  background:
+    radial-gradient(60rem 40rem at 105% -10%, rgb(14 165 198 / 0.16), transparent 60%),
+    radial-gradient(50rem 36rem at -10% 105%, rgb(156 195 59 / 0.18), transparent 60%),
+    var(--color-page, #f2f6fa);
+}
+
+.review-page.is-upload {
+  gap: 20px;
+  padding-block: 24px 40px;
+}
+
+.review-page.is-upload .review-page-head {
+  justify-content: center;
+}
+
+.review-page.is-upload .review-steps {
+  padding-block: 6px;
+  padding-inline: 8px 14px;
+  background: rgb(255 255 255 / 0.75);
+  border: 1px solid var(--color-border, #e1e8ef);
+  border-radius: 999px;
+}
+
+.review-page.is-upload .review-steps li + li::before {
+  inline-size: 36px;
+  background: linear-gradient(90deg, var(--color-border-strong, #a9bccf), var(--color-brand-teal, #0ea5c6));
+}
+
+.review-page.is-upload .review-page-switch {
+  margin-inline-start: 0;
+}
+
 .review-page-work {
   display: grid;
   grid-template-columns: minmax(0, 2fr) minmax(360px, 3fr);
