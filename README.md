@@ -163,6 +163,7 @@ npm run dev
 # backend/ (pytest צריך את ה־Postgres מ־docker compose)
 .\.venv\Scripts\python.exe -m ruff check .
 .\.venv\Scripts\python.exe -m ruff format --check .
+.\.venv\Scripts\python.exe -m mypy                    # טיפוסים, הגדרות ב־pyproject.toml
 .\.venv\Scripts\python.exe -m pytest
 .\.venv\Scripts\python.exe -m scripts.export_openapi --check   # אחרי שינוי בחוזה: בלי --check, ואז npm run gen:api
 
