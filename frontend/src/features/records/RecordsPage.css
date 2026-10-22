@@ -468,9 +468,21 @@
 .record-actions {
   display: flex;
   flex-wrap: wrap;
-  align-items: flex-start;
+  align-items: center;
   gap: 8px;
   margin-inline-start: auto;
+}
+
+/* What blocks approval sits on one line beside the button, not squeezed under it. */
+.record-actions .review-approve {
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+}
+
+.record-actions .review-blocking {
+  max-inline-size: none;
 }
 
 .record-page .record-actions button {
