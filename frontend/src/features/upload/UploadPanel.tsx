@@ -135,7 +135,7 @@ export function UploadPanel({ onResult, onBusyChange }: UploadPanelProps) {
   const interrupted = items.some((i) => i.status === "interrupted");
 
   return (
-    <section className="upload" aria-labelledby="upload-title">
+    <section className={items.length > 0 ? "upload has-files" : "upload"} aria-labelledby="upload-title">
       <div className="upload-hero">
         <h2 id="upload-title" className="upload-title">
           העלאת <span className="upload-title-accent">טפסי התחייבות</span>

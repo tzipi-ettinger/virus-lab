@@ -47,5 +47,7 @@ test("tips show before any file, then the file's row shows its kind", async () =
   });
 
   expect(container.querySelector(".upload-tips")).toBeNull();
+  // The drop zone shrinks to a short row so the files fit the screen.
+  expect(container.querySelector(".upload.has-files")).not.toBeNull();
   expect(container.querySelector(".upload-item .upload-name-kind")!.textContent).toBe("JPG");
 });
