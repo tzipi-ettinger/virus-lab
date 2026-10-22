@@ -15,6 +15,7 @@ import { useFieldFocus } from "../preview/useFieldFocus";
 import { Skeleton } from "../../shared/ui/Skeleton";
 import { ApproveButton } from "../review/ApproveButton";
 import { DeleteButton } from "../review/DeleteButton";
+import { DuplicateNotice } from "../review/DuplicateNotice";
 import { FieldCell } from "../review/FieldCell";
 import { keepCentrals, useRecordMutations, type FieldEdit, type Saved } from "../review/recordMutations";
 import { FIELD_COLUMNS, FORM_TYPE_TEXT } from "../review/reviewRows";
@@ -194,6 +195,8 @@ function RecordDetails({ record, backLink, back, onRecord }: DetailsProps) {
             ))}
           </ul>
         )}
+
+        <DuplicateNotice record={record} />
 
         <div className="record-card">
           <table className="records-table record-fields" {...areaProps}>

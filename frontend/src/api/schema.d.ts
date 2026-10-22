@@ -338,6 +338,24 @@ export interface components {
             /** Skipped */
             skipped: components["schemas"]["SkippedRecord"][];
         };
+        /**
+         * DuplicateOf
+         * @description An earlier record with the same commitment number and the same central numbers.
+         */
+        DuplicateOf: {
+            /** Record Id */
+            record_id: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Created By
+             * @description Who saved it, by display name.
+             */
+            created_by: string;
+        };
         /** ErrorInfo */
         ErrorInfo: {
             /**
@@ -493,6 +511,11 @@ export interface components {
             severity: "info" | "warning" | "error";
             /** Message */
             message: string;
+            /**
+             * Duplicate Of
+             * @description DUPLICATE_RECORD only: every earlier record that is the same, oldest first.
+             */
+            duplicate_of?: components["schemas"]["DuplicateOf"][] | null;
         };
         /** ListItemEdit */
         ListItemEdit: {

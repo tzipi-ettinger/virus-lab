@@ -1,0 +1,31 @@
+/* "Already in the history": the warning colors of the other issues.
+   Owner: B */
+
+.duplicate-notice {
+  padding: 8px 14px;
+  color: var(--color-warning, #8a5300);
+  background: var(--color-warning-soft, #fff4db);
+  border: 1px solid var(--color-warning-border, #d9a514);
+  border-radius: var(--radius-md, 8px);
+  font-size: 0.9rem;
+}
+
+.duplicate-notice-title {
+  margin: 0;
+  font-weight: 600;
+}
+
+.duplicate-notice-list {
+  margin: 4px 0 0;
+  padding-inline-start: 18px;
+}
+
+.duplicate-notice-list a {
+  color: var(--color-accent-strong, #17588f);
+  font-weight: 600;
+}
+
+.duplicate-notice-list a:focus-visible {
+  outline: 2px solid var(--color-focus, #1d4ed8);
+  outline-offset: 2px;
+}

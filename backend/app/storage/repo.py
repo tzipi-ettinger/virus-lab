@@ -26,13 +26,26 @@ async def lock_commitments(conn: AsyncConnection, numbers: list[str]) -> None:
         )
 
 
-async def existing_commitments(conn: AsyncConnection, numbers: list[str]) -> set[str]:
+async def same_records(
+    conn: AsyncConnection,
+    commitment_number: str,
+    central_values: list[str],
+    *,
+    except_id: str | None = None,
+) -> list[dict]:
+    """Other records with this commitment number and the same central numbers in any
+    order (A4), with who saved each and when, oldest first. Two empty lists are the same."""
     async with conn.cursor(row_factory=dict_row) as cur:
         await cur.execute(
-            "SELECT DISTINCT commitment_number FROM record WHERE commitment_number = ANY(%s)",
-            (list(numbers),),
+            "SELECT r.id AS record_id, r.created_at, u.display_name AS created_by"
+            "  FROM record r JOIN users u ON u.id = r.created_by"
+            " WHERE r.commitment_number = %s"
+            "   AND r.central_values @> %s::text[] AND r.central_values <@ %s::text[]"
+            "   AND r.id IS DISTINCT FROM %s"
+            " ORDER BY r.created_at, r.id",
+            (commitment_number, central_values, central_values, except_id),
         )
-        return {row["commitment_number"] for row in await cur.fetchall()}
+        return await cur.fetchall()
 
 
 async def insert_page(
@@ -339,17 +352,6 @@ async def insert_export_log(
         "INSERT INTO export_log (at, user_id, format, record_count) VALUES (%s, %s, %s, %s)",
         (now, user_id, export_format, record_count),
     )
-
-
-async def commitment_taken(conn: AsyncConnection, number: str, *, except_id: str) -> bool:
-    """Whether another record already has this commitment number (A4)."""
-    async with conn.cursor(row_factory=dict_row) as cur:
-        await cur.execute(
-            "SELECT EXISTS (SELECT 1 FROM record WHERE commitment_number = %s AND id <> %s)"
-            " AS taken",
-            (number, except_id),
-        )
-        return (await cur.fetchone())["taken"]
 
 
 # --- Changing records. The caller holds the row lock and has checked version and status.
