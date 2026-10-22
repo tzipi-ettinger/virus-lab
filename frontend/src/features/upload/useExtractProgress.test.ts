@@ -1,24 +1,28 @@
 // @vitest-environment jsdom
-// "8 of 26 pages read" while a file is being sent.
+// "8 of 26 pages read" while the server reads a file in the background, and what
+// happens when the job can't be asked for.
 // Owner: A
 
 import { act, cleanup, renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import {
   EXTRACT_URL,
-  PROGRESS_POLL_MS,
+  MAX_MISSED_POLLS,
+  POLL_MS,
   addFiles,
+  jobUrl,
   progressText,
-  progressUrl,
-  readProgress,
   sendFile,
   uploadReducer,
   useExtract,
+  type ExtractJob,
   type ExtractResponse,
+  type Progress,
 } from "./useExtract";
 
 const pdf = (name = "a.pdf") => new File(["%PDF"], name, { type: "application/pdf" });
 const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status });
+const noWait = async () => {};
 
 const DONE: ExtractResponse = {
   files: [{ file_id: "f1", filename: "a.pdf", page_count: 5, status: "ok", error: null }],
@@ -26,6 +30,29 @@ const DONE: ExtractResponse = {
   failed_pages: [],
   quota_exhausted: false,
 };
+
+const job = (over: Partial<ExtractJob> = {}): ExtractJob => ({
+  job_id: "job-1",
+  status: "running",
+  done: 0,
+  total: 0,
+  result: null,
+  problem: null,
+  ...over,
+});
+
+// The POST answers 202, then each GET gives the next answer in `polls`.
+function server(...polls: (() => Response | Promise<Response>)[]) {
+  const gets: string[] = [];
+  const fetchImpl = (async (url: string, init?: RequestInit) => {
+    if (init?.method === "POST") return json(job(), 202);
+    gets.push(url);
+    const next = polls.shift();
+    if (!next) throw new Error("asked once too often");
+    return next();
+  }) as typeof fetch;
+  return { fetchImpl, gets };
+}
 
 afterEach(() => {
   cleanup();
@@ -45,33 +72,47 @@ describe("progressText", () => {
   });
 });
 
-describe("readProgress", () => {
-  test("asks for the upload by its id", async () => {
-    const fetchImpl = vi.fn(async () => json({ done: 2, total: 5 }));
-    expect(await readProgress("upload-1234", fetchImpl as typeof fetch)).toEqual({ done: 2, total: 5 });
-    expect(fetchImpl).toHaveBeenCalledWith(progressUrl("upload-1234"));
+describe("following the job", () => {
+  test("reports each count until the job is done", async () => {
+    const { fetchImpl, gets } = server(
+      () => json(job({ done: 1, total: 5 })),
+      () => json(job({ done: 4, total: 5 })),
+      () => json(job({ status: "done", done: 5, total: 5, result: DONE })),
+    );
+    const seen: Progress[] = [];
+
+    const outcome = await sendFile(pdf(), { fetchImpl, wait: noWait, onProgress: (p) => seen.push(p) });
+
+    expect(outcome).toEqual({ kind: "done", result: DONE });
+    expect(gets).toEqual([jobUrl("job-1"), jobUrl("job-1"), jobUrl("job-1")]);
+    expect(seen).toEqual([
+      { done: 0, total: 0 },
+      { done: 1, total: 5 },
+      { done: 4, total: 5 },
+    ]);
   });
 
-  test("anything but a count is nothing to show, never an error", async () => {
-    const answers = [
-      async () => json({ type: "upload_not_found" }, 404),
-      async () => json({ done: "2" }),
-      async () => new Response("<html>", { status: 200 }),
-      async () => {
-        throw new TypeError("offline");
-      },
-    ];
-    for (const answer of answers) {
-      expect(await readProgress("upload-1234", answer as typeof fetch)).toBeNull();
+  test("a job the server forgot (a restart) or a session that ended is interrupted", async () => {
+    for (const status of [404, 401]) {
+      const { fetchImpl } = server(() => json({ type: "x", title: "x", status }, status));
+      expect((await sendFile(pdf(), { fetchImpl, wait: noWait })).kind).toBe("interrupted");
     }
   });
-});
 
-describe("sendFile", () => {
-  test("names the upload in X-Upload-Id when given one", async () => {
-    const fetchImpl = vi.fn(async (_url: string, _init?: RequestInit) => json(DONE));
-    await sendFile(pdf(), fetchImpl as unknown as typeof fetch, "upload-1234");
-    expect(fetchImpl.mock.calls[0][1]?.headers).toEqual({ "X-Upload-Id": "upload-1234" });
+  test("a moment offline is asked again, not given up", async () => {
+    const { fetchImpl } = server(
+      () => Promise.reject(new TypeError("offline")),
+      () => json({ type: "x" }, 502),
+      () => json(job({ status: "done", result: DONE })),
+    );
+    expect((await sendFile(pdf(), { fetchImpl, wait: noWait })).kind).toBe("done");
+  });
+
+  test("offline for too long is interrupted", async () => {
+    const offline = Array.from({ length: MAX_MISSED_POLLS }, () => () => Promise.reject(new TypeError("offline")));
+    const { fetchImpl, gets } = server(...offline);
+    expect((await sendFile(pdf(), { fetchImpl, wait: noWait })).kind).toBe("interrupted");
+    expect(gets).toHaveLength(MAX_MISSED_POLLS);
   });
 });
 
@@ -79,7 +120,7 @@ describe("uploadReducer", () => {
   test("progress shows only on the file being sent", () => {
     const [item] = uploadReducer([], addFiles([pdf()]));
     const progress = { done: 3, total: 9 };
-    const sending = uploadReducer([item], { type: "start", key: item.key, at: 1 });
+    const sending = uploadReducer([item], { type: "start", key: item.key });
     expect(uploadReducer(sending, { type: "progress", key: item.key, progress })[0].progress).toEqual(progress);
     // A late answer, after the file finished, is dropped.
     const done = uploadReducer(sending, { type: "finish", key: item.key, outcome: { kind: "done", result: DONE } });
@@ -89,7 +130,7 @@ describe("uploadReducer", () => {
   test("sending again starts the count over", () => {
     const [item] = uploadReducer([], addFiles([pdf()]));
     const counted = [{ ...item, status: "sending" as const, progress: { done: 4, total: 9 } }];
-    expect(uploadReducer(counted, { type: "start", key: item.key, at: 2 })[0].progress).toBeUndefined();
+    expect(uploadReducer(counted, { type: "start", key: item.key })[0].progress).toBeUndefined();
   });
 });
 
@@ -98,35 +139,28 @@ describe("useExtract", () => {
     vi.useFakeTimers();
   });
 
-  test("asks for the progress of the file being sent, and stops when it is answered", async () => {
-    let answer: (response: Response) => void = () => {};
-    let sentId: string | undefined;
-    const progressCalls: string[] = [];
-    vi.stubGlobal("fetch", (url: string, init?: RequestInit) => {
-      if (url === EXTRACT_URL) {
-        sentId = (init?.headers as Record<string, string> | undefined)?.["X-Upload-Id"];
-        return new Promise<Response>((resolve) => (answer = resolve));
-      }
-      progressCalls.push(url);
-      return Promise.resolve(json({ done: 2, total: 5 }));
+  test("shows the count while the job runs, and the result when it is done", async () => {
+    let finished = false;
+    const results: ExtractResponse[] = [];
+    vi.stubGlobal("fetch", async (url: string, init?: RequestInit) => {
+      if (url === EXTRACT_URL && init?.method === "POST") return json(job(), 202);
+      return json(finished ? job({ status: "done", done: 5, total: 5, result: DONE }) : job({ done: 2, total: 5 }));
     });
-    const { result } = renderHook(() => useExtract(() => {}));
+    const { result } = renderHook(() => useExtract((r) => results.push(r)));
 
     act(() => result.current.add([pdf()]));
     await act(async () => {
-      await vi.advanceTimersByTimeAsync(PROGRESS_POLL_MS);
+      await vi.advanceTimersByTimeAsync(POLL_MS);
     });
 
-    expect(sentId).toBeTruthy();
-    expect(progressCalls).toEqual([progressUrl(sentId!)]);
-    expect(result.current.items[0].progress).toEqual({ done: 2, total: 5 });
+    expect(result.current.items[0]).toMatchObject({ status: "sending", progress: { done: 2, total: 5 } });
 
-    await act(async () => answer(json(DONE)));
+    finished = true;
     await act(async () => {
-      await vi.advanceTimersByTimeAsync(PROGRESS_POLL_MS * 3);
+      await vi.advanceTimersByTimeAsync(POLL_MS);
     });
 
     expect(result.current.items[0].status).toBe("done");
-    expect(progressCalls).toHaveLength(1);
+    expect(results).toEqual([DONE]);
   });
 });

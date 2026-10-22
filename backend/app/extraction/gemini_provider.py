@@ -11,8 +11,9 @@ retries are few and deliberate:
 - too many requests this minute (429) -> one retry after the delay Gemini asks for,
   if it is short, else the next key;
 - 500 / 502 / 503 / 504, or no connection at all -> one retry after a pause;
-- anything else (a bad request, a timeout, an answer that doesn't fit the schema,
-  any other error from the client) -> ProviderError, no retry.
+- anything else (a bad request, an answer that doesn't fit the schema, any other
+  error from the client) -> ProviderError, no retry.
+A call has no time limit: a slow page is waited for, never stopped (22.10).
 The client's own retries are off (google-genai's default), so a call is never
 repeated behind our back.
 
@@ -60,7 +61,6 @@ REFUSED_KEY_REST = timedelta(hours=1)
 QUOTA_MESSAGE = "המכסה היומית של Gemini נגמרה. אפשר לנסות שוב מחר"
 RATE_MESSAGE = "יותר מדי בקשות ל־Gemini בדקה האחרונה. אפשר לנסות שוב בעוד דקה"
 UNAVAILABLE_MESSAGE = "שירות Gemini לא זמין כרגע. אפשר לנסות שוב"
-TIMEOUT_MESSAGE = "Gemini לא ענה בזמן. אפשר לנסות שוב"
 BAD_ANSWER_MESSAGE = "התשובה של Gemini לא הייתה תקינה. אפשר לנסות שוב"
 FAILED_MESSAGE = "הפנייה ל־Gemini נכשלה"
 # Every key refused: nothing the user can do but tell whoever runs the server.
@@ -80,7 +80,6 @@ class GeminiProvider:
         model: str,
         *,
         max_concurrency: int,
-        timeout_s: float,
         prompt: str | None = None,
         name_prompt: str | None = None,
         sleep: Callable[[float], Awaitable[None]] = asyncio.sleep,
@@ -96,7 +95,6 @@ class GeminiProvider:
         self._resting: dict[int, tuple[datetime, _KeyFailure]] = {}
         self._now = now  # tests pass a fake clock
         self._model = model
-        self._timeout_s = timeout_s
         self._prompt = prompt if prompt is not None else load_prompt()
         self._name_prompt = (
             name_prompt if name_prompt is not None else load_prompt(NAME_PROMPT_FILE)
@@ -131,7 +129,8 @@ class GeminiProvider:
     def name_fingerprint(self) -> str:
         """The same for read_name: its own prompt and schema, and the deep look's
         thinking level (CachedProvider keeps the two looks apart)."""
-        deep = self._name_deep_config.thinking_config.thinking_level
+        thinking = self._name_deep_config.thinking_config
+        deep = thinking.thinking_level if thinking else None
         base = self._fingerprint(self._name_config, self._name_prompt, NameReading)
         return f"{base}\ndeep: {deep}"
 
@@ -139,7 +138,7 @@ class GeminiProvider:
         self, config: types.GenerateContentConfig, prompt: str, schema: type[BaseModel]
     ) -> str:
         schema_json = json.dumps(schema.model_json_schema(), sort_keys=True)
-        thinking = config.thinking_config.thinking_level
+        thinking = config.thinking_config.thinking_level if config.thinking_config else None
         resolution = config.media_resolution
         return "\n".join((self._model, str(thinking), str(resolution), prompt, schema_json))
 
@@ -220,14 +219,9 @@ class GeminiProvider:
         config: types.GenerateContentConfig,
         schema: type[T],
     ) -> T:
-        try:
-            async with asyncio.timeout(self._timeout_s):
-                response = await client.aio.models.generate_content(
-                    model=self._model, contents=contents, config=config
-                )
-        except TimeoutError:
-            logger.warning("gemini timed out after %ss", self._timeout_s)
-            raise ProviderError(TIMEOUT_MESSAGE) from None
+        response = await client.aio.models.generate_content(
+            model=self._model, contents=contents, config=config
+        )
         if not response.text:  # blocked, or no candidate
             logger.warning("gemini returned no text")
             raise ProviderError(BAD_ANSWER_MESSAGE)

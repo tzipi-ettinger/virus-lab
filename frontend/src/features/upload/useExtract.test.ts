@@ -12,8 +12,10 @@ import {
   SIGNED_OUT,
   addFiles,
   classify,
+  jobUrl,
   sendFile,
   uploadReducer,
+  type ExtractJob,
   type ExtractResponse,
   type UploadItem,
 } from "./useExtract";
@@ -102,43 +104,80 @@ describe("classify", () => {
   });
 });
 
+const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status });
+const job = (over: Partial<ExtractJob> = {}): ExtractJob => ({
+  job_id: "job-1",
+  status: "running",
+  done: 0,
+  total: 0,
+  result: null,
+  problem: null,
+  ...over,
+});
+const noWait = async () => {};
+
 describe("sendFile", () => {
-  test("posts one file as multipart 'files' to the relative URL", async () => {
-    let url = "";
+  test("posts one file as multipart 'files' to the relative URL, then asks for its job", async () => {
+    const calls: string[] = [];
     let body: FormData | undefined;
     const fake = (async (u: string, init?: RequestInit) => {
-      url = u;
-      body = init?.body as FormData;
-      return new Response(JSON.stringify(response()), { status: 200 });
+      calls.push(`${init?.method ?? "GET"} ${u}`);
+      if (init?.method === "POST") {
+        body = init.body as FormData;
+        return json(job(), 202);
+      }
+      return json(job({ status: "done", done: 2, total: 2, result: response() }));
     }) as typeof fetch;
-    const outcome = await sendFile(pdf(), fake);
-    expect(url).toBe(EXTRACT_URL);
+    const outcome = await sendFile(pdf(), { fetchImpl: fake, wait: noWait });
+    expect(calls).toEqual([`POST ${EXTRACT_URL}`, `GET ${jobUrl("job-1")}`]);
     expect(body?.getAll("files")).toHaveLength(1);
     expect(outcome.kind).toBe("done");
+  });
+
+  test("a job that failed is classified like the answer it stands for", async () => {
+    const quota = { type: "quota_exhausted", title: "נגמרה המכסה", status: 503 };
+    const stopped = { type: "extraction_stopped", title: "הקריאה נעצרה באמצע", status: 500 };
+    const fake = (problem: typeof quota) =>
+      (async (_u: string, init?: RequestInit) =>
+        init?.method === "POST" ? json(job(), 202) : json(job({ status: "failed", problem }))) as typeof fetch;
+    expect((await sendFile(pdf(), { fetchImpl: fake(quota), wait: noWait })).kind).toBe("quota");
+    // Some forms may be saved: never offered again.
+    expect((await sendFile(pdf(), { fetchImpl: fake(stopped), wait: noWait })).kind).toBe("interrupted");
   });
 
   test("a network error is interrupted", async () => {
     const fake = (async () => {
       throw new TypeError("Failed to fetch");
     }) as typeof fetch;
-    expect((await sendFile(pdf(), fake)).kind).toBe("interrupted");
+    expect((await sendFile(pdf(), { fetchImpl: fake })).kind).toBe("interrupted");
   });
 
-  test("a 200 that is not JSON is interrupted", async () => {
-    const fake = (async () => new Response("<html>", { status: 200 })) as typeof fetch;
-    expect((await sendFile(pdf(), fake)).kind).toBe("interrupted");
+  test("a 2xx that is not JSON is interrupted", async () => {
+    const fake = (async () => new Response("<html>", { status: 202 })) as typeof fetch;
+    expect((await sendFile(pdf(), { fetchImpl: fake })).kind).toBe("interrupted");
   });
 
-  test("a 200 that is JSON of another shape is interrupted, not a stuck queue", async () => {
+  test("a 202 that is JSON of another shape is interrupted, not a stuck queue", async () => {
+    const fake = (async () => new Response('{"ok": true}', { status: 202 })) as typeof fetch;
+    expect((await sendFile(pdf(), { fetchImpl: fake })).kind).toBe("interrupted");
+  });
+
+  test("a 200 that is JSON of another shape is interrupted", async () => {
     // Before: classify threw, the promise rejected, and the queue never moved on.
     const fake = (async () => new Response('{"ok": true}', { status: 200 })) as typeof fetch;
-    expect((await sendFile(pdf(), fake)).kind).toBe("interrupted");
+    expect((await sendFile(pdf(), { fetchImpl: fake })).kind).toBe("interrupted");
   });
 
   test("401 is signed_out", async () => {
     const fake = (async () =>
       new Response('{"type": "unauthorized", "title": "x", "status": 401}', { status: 401 })) as typeof fetch;
-    expect((await sendFile(pdf(), fake)).kind).toBe("signed_out");
+    expect((await sendFile(pdf(), { fetchImpl: fake })).kind).toBe("signed_out");
+  });
+
+  test("503 too_many_uploads can be sent again: nothing was read", async () => {
+    const busy = { type: "too_many_uploads", title: "יש כרגע הרבה העלאות שנקראות", status: 503 };
+    const fake = (async () => json(busy, 503)) as typeof fetch;
+    expect(await sendFile(pdf(), { fetchImpl: fake })).toMatchObject({ kind: "failed", canRetry: true });
   });
 });
 
@@ -155,10 +194,10 @@ describe("uploadReducer", () => {
     expect(item).toMatchObject({ status: "failed", canRetry: false });
   });
 
-  test("start records when the request went out", () => {
+  test("start marks the file as being sent", () => {
     let items = queued("a.pdf");
-    items = uploadReducer(items, { type: "start", key: items[0].key, at: 1000 });
-    expect(items[0]).toMatchObject({ status: "sending", startedAt: 1000 });
+    items = uploadReducer(items, { type: "start", key: items[0].key });
+    expect(items[0]).toMatchObject({ status: "sending" });
   });
 
   test("interrupted stops the queue: the waiting files are not sent and can be sent again", () => {
@@ -173,7 +212,7 @@ describe("uploadReducer", () => {
 
   test("partial: the file is not offered again, and the files still waiting are not sent", () => {
     let items = queued("a.pdf", "b.pdf", "c.pdf");
-    items = uploadReducer(items, { type: "start", key: items[0].key, at: 0 });
+    items = uploadReducer(items, { type: "start", key: items[0].key });
     items = uploadReducer(items, { type: "finish", key: items[0].key, outcome: { kind: "partial", result: response({ quota_exhausted: true }) } });
     expect(items.map((i) => [i.status, i.canRetry])).toEqual([
       ["partial", false],
@@ -186,7 +225,7 @@ describe("uploadReducer", () => {
 
   test("503 quota: this file and the waiting ones can be sent again", () => {
     let items = queued("a.pdf", "b.pdf");
-    items = uploadReducer(items, { type: "start", key: items[0].key, at: 0 });
+    items = uploadReducer(items, { type: "start", key: items[0].key });
     items = uploadReducer(items, { type: "finish", key: items[0].key, outcome: { kind: "quota", message: "נגמרה המכסה" } });
     expect(items.map((i) => [i.status, i.canRetry])).toEqual([
       ["not_sent", true],
@@ -203,7 +242,7 @@ describe("uploadReducer", () => {
 
   test("an ended session stops the queue: this file and the waiting ones can be sent again", () => {
     let items = queued("a.pdf", "b.pdf");
-    items = uploadReducer(items, { type: "start", key: items[0].key, at: 0 });
+    items = uploadReducer(items, { type: "start", key: items[0].key });
     items = uploadReducer(items, { type: "finish", key: items[0].key, outcome: { kind: "signed_out" } });
     expect(items.map((i) => [i.status, i.canRetry, i.message])).toEqual([
       ["not_sent", true, SIGNED_OUT],

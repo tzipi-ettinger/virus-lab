@@ -98,7 +98,7 @@
   flex-direction: column;
   align-items: flex-start;
   gap: 2px;
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
   padding: 0;
   border: 0;
   background: none;
@@ -473,5 +473,18 @@
 @media (prefers-reduced-motion: reduce) {
   .review-approve button.is-ready:not(:disabled) {
     animation: none;
+  }
+}
+
+/* The list is a container, so a narrow list (beside a wide record) drops the ID
+   column instead of breaking the file name letter by letter. The ID is in the
+   record panel too. */
+.review {
+  container: review-list / inline-size;
+}
+
+@container review-list (max-width: 380px) {
+  .review-table tr > :nth-child(3) {
+    display: none;
   }
 }

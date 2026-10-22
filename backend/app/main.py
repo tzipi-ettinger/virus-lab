@@ -7,6 +7,7 @@ import logging
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from pathlib import Path
+from typing import Any
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -14,6 +15,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.api import auth, extract, health, records
 from app.api.errors import add_problem_handler
 from app.keep_alive import start_keep_alive, stop_keep_alive
+from app.pipeline.jobs import ExtractJobs
 from app.security import (
     HideUnexpectedErrors,
     SecurityHeaders,
@@ -40,6 +42,8 @@ def _lifespan(settings: Settings):
             yield
         finally:
             await stop_keep_alive(keep_alive)
+            # Before the pool closes: a job still running saves through it.
+            await app.state.jobs.shutdown()
             if app.state.pool is not None:
                 await app.state.pool.close()
 
@@ -58,13 +62,14 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         )
     # The live server doesn't describe its API to strangers: no /docs, /redoc or
     # /openapi.json. scripts/export_openapi still builds the contract from the code.
-    hidden = {"docs_url": None, "redoc_url": None, "openapi_url": None}
+    hidden: dict[str, Any] = {"docs_url": None, "redoc_url": None, "openapi_url": None}
     app = FastAPI(
         title="virus-lab",
         lifespan=_lifespan(settings),
         **(hidden if settings.production else {}),
     )
     app.state.pool = None  # until the lifespan opens it
+    app.state.jobs = ExtractJobs()  # uploads read in the background (extract.py)
     app.add_middleware(
         CORSMiddleware,
         allow_origins=[settings.frontend_origin],

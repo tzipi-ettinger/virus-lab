@@ -124,7 +124,6 @@ def provider(clients, sleep=None, **kwargs):
     clients = clients if isinstance(clients, list) else [clients]
     options = {
         "max_concurrency": 4,
-        "timeout_s": 60,
         "prompt": "PROMPT",
         "name_prompt": "NAME PROMPT",
         **kwargs,
@@ -503,13 +502,12 @@ def test_a_bad_request_or_key_is_not_retried(code, status, message):
     assert len(client.calls) == 1
 
 
-def test_a_slow_answer_times_out_without_a_retry():
-    client = FakeClient(ANSWER, delay=1.0)
+def test_a_slow_answer_is_waited_for():
+    # No time limit: a page that takes long is read, not failed (22.10).
+    client = FakeClient(ANSWER, delay=0.3)
 
-    with pytest.raises(ProviderError) as error:
-        run(provider(client, timeout_s=0.05).extract(PAGE))
+    run(provider(client).extract(PAGE))
 
-    assert error.value.message == gemini_provider.TIMEOUT_MESSAGE
     assert len(client.calls) == 1
 
 
@@ -554,7 +552,7 @@ def test_the_fingerprint_changes_with_the_model_or_the_prompt():
     assert provider(FakeClient(ANSWER)).fingerprint == base  # stable, so the cache hits
     assert provider(FakeClient(ANSWER), prompt="PROMPT v5").fingerprint != base
     other_model = GeminiProvider(
-        [FakeClient(ANSWER)], "gemini-other", max_concurrency=1, timeout_s=60, prompt="PROMPT"
+        [FakeClient(ANSWER)], "gemini-other", max_concurrency=1, prompt="PROMPT"
     )
     assert other_model.fingerprint != base
 

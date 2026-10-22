@@ -37,6 +37,7 @@ Owner: A
 
 import logging
 from dataclasses import replace
+from typing import TypeGuard
 
 from app.extraction.provider import ExtractionProvider, NameReader, ProviderError, QuotaExhausted
 from app.pipeline.assemble import form_id
@@ -196,7 +197,7 @@ def _plain(text: str) -> str:
     return text.translate(_FINALS)
 
 
-def _is_box(box: list[int] | None) -> bool:
+def _is_box(box: list[int] | None) -> TypeGuard[list[int]]:
     if box is None or len(box) != 4:
         return False
     top, left, bottom, right = box

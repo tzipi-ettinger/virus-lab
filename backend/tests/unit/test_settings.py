@@ -100,8 +100,3 @@ def test_a_blank_key_counts_as_missing():
         Settings(_env_file=None, extraction_provider="gemini", gemini_api_key=" ", gemini_model="m")
 
     assert "GEMINI_API_KEY" in str(error.value)
-
-
-def test_a_slow_gemini_call_has_three_minutes():
-    # On the live server one page took over a minute (21.10), and 60s failed it.
-    assert Settings(_env_file=None).provider_timeout_s == 180

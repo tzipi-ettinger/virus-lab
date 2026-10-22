@@ -37,9 +37,11 @@ def main(
         return 1
     with psycopg.connect(url, autocommit=True) as conn:
         host = conn.info.host
-        pages, records = conn.execute(
+        counted = conn.execute(
             "SELECT (SELECT count(*) FROM page), (SELECT count(*) FROM record)"
         ).fetchone()
+        assert counted is not None  # a SELECT without FROM always returns a row
+        pages, records = counted
         if not args.yes:
             print(f"{pages} pages and {records} records on {host}.")
             if ask(f'Type "{CONFIRM}" to delete all of them: ').strip() != CONFIRM:
