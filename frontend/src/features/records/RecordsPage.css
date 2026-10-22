@@ -161,6 +161,55 @@
   inset-block-start: 16px;
 }
 
+/* On a wide screen the record fits the window, nothing to scroll: the page is as high
+   as what is left under the top bar, the details are packed, and the original page
+   is shown whole in the rest of the height (zoom in to read it closer). */
+@media (min-width: 901px) {
+  .layout:has(.record-page) {
+    display: flex;
+    flex-direction: column;
+    block-size: 100svh;
+  }
+
+  .layout:has(.record-page) .layout-bar {
+    padding-block: 8px;
+  }
+
+  .layout:has(.record-page) .layout-main {
+    flex: 1;
+    min-block-size: 0;
+  }
+
+  .record-page {
+    block-size: 100%;
+    box-sizing: border-box;
+    grid-template-rows: minmax(0, 1fr);
+    align-items: stretch;
+    gap: 16px;
+    padding-block: 12px;
+  }
+
+  .record-page > .preview {
+    position: static;
+    min-block-size: 0;
+    gap: 8px;
+    padding: 12px 16px;
+  }
+
+  .record-page .preview-frame {
+    flex: 1;
+    block-size: auto;
+    min-block-size: 0;
+    max-block-size: none;
+  }
+
+  /* Only a very short window scrolls the details, and then inside their own column. */
+  .record-main {
+    min-block-size: 0;
+    overflow-y: auto;
+  }
+}
+
 @media (max-width: 900px) {
   .record-page {
     grid-template-columns: minmax(0, 1fr);
@@ -171,49 +220,180 @@
   }
 }
 
+.record-page .preview-title {
+  font-size: 1rem;
+}
+
+.record-page .preview-source,
+.record-page .preview-highlight {
+  font-size: 0.8125rem;
+}
+
+.record-page .preview-button {
+  min-block-size: 28px;
+  font-size: 0.8125rem;
+}
+
 .record-main {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 10px;
+  font-size: 0.875rem;
 }
 
 .record-back {
+  align-self: flex-start;
   color: var(--color-accent-strong, #08515a);
+  text-decoration: none;
+}
+
+.record-back:hover {
+  text-decoration: underline;
+}
+
+/* The record at a glance: name, status and actions, then where it came from. */
+.record-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 16px;
+  background: var(--color-surface, #fff);
+  border: 1px solid var(--color-border, #dde3e9);
+  border-radius: var(--radius-lg, 12px);
+}
+
+.record-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 14px;
+}
+
+.record-head .records-title {
+  font-size: 1.375rem;
+  line-height: 1.2;
+}
+
+/* The status as a pill: icon and text, the color only backs it up. */
+.record-head .records-status {
+  margin: 0;
+  padding: 2px 10px;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  border-radius: 999px;
+  background: var(--color-accent-soft, #e5f1f2);
+  color: var(--color-accent-strong, #08515a);
+}
+
+.record-head .records-status.is-review {
+  background: var(--color-warning-soft, #fff4db);
+  color: var(--color-warning, #8a5300);
+}
+
+.record-head .records-status.is-approved {
+  color: var(--color-success, #1e6b3a);
 }
 
 .record-actions {
   display: flex;
   flex-wrap: wrap;
   align-items: flex-start;
-  gap: 12px;
+  gap: 8px;
+  margin-inline-start: auto;
 }
 
-.record-meta {
-  display: grid;
-  grid-template-columns: max-content 1fr;
-  gap: 4px 16px;
+.record-page .record-actions button {
+  padding: 5px 14px;
+}
+
+.record-page .record-actions .review-delete {
   margin: 0;
+  font-size: inherit;
+}
+
+/* File, form type and intake time side by side. */
+.record-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 24px;
+  margin: 0;
+  padding-block-start: 8px;
+  border-block-start: 1px solid var(--color-border, #dde3e9);
+  font-size: 0.8125rem;
+}
+
+.record-meta div {
+  display: flex;
+  gap: 6px;
 }
 
 .record-meta dt {
   color: var(--color-text-muted, #52606d);
 }
 
+.record-meta dt::after {
+  content: ":";
+}
+
 .record-meta dd {
   margin: 0;
+  font-weight: 500;
 }
 
 .record-issues {
   margin: 0;
-  padding: 8px 12px;
+  padding: 8px 14px;
   list-style: none;
   color: var(--color-warning, #8a5300);
   background: var(--color-warning-soft, #fff4db);
+  border: 1px solid var(--color-warning-border, #d9a514);
   border-radius: var(--radius-md, 8px);
 }
 
-.record-fields tr.is-flagged td {
-  background: var(--color-warning-soft, #fff4db);
+/* The fields: a card, the table wraps its text instead of growing sideways. */
+.record-card {
+  overflow: hidden;
+  background: var(--color-surface, #fff);
+  border: 1px solid var(--color-border, #dde3e9);
+  border-radius: var(--radius-lg, 12px);
+}
+
+.record-fields {
+  table-layout: fixed;
+}
+
+.record-fields thead th:nth-child(1) {
+  inline-size: 17%;
+}
+
+.record-fields thead th:nth-child(2) {
+  inline-size: 31%;
+}
+
+.record-fields thead th {
+  padding-block: 8px;
+  font-size: 0.75rem;
+  color: var(--color-text-muted, #52606d);
+}
+
+.record-fields th,
+.record-fields td {
+  padding: 6px 12px;
+  vertical-align: top;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.record-fields tbody tr:last-child > * {
+  border-block-end: 0;
+}
+
+.record-fields tbody tr {
+  cursor: default;
+}
+
+.record-fields tbody tr:hover > * {
+  background: var(--color-surface-muted, #f7f9fb);
 }
 
 .record-fields th[scope="row"] {
@@ -221,10 +401,73 @@
   background: none;
 }
 
+/* A field to check: a warm row with a stripe at its start, not only the color. */
+.record-fields tr.is-flagged > *,
+.record-fields tr.is-flagged:hover > * {
+  background: var(--color-warning-soft, #fff4db);
+}
+
+.record-fields tr.is-flagged th[scope="row"] {
+  border-inline-start: 4px solid var(--color-warning-border, #d9a514);
+}
+
+.record-fields tr.is-flagged td.review-cell.is-flagged::before {
+  display: none;
+}
+
+/* The value opens its editor on click: plain text, a frame only on hover and focus. */
+/* The value and its "confirm" button side by side, while there is room. */
+.record-page .record-fields .review-cell-value {
+  display: inline-block;
+  vertical-align: middle;
+  margin-inline: -6px 10px;
+  padding: 2px 6px;
+  inline-size: auto;
+  background: none;
+  border: 1px solid transparent;
+  border-radius: 6px;
+}
+
+.record-page .record-fields .review-cell-value:hover {
+  background: var(--color-surface, #fff);
+  border-color: var(--color-border-strong, #9fb3c8);
+}
+
+.record-fields .review-value {
+  font-size: 0.9375rem;
+  font-weight: 600;
+}
+
+.record-page .record-fields .review-confirm {
+  vertical-align: middle;
+  margin-block: 2px;
+  padding: 2px 10px;
+  font-size: 0.75rem;
+}
+
+/* What was read, how, and what is wrong with it: one column, a line each. */
+.record-read > span {
+  display: block;
+}
+
+.record-raw {
+  font-weight: 500;
+}
+
 .record-evidence {
-  white-space: normal;
-  max-inline-size: 280px;
+  margin-block-start: 2px;
+  font-size: 0.8125rem;
   color: var(--color-text-muted, #52606d);
+}
+
+.record-field-issues {
+  margin-block-start: 4px;
+  font-size: 0.8125rem;
+  color: var(--color-warning, #8a5300);
+}
+
+.record-field-issues::before {
+  content: "⚠ ";
 }
 
 .records-export {

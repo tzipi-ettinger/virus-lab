@@ -105,6 +105,26 @@
   inline-size: 100%;
 }
 
+/* The whole page in the frame: the image is as big as the frame lets it be either
+   way, and the canvas shrinks to it so the boxes stay on the image. The frame needs a
+   height of its own (container units); the record page stretches it to the column. */
+.preview-frame.is-page {
+  container-type: size;
+  block-size: 75vh;
+  overflow: hidden;
+}
+
+.preview-canvas.is-page {
+  inline-size: fit-content;
+  margin-inline: auto;
+}
+
+.preview-canvas.is-page .preview-image {
+  inline-size: auto;
+  max-inline-size: 100cqi;
+  max-block-size: 100cqb;
+}
+
 .preview-box {
   position: absolute;
   /* Drawn just outside the value, so it frames the digits and never hides them. Thin:

@@ -130,30 +130,40 @@ function RecordDetails({ record, backLink, back, onRecord }: DetailsProps) {
     <div className="record-page">
       <div className="record-main">
         {backLink}
-        <h1 className="records-title">
-          <bdi>{name || "ללא שם"}</bdi>
-        </h1>
-        <div className="record-actions">
-          <ApproveButton record={record} onApprove={approve} />
-          <DeleteButton record={record} onDelete={remove} onDeleted={() => navigate(back, { replace: true })} />
-        </div>
-        <p className={`records-status is-${status.tone}`}>
-          <span aria-hidden="true">{status.icon}</span>{" "}
-          {record.status === "approved" && record.approved_at
-            ? `אושר ב־${formatDateTime(record.approved_at)}`
-            : status.text}
-        </p>
-        <dl className="record-meta">
-          <dt>קובץ</dt>
-          <dd>
-            <bdi>{record.source_file}</bdi>, עמוד {record.page_number}
-            {more.length > 0 && ` (ועמודים ${more.join(", ")})`}
-          </dd>
-          <dt>סוג טופס</dt>
-          <dd>{FORM_TYPE_TEXT[record.form_type]}</dd>
-          <dt>נקלט</dt>
-          <dd>{formatDateTime(record.created_at)}</dd>
-        </dl>
+        <header className="record-summary">
+          <div className="record-head">
+            <h1 className="records-title">
+              <bdi>{name || "ללא שם"}</bdi>
+            </h1>
+            <p className={`records-status is-${status.tone}`}>
+              <span aria-hidden="true">{status.icon}</span>{" "}
+              {record.status === "approved" && record.approved_at
+                ? `אושר ב־${formatDateTime(record.approved_at)}`
+                : status.text}
+            </p>
+            <div className="record-actions">
+              <ApproveButton record={record} onApprove={approve} />
+              <DeleteButton record={record} onDelete={remove} onDeleted={() => navigate(back, { replace: true })} />
+            </div>
+          </div>
+          <dl className="record-meta">
+            <div>
+              <dt>קובץ</dt>
+              <dd>
+                <bdi>{record.source_file}</bdi>, עמוד {record.page_number}
+                {more.length > 0 && ` (ועמודים ${more.join(", ")})`}
+              </dd>
+            </div>
+            <div>
+              <dt>סוג טופס</dt>
+              <dd>{FORM_TYPE_TEXT[record.form_type]}</dd>
+            </div>
+            <div>
+              <dt>נקלט</dt>
+              <dd>{formatDateTime(record.created_at)}</dd>
+            </div>
+          </dl>
+        </header>
 
         {record.issues.length > 0 && (
           <ul className="record-issues" aria-label="בעיות ברשומה">
@@ -163,15 +173,13 @@ function RecordDetails({ record, backLink, back, onRecord }: DetailsProps) {
           </ul>
         )}
 
-        <div className="records-scroll">
+        <div className="record-card">
           <table className="records-table record-fields" {...areaProps}>
             <thead>
               <tr>
                 <th scope="col">שדה</th>
                 <th scope="col">ערך ורמת ביטחון</th>
                 <th scope="col">מה נקרא בטופס</th>
-                <th scope="col">ראיה</th>
-                <th scope="col">בעיות</th>
               </tr>
             </thead>
             <tbody>
@@ -189,20 +197,26 @@ function RecordDetails({ record, backLink, back, onRecord }: DetailsProps) {
                     onSave={onSave}
                     options={title === "גורם שולח" && senders.length > 0 ? senders : undefined}
                   />
-                  <td>
-                    <bdi>{field.raw ?? "—"}</bdi>
+                  <td className="record-read">
+                    <span className="record-raw">
+                      <bdi>{field.raw ?? "—"}</bdi>
+                    </span>
+                    {field.evidence && (
+                      <span className="record-evidence">
+                        <bdi>{field.evidence}</bdi>
+                      </span>
+                    )}
+                    {field.issues.length > 0 && (
+                      <span className="record-field-issues">{field.issues.map((i) => i.message).join(" · ")}</span>
+                    )}
                   </td>
-                  <td className="record-evidence">
-                    <bdi>{field.evidence ?? "—"}</bdi>
-                  </td>
-                  <td>{field.issues.map((i) => i.message).join(" · ") || "—"}</td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
       </div>
-      <DocumentPreview record={record} highlight={highlight} pointerArea={areaProps} />
+      <DocumentPreview record={record} highlight={highlight} pointerArea={areaProps} fit="page" />
     </div>
   );
 }
