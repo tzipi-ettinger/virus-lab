@@ -20,6 +20,7 @@ import { keepCentrals, useRecordMutations, type FieldEdit, type Saved } from "..
 import { FIELD_COLUMNS, FORM_TYPE_TEXT } from "../review/reviewRows";
 import "../review/ReviewTable.css";
 import { formatDateTime, statusView } from "./format";
+import { RecordHistory } from "./RecordHistory";
 import type { BackTo } from "./RecordsTable";
 import "./RecordsPage.css";
 
@@ -233,6 +234,8 @@ function RecordDetails({ record, backLink, back, onRecord }: DetailsProps) {
             </tbody>
           </table>
         </div>
+
+        <RecordHistory recordId={record.record_id} version={record.version} />
       </div>
       <DocumentPreview record={record} highlight={highlight} pointerArea={areaProps} fit="page" />
     </div>

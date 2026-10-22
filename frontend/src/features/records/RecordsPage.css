@@ -862,3 +862,41 @@
     animation: none;
   }
 }
+
+/* The record's history (RecordHistory): closed until opened, one line per action. */
+.record-history > summary {
+  padding: 10px 16px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.record-history > summary:focus-visible {
+  outline: 2px solid var(--color-focus, #1d4ed8);
+  outline-offset: -2px;
+}
+
+.record-history-list {
+  margin: 0;
+  padding: 0 16px 12px;
+  list-style: none;
+}
+
+.record-history-list li {
+  padding-block: 4px;
+  border-block-start: 1px solid var(--color-border, #dde3e9);
+}
+
+.record-history-what {
+  font-weight: 600;
+}
+
+.record-history-who,
+.record-history-when,
+.record-history-note {
+  color: var(--color-text-muted, #56677a);
+}
+
+.record-history-note {
+  margin: 0;
+  padding: 0 16px 12px;
+}

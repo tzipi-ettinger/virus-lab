@@ -64,7 +64,9 @@ function record(over: Partial<ApiRecord> = {}): ApiRecord {
 }
 
 const fetchMock = vi.fn<typeof fetch>();
+let history: unknown[] = [];
 beforeEach(() => {
+  history = [];
   fetchMock.mockReset();
   vi.stubGlobal("fetch", fetchMock);
 });
@@ -83,6 +85,7 @@ const json = (status: number, body: unknown) =>
 function serve(status: number, body: unknown, others: Record<string, () => Response> = {}) {
   fetchMock.mockImplementation(async (url, init) => {
     if (String(url).endsWith("/senders")) return json(200, ["מכבי", "כללית"]);
+    if (String(url).endsWith("/history")) return json(200, history);
     const other = others[init?.method ?? "GET"];
     return other ? other() : json(status, body);
   });
@@ -226,5 +229,28 @@ describe("RecordPage", () => {
 
     expect(await screen.findByText(/הרשומה לא נמצאה/)).toBeTruthy();
     expect(screen.getByRole("link", { name: /חזרה לרשומות/ }).getAttribute("href")).toBe("/records");
+  });
+
+  test("the history says who did what and when, and is closed until opened", async () => {
+    history = [
+      { at: "2026-10-19T09:00:00Z", action: "created", field: null, username: "legacy", display_name: "לפני הכניסה" },
+      { at: "2026-10-22T07:14:00Z", action: "corrected", field: "national_id", username: "dana", display_name: "דנה" },
+      { at: "2026-10-22T07:15:00Z", action: "confirmed", field: "central_numbers[0]", username: "rachel", display_name: "רחל" },
+    ];
+    serve(200, record());
+    renderPage();
+
+    const summary = await screen.findByText("היסטוריה (3)");
+    const details = summary.closest("details")!;
+    expect(details.open).toBe(false);
+    await userEvent.click(summary);
+
+    const lines = within(details).getAllByRole("listitem").map((li) => li.textContent);
+    expect(lines).toEqual([
+      "נקלט על ידי לפני הכניסה 19/10/2026 12:00",
+      "תוקן: ת״ז על ידי דנה 22/10/2026 10:14",
+      "סומן כנבדק: מספר מרכזי 1 על ידי רחל 22/10/2026 10:15",
+    ]);
+    expect(fetchMock.mock.calls.some(([url]) => url === "/api/v1/records/r1/history")).toBe(true);
   });
 });
