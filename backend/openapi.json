@@ -1958,7 +1958,7 @@
               }
             ],
             "title": "Approved By",
-            "description": "Username; null until approved."
+            "description": "Display name of who approved it; null until approved."
           },
           "updated_by": {
             "anyOf": [
@@ -1970,7 +1970,7 @@
               }
             ],
             "title": "Updated By",
-            "description": "Username of the last edit; null if never edited."
+            "description": "Display name of who last edited it; null if never edited."
           }
         },
         "type": "object",

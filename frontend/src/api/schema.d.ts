@@ -587,12 +587,12 @@ export interface components {
             approved_at: string | null;
             /**
              * Approved By
-             * @description Username; null until approved.
+             * @description Display name of who approved it; null until approved.
              */
             approved_by?: string | null;
             /**
              * Updated By
-             * @description Username of the last edit; null if never edited.
+             * @description Display name of who last edited it; null if never edited.
              */
             updated_by?: string | null;
         };

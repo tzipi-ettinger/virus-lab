@@ -153,17 +153,17 @@ async def list_events(conn: AsyncConnection, record_id: str) -> list[dict]:
 # --- Reading records
 
 # A record with what the contract shows next to it: its form's pages and who
-# approved or last edited it (by username, from users and record_event).
+# approved or last edited it (by display name, from users and record_event).
 _RECORD_SELECT = """
 SELECT r.*,
        p.source_filename,
        p.page_number,
        COALESCE(cont.numbers, '{}') AS continuation_pages,
        COALESCE(cont.ids, '{}') AS continuation_page_ids,
-       approver.username AS approved_by_username,
-       (SELECT u.username FROM record_event e JOIN users u ON u.id = e.user_id
+       approver.display_name AS approved_by_name,
+       (SELECT u.display_name FROM record_event e JOIN users u ON u.id = e.user_id
          WHERE e.record_id = r.id AND e.action IN ('corrected', 'confirmed')
-         ORDER BY e.at DESC, e.id DESC LIMIT 1) AS updated_by_username
+         ORDER BY e.at DESC, e.id DESC LIMIT 1) AS updated_by_name
   FROM record r
   JOIN page p ON p.id = r.page_id
   LEFT JOIN users approver ON approver.id = r.approved_by

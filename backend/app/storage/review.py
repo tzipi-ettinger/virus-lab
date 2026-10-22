@@ -85,8 +85,8 @@ def to_record(row: dict) -> Record:
         created_at=row["created_at"],
         updated_at=row["updated_at"],
         approved_at=row["approved_at"],
-        approved_by=row["approved_by_username"],
-        updated_by=row["updated_by_username"],
+        approved_by=row["approved_by_name"],
+        updated_by=row["updated_by_name"],
     )
 
 

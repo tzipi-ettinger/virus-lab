@@ -191,9 +191,11 @@ class Record(BaseModel):
     created_at: datetime
     updated_at: datetime
     approved_at: datetime | None
-    approved_by: str | None = Field(default=None, description="Username; null until approved.")
+    approved_by: str | None = Field(
+        default=None, description="Display name of who approved it; null until approved."
+    )
     updated_by: str | None = Field(
-        default=None, description="Username of the last edit; null if never edited."
+        default=None, description="Display name of who last edited it; null if never edited."
     )
 
 

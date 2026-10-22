@@ -195,7 +195,7 @@ def test_a_correction_reruns_the_rules_and_keeps_raw(db):
     assert field.raw == record.fields.national_id.raw
     assert (field.corrected, field.confirmed, field.needs_review) == (True, False, False)
     assert response.record.version == record.version + 1
-    assert response.record.updated_by == "dana"
+    assert response.record.updated_by == "דנה"
     assert response.siblings == []  # one record in this form
 
 
@@ -340,7 +340,7 @@ def test_approve_after_confirming_the_empty_field(db):
     approved = approve(db, confirmed)
 
     assert approved.status == "approved"
-    assert (approved.approved_by, approved.approved_at) == ("dana", NOW)
+    assert (approved.approved_by, approved.approved_at) == ("דנה", NOW)
 
 
 def test_approve_many_approves_the_ready_and_skips_the_rest(db):
