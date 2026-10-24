@@ -1,0 +1,44 @@
+/* The language switch: a small pill with a globe. On the sign-in and landing pages it
+   sits in the top corner, at the end of the line. Logical properties only. Owner: B */
+
+.language-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-block-size: 36px;
+  padding: 4px 12px;
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: var(--color-accent-strong, #17588f);
+  background: var(--color-surface, #ffffff);
+  border: 1px solid var(--color-border, #e1e8ef);
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.language-switch:hover {
+  background: var(--color-accent-soft, #e7f1fa);
+  border-color: var(--color-accent-line, #cde1f2);
+}
+
+.language-switch:focus-visible {
+  outline: 2px solid var(--color-focus, #1d4ed8);
+  outline-offset: 2px;
+}
+
+/* In the top bar, over the bar's own button style. */
+.layout-user .language-switch {
+  padding: 4px 12px;
+  background: var(--color-surface, #ffffff);
+  border: 1px solid var(--color-border, #e1e8ef);
+  border-radius: 999px;
+}
+
+.language-switch.is-corner {
+  position: absolute;
+  inset-block-start: 16px;
+  inset-inline-end: 16px;
+  z-index: 2;
+}

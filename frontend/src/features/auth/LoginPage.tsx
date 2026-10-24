@@ -8,6 +8,7 @@
 import { useState, type FormEvent } from "react";
 import { Navigate, useLocation, useNavigate } from "react-router";
 import { t } from "../../i18n";
+import { LanguageSwitch } from "../../shared/ui/LanguageSwitch";
 import { useAuth } from "./authContext";
 import { greeting } from "./greeting";
 import { loginError } from "./loginError";
@@ -55,6 +56,7 @@ export function LoginPage() {
   return (
     <div className="login">
       <div className="login-glow" aria-hidden="true" />
+      <LanguageSwitch className="is-corner" />
       <main className="login-main">
         <section className="login-brand">
           <img className="login-logo" src="/moh-logo.png" alt={t("common.ministry")} />
@@ -123,7 +125,7 @@ export function LoginPage() {
           )}
           <button type="submit" className="login-submit" disabled={busy || !username.trim() || !password}>
             {busy ? t("auth.login.signingIn") : t("auth.login.signIn")}
-            {!busy && <span aria-hidden="true">←</span>}
+            {!busy && <span aria-hidden="true">{t("common.forward")}</span>}
           </button>
         </form>
       </main>

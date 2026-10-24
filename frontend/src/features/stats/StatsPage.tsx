@@ -4,7 +4,7 @@
 // Owner: B
 
 import { Link } from "react-router";
-import { t } from "../../i18n";
+import { locale, t } from "../../i18n";
 import { tRich } from "../../i18n/rich";
 import { Skeleton } from "../../shared/ui/Skeleton";
 import { fieldTitle } from "./fieldTitle";
@@ -12,7 +12,7 @@ import { ringGradient } from "./ring";
 import { useStats, type RecordStats } from "./useStats";
 import "./StatsPage.css";
 
-const percent = new Intl.NumberFormat("he-IL", { style: "percent", maximumFractionDigits: 1 });
+const percent = new Intl.NumberFormat(locale, { style: "percent", maximumFractionDigits: 1 });
 
 function share(part: number, whole: number): number {
   return whole === 0 ? 0 : part / whole;

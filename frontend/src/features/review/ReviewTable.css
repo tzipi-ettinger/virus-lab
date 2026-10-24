@@ -83,6 +83,11 @@
   box-shadow: inset -4px 0 0 var(--color-accent, #0b6e79);
 }
 
+/* The left, in English. */
+[dir="ltr"] .review-table tbody tr.is-selected {
+  box-shadow: inset 4px 0 0 var(--color-accent, #0b6e79);
+}
+
 .review-table tbody tr {
   transition: background-color 0.12s ease;
 }

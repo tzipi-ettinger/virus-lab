@@ -1,11 +1,12 @@
 /// <reference types="node" />
-// Two guards over the sources: no text the user sees is written in the code (it
-// belongs in he.json), and no text in he.json is left that nothing uses.
-// Reads the files with fs, like tokens.test.ts.
+// Guards over the sources: no text the user sees is written in the code (it belongs
+// in he.json), no text in he.json is left that nothing uses, and en.json has the
+// same keys and the same placeholders. Reads the files with fs, like tokens.test.ts.
 // Owner: B
 
 import { readFileSync, readdirSync } from "node:fs";
 import { describe, expect, test } from "vitest";
+import en from "./en.json";
 import he from "./he.json";
 
 const SRC = new URL("../", import.meta.url);
@@ -52,6 +53,26 @@ describe("the sources", () => {
       return !code.includes(`"${key}"`) && !code.includes(`\`${group}.\${`);
     });
     expect(unused).toEqual([]);
+  });
+
+  test("en.json has every key of he.json and no other, each with the same placeholders", () => {
+    const text = (texts: object, key: string) =>
+      key.split(".").reduce<unknown>((node, part) => (node as Record<string, unknown>)[part], texts) as string;
+    const placeholders = (s: string) => [...s.matchAll(/\{(\w+)\}/g)].map((m) => m[1]).sort();
+
+    expect(leaves(en).sort()).toEqual(leaves(he).sort());
+    const mismatched = leaves(he).filter(
+      (key) => placeholders(text(he, key)).join() !== placeholders(text(en, key)).join(),
+    );
+    expect(mismatched).toEqual([]);
+    expect(leaves(en).filter((key) => !text(en, key).trim())).toEqual([]);
+  });
+
+  test("en.json is English: the one Hebrew text in it is the name of Hebrew, on the switch", () => {
+    const hebrew = leaves(en).filter((key) =>
+      HEBREW.test(key.split(".").reduce<unknown>((n, p) => (n as Record<string, unknown>)[p], en) as string),
+    );
+    expect(hebrew).toEqual(["language.other"]);
   });
 
   test("reads the files it checks", () => {

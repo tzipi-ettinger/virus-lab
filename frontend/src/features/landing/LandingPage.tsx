@@ -4,6 +4,7 @@
 
 import { Link } from "react-router";
 import { t } from "../../i18n";
+import { LanguageSwitch } from "../../shared/ui/LanguageSwitch";
 import "./LandingPage.css";
 
 const STEPS = [
@@ -39,6 +40,7 @@ export function LandingPage() {
   return (
     <div className="landing">
       <div className="landing-glow" aria-hidden="true" />
+      <LanguageSwitch className="is-corner" />
       <main className="landing-main">
         <img className="landing-logo" src="/moh-logo.png" alt={t("common.ministry")} />
         <p className="landing-kicker">{t("common.lab")}</p>
@@ -51,7 +53,7 @@ export function LandingPage() {
         <div className="landing-actions">
           <Link to="/upload" className="landing-cta">
             {t("landing.start")}
-            <span aria-hidden="true">←</span>
+            <span aria-hidden="true">{t("common.forward")}</span>
           </Link>
           <Link to="/records" className="landing-secondary">
             {t("common.toRecords")}

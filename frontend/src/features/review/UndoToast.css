@@ -69,6 +69,11 @@
   animation: undo-toast-timer linear forwards;
 }
 
+/* It empties toward the start: the left, in English. */
+[dir="ltr"] .undo-toast-timer {
+  transform-origin: left;
+}
+
 @keyframes undo-toast-in {
   from {
     opacity: 0;
