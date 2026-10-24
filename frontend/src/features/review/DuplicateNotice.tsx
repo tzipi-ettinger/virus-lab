@@ -1,12 +1,15 @@
 // "Already in the history" (A4): an earlier record has the same commitment number
 // and the same central numbers. Names every earlier copy, when it was saved and by
 // whom, with a link to it. Shown on the upload screen and on the record page.
+// The title is short on purpose; the issue's full message still shows with the field.
 // Owner: B
 
 import { Link } from "react-router";
 import { formatDateTime } from "../records/format";
 import type { ApiRecord } from "./recordMutations";
 import "./DuplicateNotice.css";
+
+const TITLE = "כבר קיים בהיסטוריה — יש לבדוק";
 
 interface DuplicateNoticeProps {
   record: ApiRecord;
@@ -20,7 +23,7 @@ export function DuplicateNotice({ record, newTab = false }: DuplicateNoticeProps
   const earlier = issue.duplicate_of ?? []; // records saved before this feature have no list
   return (
     <section className="duplicate-notice" aria-label="כבר קיים בהיסטוריה">
-      <p className="duplicate-notice-title">⚠ {issue.message}</p>
+      <p className="duplicate-notice-title">⚠ {TITLE}</p>
       {earlier.length > 0 && (
         <ul className="duplicate-notice-list">
           {earlier.map((copy) => {
