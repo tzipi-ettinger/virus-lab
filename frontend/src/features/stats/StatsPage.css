@@ -218,15 +218,16 @@
   border-end-end-radius: 4px;
 }
 
-.is-approved {
+/* Scoped to this card: the review screen is also .is-review. */
+.stats-status .is-approved {
   background: #2e7d4a;
 }
 
-.is-ready {
+.stats-status .is-ready {
   background: var(--color-accent, #1f6fb2);
 }
 
-.is-review {
+.stats-status .is-review {
   background: var(--color-warning-border, #d9a514);
 }
 
