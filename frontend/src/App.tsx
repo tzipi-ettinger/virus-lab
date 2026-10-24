@@ -15,6 +15,7 @@ import { RecordPage } from "./features/records/RecordPage";
 import { RecordsPage } from "./features/records/RecordsPage";
 import { ReviewPage } from "./features/review/ReviewPage";
 import { StatsPage } from "./features/stats/StatsPage";
+import { t } from "./i18n";
 import { Layout } from "./shared/layout/Layout";
 import { ErrorBoundary } from "./shared/ui/ErrorBoundary";
 
@@ -65,17 +66,17 @@ function NotFound() {
       <p className="not-found-code" aria-hidden="true">
         404
       </p>
-      <h1 className="not-found-title">הדף לא נמצא.</h1>
-      <p className="not-found-text">ייתכן שהכתובת שגויה, או שהדף הועבר. אפשר להמשיך מכאן:</p>
+      <h1 className="not-found-title">{t("notFound.title")}</h1>
+      <p className="not-found-text">{t("notFound.text")}</p>
       <div className="not-found-actions">
         <Link to="/upload" className="not-found-primary">
-          חזרה להעלאה ובדיקה
+          {t("notFound.toUpload")}
         </Link>
         <Link to="/records" className="not-found-secondary">
-          לכל הרשומות
+          {t("common.toRecords")}
         </Link>
         <Link to="/" className="not-found-secondary">
-          לדף הבית
+          {t("notFound.toHome")}
         </Link>
       </div>
     </div>

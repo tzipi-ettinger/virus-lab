@@ -3,12 +3,13 @@
 // Owner: shared
 
 import { Link } from "react-router";
+import { t } from "../../i18n";
 import "./LandingPage.css";
 
 const STEPS = [
   {
-    title: "מעלים טפסים",
-    text: "קבצי PDF או תמונות של טפסי התחייבות, כמה שרוצים בבת אחת",
+    title: t("landing.uploadTitle"),
+    text: t("landing.uploadText"),
     icon: (
       <>
         <path d="M12 16V4" />
@@ -18,8 +19,8 @@ const STEPS = [
     ),
   },
   {
-    title: "המערכת קוראת",
-    text: "שבעה שדות מכל טופס, גם בכתב יד, וכל ערך מפוקפק מסומן לבדיקה",
+    title: t("landing.readTitle"),
+    text: t("landing.readText"),
     icon: (
       <>
         <rect x="4" y="3" width="16" height="18" rx="2" />
@@ -28,8 +29,8 @@ const STEPS = [
     ),
   },
   {
-    title: "בודקים ומאשרים",
-    text: "רואים כל שדה ליד הטופס המקורי, מתקנים, מאשרים ומייצאים",
+    title: t("landing.reviewTitle"),
+    text: t("landing.reviewText"),
     icon: <path d="M5 12.5 10 17l9-10" />,
   },
 ];
@@ -39,23 +40,21 @@ export function LandingPage() {
     <div className="landing">
       <div className="landing-glow" aria-hidden="true" />
       <main className="landing-main">
-        <img className="landing-logo" src="/moh-logo.png" alt="משרד הבריאות" />
-        <p className="landing-kicker">המעבדה המרכזית לנגיפים</p>
+        <img className="landing-logo" src="/moh-logo.png" alt={t("common.ministry")} />
+        <p className="landing-kicker">{t("common.lab")}</p>
         <h1 className="landing-title">
-          מטופס סרוק{" "}
+          {t("common.tagline")}{" "}
           <br />
-          <span className="landing-title-accent">לרשומה מאושרת</span>
+          <span className="landing-title-accent">{t("common.taglineAccent")}</span>
         </h1>
-        <p className="landing-lead">
-          מעלים את טפסי ההתחייבות, המערכת קוראת מהם את הנתונים, ואתם רק בודקים ומאשרים.
-        </p>
+        <p className="landing-lead">{t("landing.lead")}</p>
         <div className="landing-actions">
           <Link to="/upload" className="landing-cta">
-            התחלה: העלאת טפסים
+            {t("landing.start")}
             <span aria-hidden="true">←</span>
           </Link>
           <Link to="/records" className="landing-secondary">
-            לכל הרשומות
+            {t("common.toRecords")}
           </Link>
         </div>
 
@@ -76,7 +75,7 @@ export function LandingPage() {
           ))}
         </ol>
       </main>
-      <footer className="landing-footer">משרד הבריאות · המעבדה המרכזית לנגיפים</footer>
+      <footer className="landing-footer">{t("common.footer")}</footer>
     </div>
   );
 }

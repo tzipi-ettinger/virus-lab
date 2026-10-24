@@ -2,6 +2,7 @@
 // of a bare "loading". The words stay, for screen readers.
 // Owner: shared
 
+import { t } from "../../i18n";
 import "./Skeleton.css";
 
 interface Props {
@@ -9,7 +10,7 @@ interface Props {
   label?: string;
 }
 
-export function Skeleton({ rows = 8, label = "טוען…" }: Props) {
+export function Skeleton({ rows = 8, label = t("common.loading") }: Props) {
   return (
     <div className="skeleton" role="status">
       <span className="skeleton-label">{label}</span>

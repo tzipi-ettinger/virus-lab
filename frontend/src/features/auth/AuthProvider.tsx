@@ -4,6 +4,7 @@
 
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { ApiError, apiFetch, onUnauthorized } from "../../api/client";
+import { t } from "../../i18n";
 import { AuthContext, type Auth, type AuthState, type User } from "./authContext";
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -52,5 +53,5 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 }
 
 function errorMessage(error: unknown): string {
-  return error instanceof ApiError ? error.message : "משהו השתבש. נסי שוב";
+  return error instanceof ApiError ? error.message : t("common.failed");
 }
