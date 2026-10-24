@@ -6,6 +6,7 @@ import {
   NO_FILTERS,
   PAGE_SIZE,
   exportUrl,
+  filterChips,
   hasFilters,
   listUrl,
   nextSort,
@@ -66,6 +67,38 @@ describe("hasFilters", () => {
     expect(hasFilters({ ...NO_FILTERS, page: 2 })).toBe(false);
     expect(hasFilters({ ...NO_FILTERS, sort: "last_name" })).toBe(false);
     expect(hasFilters({ ...NO_FILTERS, sender: "מכבי" })).toBe(true);
+  });
+});
+
+describe("filterChips", () => {
+  test("one chip per filter in use, in the order of the controls", () => {
+    expect(filterChips(ALL).map((c) => c.label)).toEqual([
+      "חיפוש: 0112",
+      "דורשות בדיקה",
+      "גורם שולח: מכבי",
+      "סוג טופס: טופס קופה",
+      "תאריך קבלה: 01/10/2026–19/10/2026",
+    ]);
+    expect(filterChips(NO_FILTERS)).toEqual([]);
+  });
+
+  test("each chip's change takes its own filter off and nothing else", () => {
+    for (const chip of filterChips(ALL)) {
+      const left = filterChips(withChange(ALL, chip.clear)).map((c) => c.key);
+      expect(left).toEqual(filterChips(ALL).map((c) => c.key).filter((key) => key !== chip.key));
+    }
+  });
+
+  test("a status chip wears its status, and half a date range reads as one", () => {
+    const pending = filterChips({ ...NO_FILTERS, status: "pending", dateFrom: "2026-10-01" });
+    expect(pending.map((c) => [c.label, c.tone])).toEqual([
+      ["ממתינות", "pending"],
+      ["תאריך קבלה: מ־01/10/2026", null],
+    ]);
+    expect(filterChips({ ...NO_FILTERS, status: "approved", dateTo: "2026-10-19" }).map((c) => c.label)).toEqual([
+      "מאושרות",
+      "תאריך קבלה: עד 19/10/2026",
+    ]);
   });
 });
 

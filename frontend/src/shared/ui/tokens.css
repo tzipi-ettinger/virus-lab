@@ -35,6 +35,36 @@
   --color-danger: #a12222;
   --color-danger-soft: #fdecec;
 
+  /* Beside the status colors: lines of tinted cards, and fills for charts and
+     count pills. Too light for text on white; text on a fill uses --color-on-*. */
+  --color-accent-line: #cde1f2;
+  --color-success-fill: #2f9e5b;
+  --color-success-line: #bfe3cb;
+  --color-warning-fill: #f0b429;
+  --color-warning-line: #f1dc9f;
+  --color-on-warning: #3d2600;
+
+  /* A fourth hue, apart from the status colors: manual corrections. */
+  --color-violet: #7c5cd6;
+  --color-violet-strong: #543f92;
+  --color-violet-soft: #f2effb;
+  --color-violet-line: #d1c6f1;
+
+  /* Sender tags on the records list: text on its soft ground. A sender keeps one
+     pair, by its name; the hues stay apart from the status colors. */
+  --color-tag-1: #0b6f86;
+  --color-tag-1-soft: #e0f5f9;
+  --color-tag-2: #5b3fb0;
+  --color-tag-2-soft: #f0ecfb;
+  --color-tag-3: #a0275a;
+  --color-tag-3-soft: #fcebf2;
+  --color-tag-4: #3346a8;
+  --color-tag-4-soft: #eaedfb;
+  --color-tag-5: #4a6510;
+  --color-tag-5-soft: #eff6df;
+  --color-tag-6: #94401c;
+  --color-tag-6-soft: #fbeee7;
+
   --radius-md: 10px;
   --radius-lg: 16px;
 

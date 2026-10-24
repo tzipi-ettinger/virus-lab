@@ -7,9 +7,21 @@ import { Link, useLocation, useNavigate } from "react-router";
 import type { components } from "../../api/schema";
 import { FORM_TYPE_TEXT } from "../review/reviewRows";
 import { nextSort, sortDirection, type RecordSort, type SortColumn } from "./filters";
-import { formatDate, statusView } from "./format";
+import { formatDate, senderTag, statusView } from "./format";
 
 type RecordSummary = components["schemas"]["RecordSummary"];
+type FormType = RecordSummary["form_type"];
+
+// A small line icon beside each form type, so the column reads at a glance.
+const FORM_ICONS: Record<FormType, string> = {
+  hospital_form: "M4 21V5l8-3 8 3v16M12 8v6M9 11h6M2 21h20",
+  hmo_form: "M3 21h18M5 21V9l7-5 7 5v12M10 21v-5h4v5",
+  hospital_system_screenshot: "M3 4h18v12H3zM8 20h8M12 16v4",
+  lab_report: "M9 3h6M10 3v6l-5.5 10a1.5 1.5 0 0 0 1.3 2h12.4a1.5 1.5 0 0 0 1.3-2L14 9V3",
+  private_lab: "M9 3h6M10 3v6l-5.5 10a1.5 1.5 0 0 0 1.3 2h12.4a1.5 1.5 0 0 0 1.3-2L14 9V3",
+  government: "M3 21h18M5 21V10M19 21V10M9.5 21V10M14.5 21V10M2 10l10-6 10 6",
+  unknown: "M6 2h9l5 5v15H6zM10 10a2 2 0 1 1 3 1.7c-.6.4-1 1-1 1.8M12 17h.01",
+};
 
 export type BackTo = { back?: string };
 
@@ -88,10 +100,23 @@ export function RecordsTable({ items, sort, onSort }: Props) {
                   <bdi>{r.commitment_number ?? "—"}</bdi>
                 </td>
                 <td className="records-number records-centrals" data-label={CENTRALS}>
-                  <bdi>{r.central_numbers.join(", ") || "—"}</bdi>
+                  {r.central_numbers.length > 0 ? (
+                    <bdi className="records-centrals-list">{r.central_numbers.join(", ")}</bdi>
+                  ) : (
+                    "—"
+                  )}
                 </td>
-                <td data-label={SENDER}>{r.sender ?? "—"}</td>
-                <td data-label={FORM}>{FORM_TYPE_TEXT[r.form_type]}</td>
+                <td data-label={SENDER}>
+                  {r.sender ? <span className={`records-sender is-tag-${senderTag(r.sender)}`}>{r.sender}</span> : "—"}
+                </td>
+                <td data-label={FORM}>
+                  <span className="records-form">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                      <path d={FORM_ICONS[r.form_type]} />
+                    </svg>
+                    {FORM_TYPE_TEXT[r.form_type]}
+                  </span>
+                </td>
                 <td className="records-number" data-label={DATE}>{formatDate(r.received_date)}</td>
                 <td data-label={STATUS}>
                   <span className={`records-status is-${status.tone}`}>

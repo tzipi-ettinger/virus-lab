@@ -33,6 +33,15 @@ export interface StatusView {
   tone: "approved" | "review" | "ready";
 }
 
+export const SENDER_TAGS = 6; // --color-tag-1 … --color-tag-6
+
+/** A sender's tag color, 1 to SENDER_TAGS, from its name: the same on every row and visit. */
+export function senderTag(name: string): number {
+  let hash = 0;
+  for (const char of name) hash = (hash * 31 + (char.codePointAt(0) ?? 0)) % 100_003;
+  return (hash % SENDER_TAGS) + 1;
+}
+
 /** Every status in text and an icon too, never by color alone (PLAN-DEV-B 3.0). */
 export function statusView(record: { status: string; needs_review: boolean }): StatusView {
   if (record.status === "approved") return { icon: "✓", text: "אושר", tone: "approved" };

@@ -2,7 +2,7 @@
 // Owner: B
 
 import { describe, expect, test } from "vitest";
-import { formatDate, formatDateTime, statusView } from "./format";
+import { SENDER_TAGS, formatDate, formatDateTime, senderTag, statusView } from "./format";
 
 describe("formatDate", () => {
   test("shows DD/MM/YYYY", () => {
@@ -31,5 +31,21 @@ describe("statusView", () => {
 
     expect(views.map((v) => v.text)).toEqual(["אושר", "דורש בדיקה", "ממתין לאישור"]);
     expect(new Set(views.map((v) => v.icon)).size).toBe(3);
+  });
+});
+
+describe("senderTag", () => {
+  const HMOS = ["כללית", "מכבי", "מאוחדת", "לאומית"];
+
+  test("a sender always gets the same tag, one of the defined ones", () => {
+    for (const name of [...HMOS, "רבין (בילינסון / השרון)", "x"]) {
+      expect(senderTag(name)).toBe(senderTag(name));
+      expect(senderTag(name)).toBeGreaterThanOrEqual(1);
+      expect(senderTag(name)).toBeLessThanOrEqual(SENDER_TAGS);
+    }
+  });
+
+  test("the four health funds, the most common senders, each have their own color", () => {
+    expect(new Set(HMOS.map(senderTag)).size).toBe(4);
   });
 });
