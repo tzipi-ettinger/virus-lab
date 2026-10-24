@@ -8,6 +8,7 @@ import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { fieldTitle } from "./fieldTitle";
+import { ringGradient } from "./ring";
 import { StatsPage } from "./StatsPage";
 import type { RecordStats } from "./useStats";
 
@@ -77,6 +78,16 @@ describe("StatsPage", () => {
     expect(fetchMock.mock.calls[0][0]).toBe("/api/v1/stats");
   });
 
+  test("the status ring names each part, and the total shows beside the title", async () => {
+    fetchMock.mockResolvedValue(answer(stats()));
+    renderPage();
+
+    const ring = await screen.findByRole("img");
+    expect(ring.getAttribute("aria-label")).toBe("212 מאושרות, 87 מוכנות לאישור, 41 דורשות בדיקה");
+    // Once in the page's head, once over the ring.
+    expect(screen.getAllByText("340 רשומות במערכת")).toHaveLength(2);
+  });
+
   test("says so when nothing was corrected yet", async () => {
     fetchMock.mockResolvedValue(answer(stats({ corrections: 0, corrected_records: 0, by_field: [] })));
     renderPage();
@@ -111,4 +122,21 @@ describe("StatsPage", () => {
 test("field names read as on the review screen", () => {
   expect(fieldTitle("sender")).toBe("גורם שולח");
   expect(fieldTitle("central_numbers")).toBe("מספר מרכזי");
+});
+
+describe("ringGradient", () => {
+  const gap = "var(--color-surface, #fff) 0";
+
+  test("splits the ring by share, a thin gap after each part, skipping empty ones", () => {
+    const ring = ringGradient([
+      { value: 1, color: "green" },
+      { value: 0, color: "blue" },
+      { value: 3, color: "amber" },
+    ]);
+    expect(ring).toBe(`conic-gradient(green 0% 24.3%, ${gap} 25%, amber 25% 99.3%, ${gap} 100%)`);
+  });
+
+  test("one part fills the whole ring, with no gap", () => {
+    expect(ringGradient([{ value: 5, color: "amber" }])).toBe(`conic-gradient(amber 0% 100%, ${gap} 100%)`);
+  });
 });

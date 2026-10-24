@@ -35,6 +35,21 @@
   --color-danger: #a12222;
   --color-danger-soft: #fdecec;
 
+  /* Beside the status colors: lines of tinted cards, and fills for charts and
+     count pills. Too light for text on white; text on a fill uses --color-on-*. */
+  --color-accent-line: #cde1f2;
+  --color-success-fill: #2f9e5b;
+  --color-success-line: #bfe3cb;
+  --color-warning-fill: #f0b429;
+  --color-warning-line: #f1dc9f;
+  --color-on-warning: #3d2600;
+
+  /* A fourth hue, apart from the status colors: manual corrections. */
+  --color-violet: #7c5cd6;
+  --color-violet-strong: #543f92;
+  --color-violet-soft: #f2effb;
+  --color-violet-line: #d1c6f1;
+
   --radius-md: 10px;
   --radius-lg: 16px;
 
