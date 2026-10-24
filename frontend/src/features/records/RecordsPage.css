@@ -201,6 +201,8 @@
    only when one would go below its basis does it wrap to the next row. */
 .records-toolbar > .records-filters {
   flex: 1 1 100%;
+  /* Its widest field (the two dates) never makes the page scroll sideways. */
+  min-inline-size: 0;
 }
 
 .records-filters {
@@ -367,6 +369,22 @@
 
 .records-dates-inputs input {
   flex: 1 1 0;
+}
+
+/* A date field won't shrink below its own width, and with a wider font (Linux,
+   Android) two of them side by side are wider than a phone: one under the other. */
+@media (max-width: 480px) {
+  .records-dates-inputs {
+    flex-wrap: wrap;
+  }
+
+  .records-dates-inputs input {
+    flex-basis: 100%;
+  }
+
+  .records-dates-inputs > span {
+    display: none;
+  }
 }
 
 .records-banner {
