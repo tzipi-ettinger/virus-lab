@@ -1,0 +1,394 @@
+{
+  "app": {
+    "title": "Central Virology Laboratory · Commitment forms"
+  },
+  "language": {
+    "other": "עברית",
+    "switchTo": "Switch the language to Hebrew"
+  },
+  "common": {
+    "ministry": "Ministry of Health",
+    "lab": "Central Virology Laboratory",
+    "footer": "Ministry of Health · Central Virology Laboratory",
+    "tagline": "From a scanned form",
+    "taglineAccent": "to an approved record",
+    "loading": "Loading…",
+    "retry": "Try again",
+    "failed": "Something went wrong. Try again",
+    "toRecords": "All records",
+    "noName": "No name",
+    "all": "All",
+    "close": "Close",
+    "cancel": "Cancel",
+    "save": "Save",
+    "page": "Page {page}",
+    "fileAndPage": "{file}, page {page}",
+    "forward": "→"
+  },
+  "fields": {
+    "national_id": "ID number",
+    "first_name": "First name",
+    "last_name": "Last name",
+    "commitment_number": "Commitment number",
+    "sender": "Sender",
+    "received_date": "Date received",
+    "central_numbers": "Central numbers",
+    "centralNumber": "Central number",
+    "centralNumberN": "Central number {n}",
+    "name": "Name",
+    "form_type": "Form type",
+    "status": "Status"
+  },
+  "formTypes": {
+    "hmo_form": "Health fund form",
+    "hospital_form": "Hospital form",
+    "hospital_system_screenshot": "System screenshot",
+    "lab_report": "Lab report",
+    "private_lab": "Private lab",
+    "government": "Government body",
+    "unknown": "Unknown"
+  },
+  "confidence": {
+    "sure": "Sure",
+    "check": "Not sure – check",
+    "missing": "Not found",
+    "corrected": "Corrected",
+    "confirmed": "Confirmed by hand"
+  },
+  "status": {
+    "approved": "Approved",
+    "review": "Needs review",
+    "ready": "Ready to approve"
+  },
+  "api": {
+    "network": "No connection to the server. Check the connection and try again",
+    "server": "The server returned an error ({status}). Try again"
+  },
+  "notFound": {
+    "title": "Page not found.",
+    "text": "The address may be wrong, or the page has moved. You can go on from here:",
+    "toUpload": "Back to upload and review",
+    "toHome": "To the home page"
+  },
+  "errorBoundary": {
+    "title": "Something went wrong",
+    "text": "The screen failed to load. Reloading usually helps. Nothing already saved is lost.",
+    "reload": "Reload"
+  },
+  "layout": {
+    "home": "Home page",
+    "subtitle": "From commitment forms to structured data",
+    "nav": "Main navigation",
+    "upload": "Upload and review",
+    "records": "Records",
+    "stats": "Overview",
+    "signOut": "Sign out"
+  },
+  "auth": {
+    "greeting": {
+      "morning": "Good morning",
+      "noon": "Good afternoon",
+      "evening": "Good evening",
+      "night": "Good night"
+    },
+    "errors": {
+      "credentials": "Wrong username or password",
+      "tooMany": "Too many attempts. Try again in 15 minutes",
+      "unavailable": "The server is unavailable right now. Try again in a minute"
+    },
+    "login": {
+      "pointRead": "Reads seven fields from every form, handwriting too",
+      "pointFlag": "Flags every value it isn't sure of for review",
+      "pointHistory": "Keeps who approved, who corrected, and when",
+      "title": "Sign in",
+      "hello": "{greeting}, good to see you.",
+      "username": "Username",
+      "password": "Password",
+      "hidePassword": "Hide the password",
+      "showPassword": "Show the password",
+      "signingIn": "Signing in…",
+      "signIn": "Sign in"
+    }
+  },
+  "landing": {
+    "uploadTitle": "Upload forms",
+    "uploadText": "PDFs or images of commitment forms, as many as you like at once",
+    "readTitle": "The system reads them",
+    "readText": "Seven fields from every form, handwriting too, and every doubtful value is flagged for review",
+    "reviewTitle": "Review and approve",
+    "reviewText": "See every field beside the original form, correct, approve and export",
+    "lead": "Upload the commitment forms, the system reads the data from them, and all you do is review and approve.",
+    "start": "Start: upload forms"
+  },
+  "upload": {
+    "title": "Upload {forms}",
+    "titleAccent": "commitment forms",
+    "lead": "Upload the files, and the system reads the data from every form. Every doubtful value is flagged for review.",
+    "dropText": "Drop PDFs or images here",
+    "dropHint": "One file or several at once",
+    "kinds": "File types",
+    "choose": "Choose files",
+    "tips": {
+      "manyTitle": "Several files at once",
+      "manyText": "Each file is read on its own",
+      "handTitle": "Handwriting too",
+      "handText": "Seven fields from every form",
+      "reviewTitle": "Then review and approve",
+      "reviewText": "Every field beside the original form"
+    },
+    "status": {
+      "queued": "Waiting",
+      "sending": "Reading…",
+      "done": "Read",
+      "partial": "Partly read",
+      "failed": "Failed",
+      "not_sent": "Not sent",
+      "interrupted": "Connection lost"
+    },
+    "recordsOne": "one record",
+    "recordsMany": "{n} records",
+    "pagesOne": "one page",
+    "pagesMany": "{n} pages",
+    "progress": "{done} of {total} pages read",
+    "interrupted": "The connection was lost. Some pages may already be saved. Check {link} before uploading again.",
+    "interruptedLink": "the records screen",
+    "filesTitle": "Your files",
+    "summary": "{finished} of {total} files · {records} created",
+    "failedPages": "Pages not read ({n})",
+    "failedPage": "{file}, page {page}: {message}",
+    "messages": {
+      "quota": "The daily quota is used up",
+      "notSentQuota": "The daily quota is used up. You can send again once it renews",
+      "notSentConnection": "The upload stopped because the connection was lost",
+      "signedOut": "Sign in again, then send again",
+      "readFailed": "Reading failed",
+      "notReceived": "The file was not received",
+      "splitFile": "You can split the file into several files",
+      "badType": "File type not supported. You can upload PDF, JPG or PNG",
+      "tooBig": "The file is larger than 20MB. You can split it"
+    }
+  },
+  "preview": {
+    "title": "The original form",
+    "empty": "Pick a row in the table to see the original form",
+    "pageOfForm": " ({at} of {total} in the form)",
+    "toolbar": "Page view",
+    "zoomOut": "Zoom out",
+    "zoomIn": "Zoom in",
+    "wholePage": "Whole page",
+    "fitWidth": "Fit to width",
+    "fullWidth": "Full width",
+    "frame": "The page image. Scroll it with the arrow keys",
+    "noImage": "The image of this page is not available. The page belongs to this form",
+    "imageFailed": "The page image can't be shown",
+    "imageAlt": "Page {page} of the form",
+    "marked": "Marked on the image: {label}",
+    "elsewhere": "{label} was read on page {page}",
+    "notMarked": "{label} is not marked on the image"
+  },
+  "review": {
+    "approved": "✓ Approved",
+    "approve": "Approve",
+    "approving": "Approving…",
+    "fixFirst": "Fix first: {fields}",
+    "confirm": "✓ Confirm value",
+    "confirmLabel": "Confirm value: {title}",
+    "approveAll": {
+      "button": "✓ Approve all ready ({n})",
+      "note": "Approve all appears once some records are ready",
+      "doneSome": "Approved: {n}. Left to review: {left}",
+      "doneAll": "Approved: {n}. Every record is approved"
+    },
+    "skipped": {
+      "blocked": "Not approved: fix {fields} first",
+      "conflict": "Not approved: it was changed meanwhile in another window",
+      "approved": "Already approved",
+      "deleted": "Not approved: it was deleted meanwhile"
+    },
+    "errors": {
+      "conflict": "The record was changed meanwhile in another window. The new version is loaded, and what you typed is kept: check it and save again",
+      "approved": "The record is already approved and can't be changed",
+      "siblingApproved": "Another record from the same form is already approved, so a field they share can't be changed",
+      "blocked": "Can't approve yet. Fix first: {fields}",
+      "notFound": "The record was not found. It may have been deleted in another window"
+    },
+    "nationalId": {
+      "tooLong": "The ID number is longer than 9 digits",
+      "checksum": "The check digit doesn't match. Check the number against the form"
+    },
+    "central": {
+      "editor": "Edit central numbers",
+      "remove": "Remove central number {n}",
+      "add": "+ Add",
+      "editList": "Edit the list"
+    },
+    "field": {
+      "edit": "Edit {title}",
+      "asRead": "As read: {value} (not on the list)",
+      "empty": "Empty",
+      "cell": "{title}: {value}, {confidence}. To edit"
+    },
+    "delete": {
+      "question": "Delete the record ({file}, page {page})? This can't be undone.",
+      "questionOf": "Delete the record of {name} ({file}, page {page})? This can't be undone.",
+      "button": "Delete"
+    },
+    "duplicate": {
+      "label": "Already in the history",
+      "title": "Already in the history — check it",
+      "entered": "Entered on {date} by {who}",
+      "openNewTab": "Open the record (in a new tab)",
+      "open": "Open the record"
+    },
+    "panel": {
+      "label": "Record under review",
+      "empty": "The record you pick in the list opens here",
+      "position": "{form} · record {position} of {total}",
+      "shrink": "Shrink the form",
+      "grow": "Enlarge the form",
+      "next": "Next to fix →",
+      "allGood": "All good. Ready to approve",
+      "leftOne": "One field left to fix before approving",
+      "leftMany": "{n} fields left to fix before approving"
+    },
+    "page": {
+      "steps": "Steps",
+      "stepUpload": "Upload forms",
+      "stepReview": "Review and approve",
+      "approvedCount": "{approved} of {total} approved",
+      "approvedBar": "Records approved",
+      "stillReading": "Still reading files…",
+      "toProgress": "To the upload progress",
+      "uploadMore": "+ Upload more files",
+      "toReadRecords": "Records read so far ({n})",
+      "toList": "To the list of records ({n})",
+      "approvedToast": "{record} approved",
+      "deletedToast": "{record} deleted",
+      "recordOf": "The record of {name}",
+      "record": "The record"
+    },
+    "table": {
+      "title": "Review table",
+      "count": "Records: {n} · to fix: {toFix}",
+      "source": "Source",
+      "ready": "Ready to approve",
+      "toFix": "{n} to fix",
+      "emptyTitle": "No records to review yet",
+      "emptyText": "Upload forms, and the records read from them show here for review and approval"
+    }
+  },
+  "records": {
+    "title": "Records",
+    "loading": "Loading records…",
+    "noMatch": "No records match the current filters.",
+    "clear": "Clear the filters",
+    "none": "No records yet. Records are created when forms are uploaded on the upload screen.",
+    "counts": {
+      "label": "Counts",
+      "pending": "Pending",
+      "review": "Need review",
+      "approved": "Approved"
+    },
+    "filters": {
+      "search": "Search",
+      "searchHint": "Name, ID, central or commitment number",
+      "pending": "Pending",
+      "approved": "Approved",
+      "dateFrom": "Received from",
+      "dateTo": "Received until"
+    },
+    "active": {
+      "label": "Active filters",
+      "by": "Filtered by:",
+      "remove": "Remove the filter {label}",
+      "clearAll": "Clear all",
+      "search": "Search: {q}",
+      "sender": "Sender: {sender}",
+      "form": "Form type: {form}",
+      "dates": "Date received: {range}",
+      "from": "from {date}",
+      "to": "until {date}",
+      "between": "{from}–{to}"
+    },
+    "export": {
+      "label": "Export",
+      "empty": "Export:",
+      "nothing": "No records to export under the current filters",
+      "count": "Export ({n}):"
+    },
+    "pages": {
+      "label": "Pages",
+      "previous": "Previous",
+      "next": "Next",
+      "range": "{first}–{last} of {total}"
+    }
+  },
+  "record": {
+    "back": "← Back to records",
+    "loading": "Loading the record…",
+    "notFound": "The record was not found. It may have been deleted.",
+    "approvedBy": "Approved by {who} on {when}",
+    "file": "File",
+    "morePages": " (and pages {pages})",
+    "created": "Entered",
+    "issues": "Issues in the record",
+    "colField": "Field",
+    "colValue": "Value and confidence",
+    "colRead": "What was read on the form",
+    "history": {
+      "created": "Entered",
+      "corrected": "Corrected",
+      "confirmed": "Marked as checked",
+      "approved": "Approved",
+      "onField": "{what}: {field}",
+      "button": "History",
+      "buttonCount": "History ({n})",
+      "title": "Record history",
+      "none": "No actions recorded.",
+      "by": "by {name}",
+      "note": "Only what was done and when, not the values themselves.",
+      "loadFailed": "The history failed to load"
+    }
+  },
+  "stats": {
+    "title": "Overview",
+    "lead": "How much work is left, and where the automatic reading needs the most help.",
+    "total": "Records in the system: {n}",
+    "loading": "Loading data…",
+    "loadFailed": "The data failed to load",
+    "empty": "No records yet, so there is nothing to sum up.",
+    "toUpload": "To upload forms",
+    "pending": {
+      "title": "Waiting for approval",
+      "review": "Need review: {n}",
+      "ready": "Ready to approve: {n}",
+      "link": "To the pending list →"
+    },
+    "flagged": {
+      "title": "Fields flagged for review",
+      "note": "{flagged} of {total} fields in records not yet approved"
+    },
+    "fixed": {
+      "title": "Manual corrections",
+      "none": "No field corrected yet",
+      "note": "Records corrected: {n}. Most corrected field: {field}"
+    },
+    "chart": {
+      "title": "Most corrected fields",
+      "lead": "How many times each field was corrected by hand, across all records",
+      "emptyTitle": "No fields corrected yet",
+      "emptyText": "Corrections show here after the first edit.",
+      "bar": "{field}: {n} corrections"
+    },
+    "status": {
+      "title": "All records",
+      "approved": "Approved",
+      "ready": "Ready to approve",
+      "review": "Need review",
+      "ring": "{approved} approved, {ready} ready to approve, {review} need review",
+      "approvedShort": "approved",
+      "approvedShare": "{pct} approved.",
+      "note": "{approved} A record can be approved only when none of its fields is flagged."
+    }
+  }
+}

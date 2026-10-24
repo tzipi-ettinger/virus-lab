@@ -1,4 +1,11 @@
 {
+  "app": {
+    "title": "המעבדה המרכזית לנגיפים · טפסי התחייבות"
+  },
+  "language": {
+    "other": "English",
+    "switchTo": "החלפת השפה לאנגלית"
+  },
   "common": {
     "ministry": "משרד הבריאות",
     "lab": "המעבדה המרכזית לנגיפים",
@@ -15,7 +22,8 @@
     "cancel": "ביטול",
     "save": "שמירה",
     "page": "עמוד {page}",
-    "fileAndPage": "{file}, עמוד {page}"
+    "fileAndPage": "{file}, עמוד {page}",
+    "forward": "←"
   },
   "fields": {
     "national_id": "ת״ז",

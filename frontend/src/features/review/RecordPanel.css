@@ -347,6 +347,11 @@
   box-shadow: inset -3px 0 0 var(--color-warning-border, #d9a514);
 }
 
+/* A shadow has no logical side: the bar at the start is on the left in English. */
+[dir="ltr"] .record-panel-fields tr:has(> .review-cell.is-flagged) > th {
+  box-shadow: inset 3px 0 0 var(--color-warning-border, #d9a514);
+}
+
 .record-panel-fields .review-cell.is-flagged {
   background: transparent;
 }

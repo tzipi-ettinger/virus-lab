@@ -1175,6 +1175,11 @@
     box-shadow: inset -4px 0 0 var(--color-warning-border, #d9a514);
   }
 
+  /* A shadow has no logical side: the bar at the start is on the left in English. */
+  [dir="ltr"] .record-fields tr.is-flagged {
+    box-shadow: inset 4px 0 0 var(--color-warning-border, #d9a514);
+  }
+
   .record-fields tr.is-flagged th[scope="row"] {
     border-inline-start: 0;
   }

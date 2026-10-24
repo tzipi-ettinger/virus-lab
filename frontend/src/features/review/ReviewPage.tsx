@@ -138,7 +138,8 @@ export function ReviewPage() {
         ) : (
           records.length > 0 && (
             <button type="button" className="review-page-switch is-primary" onClick={() => setView("review")}>
-              {busy ? t("review.page.toReadRecords", { n: records.length }) : t("review.page.toList", { n: records.length })} ←
+              {busy ? t("review.page.toReadRecords", { n: records.length }) : t("review.page.toList", { n: records.length })}{" "}
+              {t("common.forward")}
             </button>
           )
         )}

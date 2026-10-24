@@ -5,6 +5,7 @@
 import { Link, NavLink, Outlet, useNavigate } from "react-router";
 import { useAuth } from "../../features/auth/authContext";
 import { t } from "../../i18n";
+import { LanguageSwitch } from "../ui/LanguageSwitch";
 import "./Layout.css";
 
 export function Layout() {
@@ -50,6 +51,7 @@ export function Layout() {
           </NavLink>
         </nav>
         <span className="layout-user">
+          <LanguageSwitch />
           {name}
           <button type="button" onClick={signOut}>
             {t("layout.signOut")}
