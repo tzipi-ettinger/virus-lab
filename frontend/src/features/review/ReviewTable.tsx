@@ -4,6 +4,7 @@
 // Owner: B
 
 import { useState, type KeyboardEvent } from "react";
+import { t } from "../../i18n";
 import { FileName } from "../../shared/FileName";
 import { ApproveAllBar } from "./ApproveAllBar";
 import { useRecordMutations, type ApiRecord } from "./recordMutations";
@@ -44,10 +45,8 @@ export function ReviewTable({ records, selectedId, onSelect, onRecords, approvin
     <section className="review" aria-labelledby="review-title">
       <div className="review-head">
         <h2 id="review-title" className="review-title">
-          טבלת בדיקה
-          <span className="review-count">
-            {records.length} רשומות · {toFix} לתיקון
-          </span>
+          {t("review.table.title")}
+          <span className="review-count">{t("review.table.count", { n: records.length, toFix })}</span>
         </h2>
         <ApproveAllBar records={records} onApproveMany={approveMany} onSkipped={setSkipped} />
       </div>
@@ -55,10 +54,10 @@ export function ReviewTable({ records, selectedId, onSelect, onRecords, approvin
         <table className="review-table">
           <thead>
             <tr>
-              <th scope="col">מקור</th>
-              <th scope="col">שם</th>
-              <th scope="col">ת״ז</th>
-              <th scope="col">סטטוס</th>
+              <th scope="col">{t("review.table.source")}</th>
+              <th scope="col">{t("fields.name")}</th>
+              <th scope="col">{t("fields.national_id")}</th>
+              <th scope="col">{t("fields.status")}</th>
             </tr>
           </thead>
           <tbody>
@@ -81,11 +80,11 @@ export function ReviewTable({ records, selectedId, onSelect, onRecords, approvin
                       onKeyDown={(event) => onKeyDown(event, index)}
                     >
                       <FileName name={r.source_file} />
-                      <span className="review-page-number">עמוד {r.page_number}</span>
+                      <span className="review-page-number">{t("common.page", { page: r.page_number })}</span>
                     </button>
                   </th>
                   <td className="review-name">
-                    <bdi>{name || "ללא שם"}</bdi>
+                    <bdi>{name || t("common.noName")}</bdi>
                   </td>
                   <td className="review-number">
                     <bdi>{r.fields.national_id.value ?? "—"}</bdi>
@@ -108,12 +107,12 @@ export function ReviewTable({ records, selectedId, onSelect, onRecords, approvin
 
 /** Approved, ready, or how many fields still block approval, in text and not color only. */
 function RowStatus({ record, approving }: { record: ApiRecord; approving: boolean }) {
-  if (record.status === "approved" || approving) return <span className="review-approved">✓ אושר</span>;
+  if (record.status === "approved" || approving) return <span className="review-approved">{t("review.approved")}</span>;
   const blocking = blockingFields(record);
-  if (blocking.length === 0) return <span className="review-badge is-ready">מוכן לאישור</span>;
+  if (blocking.length === 0) return <span className="review-badge is-ready">{t("review.table.ready")}</span>;
   return (
-    <span className="review-badge is-flagged" title={`לטפל קודם ב: ${blocking.map(fieldTitle).join(", ")}`}>
-      ⚠ {blocking.length} לתיקון
+    <span className="review-badge is-flagged" title={t("review.fixFirst", { fields: blocking.map(fieldTitle).join(", ") })}>
+      ⚠ {t("review.table.toFix", { n: blocking.length })}
     </span>
   );
 }
@@ -129,12 +128,12 @@ function EmptyList({ onUpload }: { onUpload?: () => void }) {
         <path d="M70 64v16M62 72h16" stroke="#ffffff" strokeWidth="3" strokeLinecap="round" />
       </svg>
       <h2 id="review-empty-title" className="review-empty-title">
-        עוד אין רשומות לבדיקה
+        {t("review.table.emptyTitle")}
       </h2>
-      <p className="review-empty">מעלים טפסים, והרשומות שנקראו מהם יופיעו כאן לבדיקה ולאישור</p>
+      <p className="review-empty">{t("review.table.emptyText")}</p>
       {onUpload && (
         <button type="button" className="review-empty-button" onClick={onUpload}>
-          העלאת טפסים
+          {t("review.page.stepUpload")}
         </button>
       )}
     </section>

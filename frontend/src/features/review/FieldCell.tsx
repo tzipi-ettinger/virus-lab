@@ -6,6 +6,7 @@
 
 import { useId, useRef, useState, type KeyboardEvent } from "react";
 import type { components } from "../../api/schema";
+import { t } from "../../i18n";
 import type { FieldEdit, Saved } from "./recordMutations";
 import { CONFIDENCE_TEXT, fieldCell } from "./reviewRows";
 
@@ -75,7 +76,7 @@ export function FieldCell({ title, field, editable, onSave, options, check }: Fi
       {draft !== null && options ? (
         <select
           className="review-cell-input"
-          aria-label={`עריכת ${title}`}
+          aria-label={t("review.field.edit", { title })}
           value={draft}
           disabled={busy}
           autoFocus
@@ -92,9 +93,9 @@ export function FieldCell({ title, field, editable, onSave, options, check }: Fi
         >
           {/* Text that isn't on the list stays as read, and stays flagged. */}
           {field.value && !options.includes(field.value) && (
-            <option value={field.value}>כפי שנקרא: {field.value} (לא ברשימה)</option>
+            <option value={field.value}>{t("review.field.asRead", { value: field.value })}</option>
           )}
-          <option value="">ריק</option>
+          <option value="">{t("review.field.empty")}</option>
           {options.map((name) => (
             <option key={name} value={name}>
               {name}
@@ -104,7 +105,7 @@ export function FieldCell({ title, field, editable, onSave, options, check }: Fi
       ) : draft !== null ? (
         <input
           className={problem ? "review-cell-input is-invalid" : "review-cell-input"}
-          aria-label={`עריכת ${title}`}
+          aria-label={t("review.field.edit", { title })}
           aria-invalid={problem ? true : undefined}
           aria-describedby={check ? hintId : undefined}
           value={draft}
@@ -122,7 +123,11 @@ export function FieldCell({ title, field, editable, onSave, options, check }: Fi
         <button
           type="button"
           className="review-cell-value"
-          aria-label={`${title}: ${cell.text || "ריק"}, ${CONFIDENCE_TEXT[cell.confidence]}. לעריכה`}
+          aria-label={t("review.field.cell", {
+            title,
+            value: cell.text || t("review.field.empty"),
+            confidence: CONFIDENCE_TEXT[cell.confidence],
+          })}
           onClick={() => {
             setError(null);
             setDraft(field.value ?? "");
@@ -145,13 +150,13 @@ export function FieldCell({ title, field, editable, onSave, options, check }: Fi
           type="button"
           className="review-confirm"
           disabled={busy}
-          aria-label={`אישור ערך: ${title}`}
+          aria-label={t("review.confirmLabel", { title })}
           onClick={(event) => {
             event.stopPropagation();
             void save({ confirmed: true }, false);
           }}
         >
-          ✓ אישור ערך
+          {t("review.confirm")}
         </button>
       )}
       {error && (

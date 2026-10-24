@@ -2,6 +2,8 @@
 // (rules/validators.py), so a typo shows before saving. The server still decides.
 // Owner: B
 
+import { t } from "../../i18n";
+
 /** Ministry of Interior check digit over 9 digits: weights 1,2,1,2..., digit sums. */
 export function idChecksumOk(id: string): boolean {
   let total = 0;
@@ -19,8 +21,8 @@ export function idChecksumOk(id: string): boolean {
 export function idProblem(text: string): string | null {
   const digits = text.replace(/\D/g, "");
   if (digits.length < 5) return null;
-  if (digits.length > 9) return "ת״ז ארוכה מ-9 ספרות";
+  if (digits.length > 9) return t("review.nationalId.tooLong");
   const id = digits.padStart(9, "0");
-  if (!/[1-9]/.test(id) || !idChecksumOk(id)) return "ספרת הביקורת לא מתאימה. כדאי לבדוק את המספר מול הטופס";
+  if (!/[1-9]/.test(id) || !idChecksumOk(id)) return t("review.nationalId.checksum");
   return null;
 }

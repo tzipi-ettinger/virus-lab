@@ -5,6 +5,7 @@
 // Owner: B
 
 import { useRef, useState } from "react";
+import { t } from "../../i18n";
 import { useSenders } from "../../shared/useSenders";
 import { DocumentPreview } from "../preview/DocumentPreview";
 import { fieldHighlight } from "../preview/previewPages";
@@ -54,8 +55,8 @@ export function RecordPanel({
 
   if (record === null) {
     return (
-      <aside className="record-panel" aria-label="רשומה לבדיקה">
-        <p className="review-empty">כאן תיפתח הרשומה שבוחרים ברשימה</p>
+      <aside className="record-panel" aria-label={t("review.panel.label")}>
+        <p className="review-empty">{t("review.panel.empty")}</p>
       </aside>
     );
   }
@@ -69,7 +70,7 @@ export function RecordPanel({
     focused === null
       ? null
       : focused === "central_numbers"
-        ? fieldHighlight(`${record.record_id}:${focused}`, "מספרים מרכזיים", record.central_numbers)
+        ? fieldHighlight(`${record.record_id}:${focused}`, t("fields.central_numbers"), record.central_numbers)
         : fieldHighlight(
             `${record.record_id}:${focused}`,
             FIELD_COLUMNS.find((c) => c.name === focused)?.title ?? "",
@@ -80,10 +81,10 @@ export function RecordPanel({
     <aside className="record-panel" aria-labelledby="record-panel-title">
       <div className="record-panel-head">
         <h2 id="record-panel-title" className="record-panel-title">
-          <bdi>{name || "ללא שם"}</bdi>
+          <bdi>{name || t("common.noName")}</bdi>
         </h2>
         <span className="review-count">
-          {FORM_TYPE_TEXT[record.form_type]} · רשומה {position} מתוך {records.length}
+          {t("review.panel.position", { form: FORM_TYPE_TEXT[record.form_type], position, total: records.length })}
         </span>
       </div>
 
@@ -96,7 +97,7 @@ export function RecordPanel({
             aria-expanded={expanded}
             onClick={() => setExpanded((open) => !open)}
           >
-            {expanded ? "הקטנת הטופס" : "הגדלת הטופס"}
+            {expanded ? t("review.panel.shrink") : t("review.panel.grow")}
           </button>
         </div>
 
@@ -131,7 +132,7 @@ export function RecordPanel({
                 </tr>
               ))}
               <tr data-field="central_numbers" {...rowProps("central_numbers")}>
-                <th scope="row">מספרים מרכזיים</th>
+                <th scope="row">{t("fields.central_numbers")}</th>
                 <CentralNumbersCell
                   items={record.central_numbers}
                   editable={editable}
@@ -175,7 +176,7 @@ export function RecordPanel({
             )}
             {next && (
               <button type="button" className="record-panel-next" onClick={() => onSelect(next.record_id)}>
-                הבאה לתיקון ←
+                {t("review.panel.next")}
               </button>
             )}
           </div>
@@ -190,7 +191,7 @@ function FixSummary({ blocking, onPick }: { blocking: string[]; onPick: (name: s
   if (blocking.length === 0) {
     return (
       <p className="record-panel-summary is-ready">
-        <span aria-hidden="true">✓</span> הכל תקין. אפשר לאשר
+        <span aria-hidden="true">✓</span> {t("review.panel.allGood")}
       </p>
     );
   }
@@ -198,7 +199,7 @@ function FixSummary({ blocking, onPick }: { blocking: string[]; onPick: (name: s
     <div className="record-panel-summary is-flagged">
       <p className="record-panel-summary-title">
         <span aria-hidden="true">⚠</span>{" "}
-        {blocking.length === 1 ? "נשאר שדה אחד לתיקון לפני אישור" : `נשארו ${blocking.length} שדות לתיקון לפני אישור`}
+        {blocking.length === 1 ? t("review.panel.leftOne") : t("review.panel.leftMany", { n: blocking.length })}
       </p>
       <ul className="record-panel-summary-list">
         {blocking.map((name) => (

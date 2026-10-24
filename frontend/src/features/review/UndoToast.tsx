@@ -2,6 +2,7 @@
 // while it still waits (useUndo). A refusal from the server shows here too.
 // Owner: B
 
+import { t } from "../../i18n";
 import { UNDO_MS, type Undoable } from "./useUndo";
 import "./UndoToast.css";
 
@@ -20,7 +21,7 @@ export function UndoToast({ waiting, error, onUndo, onDismiss }: Props) {
         <div className="undo-toast" key={waiting.text}>
           <span className="undo-toast-text">{waiting.text}</span>
           <button type="button" className="undo-toast-button" onClick={onUndo}>
-            ביטול
+            {t("common.cancel")}
           </button>
           <span className="undo-toast-timer" style={{ animationDuration: `${UNDO_MS}ms` }} aria-hidden="true" />
         </div>
@@ -29,7 +30,7 @@ export function UndoToast({ waiting, error, onUndo, onDismiss }: Props) {
         <div className="undo-toast is-error">
           <span className="undo-toast-text">{error}</span>
           <button type="button" className="undo-toast-button" onClick={onDismiss}>
-            סגירה
+            {t("common.close")}
           </button>
         </div>
       )}

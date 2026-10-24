@@ -2,6 +2,8 @@
 // Owner: A
 
 import { useEffect, useRef, useState, type DragEvent } from "react";
+import { t } from "../../i18n";
+import { tRich } from "../../i18n/rich";
 import {
   hasUnsentFiles,
   progressText,
@@ -21,17 +23,17 @@ interface UploadPanelProps {
 }
 
 const STATUS_TEXT: Record<FileStatus, string> = {
-  queued: "ממתין",
-  sending: "נקרא…",
-  done: "נקרא",
-  partial: "נקרא חלקית",
-  failed: "נכשל",
-  not_sent: "לא נשלח",
-  interrupted: "החיבור נקטע",
+  queued: t("upload.status.queued"),
+  sending: t("upload.status.sending"),
+  done: t("upload.status.done"),
+  partial: t("upload.status.partial"),
+  failed: t("upload.status.failed"),
+  not_sent: t("upload.status.not_sent"),
+  interrupted: t("upload.status.interrupted"),
 };
 
 function recordsText(n: number) {
-  return n === 1 ? "רשומה אחת" : `${n} רשומות`;
+  return n === 1 ? t("upload.recordsOne") : t("upload.recordsMany", { n });
 }
 
 // The file's kind, for the small colored badge beside its name.
@@ -53,9 +55,9 @@ function FileKind({ name }: { name: string }) {
 }
 
 const TIPS = [
-  { kind: "blue", title: "כמה קבצים בבת אחת", text: "כל קובץ נקרא בנפרד", icon: <><rect x="7" y="3" width="13" height="15" rx="2" /><path d="M4 7v12a2 2 0 0 0 2 2h10" /></> },
-  { kind: "teal", title: "גם כתב יד", text: "שבעה שדות מכל טופס", icon: <><path d="M4 20h4L19 9l-4-4L4 16z" /><path d="m13 7 4 4" /></> },
-  { kind: "green", title: "ואז בודקים ומאשרים", text: "כל שדה ליד הטופס המקורי", icon: <path d="M5 12.5 10 17l9-10" /> },
+  { kind: "blue", title: t("upload.tips.manyTitle"), text: t("upload.tips.manyText"), icon: <><rect x="7" y="3" width="13" height="15" rx="2" /><path d="M4 7v12a2 2 0 0 0 2 2h10" /></> },
+  { kind: "teal", title: t("upload.tips.handTitle"), text: t("upload.tips.handText"), icon: <><path d="M4 20h4L19 9l-4-4L4 16z" /><path d="m13 7 4 4" /></> },
+  { kind: "green", title: t("upload.tips.reviewTitle"), text: t("upload.tips.reviewText"), icon: <path d="M5 12.5 10 17l9-10" /> },
 ];
 
 function StatusIcon({ status }: { status: FileStatus }) {
@@ -106,7 +108,7 @@ function detail(item: UploadItem) {
   const parts: string[] = [];
   if (r && (item.status === "done" || item.status === "partial")) {
     const pages = r.files[0]?.page_count;
-    if (pages) parts.push(pages === 1 ? "עמוד אחד" : `${pages} עמודים`);
+    if (pages) parts.push(pages === 1 ? t("upload.pagesOne") : t("upload.pagesMany", { n: pages }));
     parts.push(recordsText(r.records.length));
   }
   if (item.message) parts.push(item.message);
@@ -138,9 +140,9 @@ export function UploadPanel({ onResult, onBusyChange }: UploadPanelProps) {
     <section className={items.length > 0 ? "upload has-files" : "upload"} aria-labelledby="upload-title">
       <div className="upload-hero">
         <h2 id="upload-title" className="upload-title">
-          העלאת <span className="upload-title-accent">טפסי התחייבות</span>
+          {tRich("upload.title", { forms: <span className="upload-title-accent">{t("upload.titleAccent")}</span> })}
         </h2>
-        <p className="upload-lead">מעלים את הקבצים, והמערכת קוראת מכל טופס את הנתונים. כל ערך מפוקפק יסומן לבדיקה.</p>
+        <p className="upload-lead">{t("upload.lead")}</p>
       </div>
 
       <div className="upload-card">
@@ -160,9 +162,9 @@ export function UploadPanel({ onResult, onBusyChange }: UploadPanelProps) {
               <path d="M4 20h16" />
             </svg>
           </span>
-          <p className="upload-drop-text">גררי לכאן קבצי PDF או תמונות</p>
-          <p className="upload-drop-hint">קובץ אחד או כמה בבת אחת</p>
-          <ul className="upload-kinds" aria-label="סוגי קבצים">
+          <p className="upload-drop-text">{t("upload.dropText")}</p>
+          <p className="upload-drop-hint">{t("upload.dropHint")}</p>
+          <ul className="upload-kinds" aria-label={t("upload.kinds")}>
             <li className="upload-kind is-pdf">PDF</li>
             <li className="upload-kind is-jpg">JPG</li>
             <li className="upload-kind is-png">PNG</li>
@@ -173,7 +175,7 @@ export function UploadPanel({ onResult, onBusyChange }: UploadPanelProps) {
               <path d="M14 3v5h5" />
               <path d="M12 12v6M9 15h6" />
             </svg>
-            בחירת קבצים
+            {t("upload.choose")}
           </button>
           <input
             ref={input}
@@ -211,16 +213,16 @@ export function UploadPanel({ onResult, onBusyChange }: UploadPanelProps) {
 
       {interrupted && (
         <p className="upload-alert" role="alert">
-          החיבור נקטע. ייתכן שחלק מהעמודים כבר נשמרו. בדקי <a href="/records">במסך הרשומות</a> לפני שמעלים שוב.
+          {tRich("upload.interrupted", { link: <a href="/records">{t("upload.interruptedLink")}</a> })}
         </p>
       )}
 
       {items.length > 0 && (
         <div className="upload-files">
           <div className="upload-files-head">
-            <h3 className="upload-files-title">הקבצים שלך</h3>
+            <h3 className="upload-files-title">{t("upload.filesTitle")}</h3>
             <p className="upload-summary">
-              {finished} מתוך {items.length} קבצים · נוצרו {recordsText(records)}
+              {t("upload.summary", { finished, total: items.length, records: recordsText(records) })}
             </p>
           </div>
           <ul className="upload-list" aria-live="polite">
@@ -243,7 +245,7 @@ export function UploadPanel({ onResult, onBusyChange }: UploadPanelProps) {
                 </span>
                 {item.canRetry && (
                   <button type="button" className="upload-retry" onClick={() => retry(item.key)}>
-                    נסי שוב
+                    {t("common.retry")}
                   </button>
                 )}
               </li>
@@ -255,12 +257,16 @@ export function UploadPanel({ onResult, onBusyChange }: UploadPanelProps) {
       {failedPages.length > 0 && (
         <div className="upload-failed" role="region" aria-labelledby="upload-failed-title">
           <h3 id="upload-failed-title" className="upload-failed-title">
-            עמודים שלא נקראו ({failedPages.length})
+            {t("upload.failedPages", { n: failedPages.length })}
           </h3>
           <ul>
             {failedPages.map((p) => (
               <li key={`${p.file_id}-${p.page_number}`}>
-                <bdi>{p.source_file}</bdi>, עמוד {p.page_number}: {p.error.message}
+                {tRich("upload.failedPage", {
+                  file: <bdi>{p.source_file}</bdi>,
+                  page: p.page_number,
+                  message: p.error.message,
+                })}
               </li>
             ))}
           </ul>

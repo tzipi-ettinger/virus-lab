@@ -5,6 +5,7 @@
 // Owner: B
 
 import { useState } from "react";
+import { t } from "../../i18n";
 import type { ApiRecord, BulkApproveResponse } from "./recordMutations";
 import { isReady, skipReason } from "./reviewRows";
 
@@ -34,8 +35,8 @@ export function ApproveAllBar({ records, onApproveMany, onSkipped }: Props) {
     setSummary({
       text:
         left > 0
-          ? `אושרו ${answer.approved.length} רשומות. ${left} נשארו לבדיקה`
-          : `אושרו ${answer.approved.length} רשומות. כל הרשומות אושרו`,
+          ? t("review.approveAll.doneSome", { n: answer.approved.length, left })
+          : t("review.approveAll.doneAll", { n: answer.approved.length }),
       failed: false,
     });
   }
@@ -44,10 +45,10 @@ export function ApproveAllBar({ records, onApproveMany, onSkipped }: Props) {
     <div className="review-approve-all">
       {ready.length > 0 || busy ? (
         <button type="button" disabled={busy} onClick={() => void approveAll()}>
-          {busy ? "מאשרת…" : `✓ אשרי את כל המוכנות (${ready.length})`}
+          {busy ? t("review.approving") : t("review.approveAll.button", { n: ready.length })}
         </button>
       ) : (
-        !summary && <span className="review-approve-all-note">אישור גורף יופיע כשיהיו רשומות מוכנות</span>
+        !summary && <span className="review-approve-all-note">{t("review.approveAll.note")}</span>
       )}
       {summary && (
         <span className={summary.failed ? "review-cell-error" : "review-summary"} role="status">

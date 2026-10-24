@@ -5,6 +5,7 @@
 
 import { useEffect, useReducer, useRef } from "react";
 import type { components } from "../../api/schema";
+import { t } from "../../i18n";
 
 export type ExtractResponse = components["schemas"]["ExtractResponse"];
 export type ExtractJob = components["schemas"]["ExtractJob"];
@@ -59,11 +60,11 @@ export type Outcome =
   | { kind: "signed_out" }
   | { kind: "interrupted" };
 
-export const QUOTA_MESSAGE = "המכסה היומית נגמרה";
+export const QUOTA_MESSAGE = t("upload.messages.quota");
 // Nothing from these files was saved, so sending them again is safe - once the quota is back.
-export const NOT_SENT_QUOTA = "המכסה היומית נגמרה. אפשר לשלוח שוב כשהמכסה מתחדשת";
-export const NOT_SENT_CONNECTION = "ההעלאה נעצרה כי החיבור נקטע";
-export const SIGNED_OUT = "צריך להתחבר מחדש, ואז לשלוח שוב";
+export const NOT_SENT_QUOTA = t("upload.messages.notSentQuota");
+export const NOT_SENT_CONNECTION = t("upload.messages.notSentConnection");
+export const SIGNED_OUT = t("upload.messages.signedOut");
 
 // Problem types where the server says nothing was saved and sending again may work.
 // database_unavailable and too_many_uploads are 503s sent before any page is read.
@@ -77,7 +78,7 @@ export function classify(status: number, body: unknown): Outcome {
     if (file?.status === "error") {
       return {
         kind: "failed",
-        message: file.error?.message ?? "הקריאה נכשלה",
+        message: file.error?.message ?? t("upload.messages.readFailed"),
         canRetry: file.error?.code !== "INVALID_FILE",
         result,
       };
@@ -92,9 +93,9 @@ export function classify(status: number, body: unknown): Outcome {
   if (status >= 500 && !RETRYABLE.has(problem.type ?? "")) return { kind: "interrupted" };
   // Refused before anything was read: sending again after signing in is safe.
   if (status === 401) return { kind: "signed_out" };
-  const parts = [problem.title || "הקובץ לא התקבל"];
+  const parts = [problem.title || t("upload.messages.notReceived")];
   if (problem.detail) parts.push(problem.detail);
-  if (problem.type === "too_many_pages") parts.push("אפשר לחלק את הקובץ לכמה קבצים");
+  if (problem.type === "too_many_pages") parts.push(t("upload.messages.splitFile"));
   return { kind: "failed", message: parts.join(". "), canRetry: RETRYABLE.has(problem.type ?? "") };
 }
 
@@ -102,7 +103,7 @@ export function classify(status: number, body: unknown): Outcome {
 // A one-page file shows only "נקרא…": "0 of 1" says nothing.
 export function progressText(progress: Progress | undefined): string | null {
   if (!progress || progress.total < 2) return null;
-  return `נקראו ${progress.done} מתוך ${progress.total} עמודים`;
+  return t("upload.progress", { done: progress.done, total: progress.total });
 }
 
 const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
@@ -211,10 +212,10 @@ export function uploadReducer(items: UploadItem[], action: Action): UploadItem[]
         ...items,
         ...action.files.map(({ key, file }): UploadItem => {
           if (!ACCEPTED.test(file.name)) {
-            return { key, file, status: "failed", canRetry: false, message: "סוג קובץ לא נתמך. אפשר להעלות PDF, JPG או PNG" };
+            return { key, file, status: "failed", canRetry: false, message: t("upload.messages.badType") };
           }
           if (file.size > MAX_FILE_BYTES) {
-            return { key, file, status: "failed", canRetry: false, message: "הקובץ גדול מ־20MB. אפשר לחלק אותו" };
+            return { key, file, status: "failed", canRetry: false, message: t("upload.messages.tooBig") };
           }
           return { key, file, status: "queued", canRetry: false };
         }),

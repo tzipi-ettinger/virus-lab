@@ -7,6 +7,7 @@
 import { useCallback } from "react";
 import { ApiError, apiFetch } from "../../api/client";
 import type { components } from "../../api/schema";
+import { t } from "../../i18n";
 import { fieldTitle } from "./reviewRows";
 
 export type ApiRecord = components["schemas"]["Record"];
@@ -18,24 +19,23 @@ type RecordPatchResponse = components["schemas"]["RecordPatchResponse"];
 export type BulkApproveResponse = components["schemas"]["BulkApproveResponse"];
 export type SkippedRecord = components["schemas"]["SkippedRecord"];
 
-export const VERSION_CONFLICT =
-  "הרשומה עודכנה בינתיים בחלון אחר. טענתי את הגרסה החדשה, ומה שהקלדת נשאר: בדקי ושמרי שוב";
+export const VERSION_CONFLICT = t("review.errors.conflict");
 
 /** The Hebrew message for a failed change: what happened and what to do. */
 export function mutationError(error: unknown): string {
-  if (!(error instanceof ApiError)) return "משהו השתבש. נסי שוב";
+  if (!(error instanceof ApiError)) return t("common.failed");
   switch (error.type) {
     case "version_conflict":
       return VERSION_CONFLICT;
     case "record_approved":
-      return "הרשומה כבר אושרה, ואי אפשר לשנות אותה";
+      return t("review.errors.approved");
     case "sibling_approved":
-      return "רשומה אחרת מאותו טופס כבר אושרה, ולכן אי אפשר לשנות שדה שמשותף לשתיהן";
+      return t("review.errors.siblingApproved");
     case "review_required":
-      return `אי אפשר לאשר עדיין. יש לטפל קודם ב: ${error.blockingFields.map(fieldTitle).join(", ")}`;
+      return t("review.errors.blocked", { fields: error.blockingFields.map(fieldTitle).join(", ") });
     case "record_not_found":
     case "not_found":
-      return "הרשומה לא נמצאה. ייתכן שנמחקה בחלון אחר";
+      return t("review.errors.notFound");
     default:
       return error.message;
   }

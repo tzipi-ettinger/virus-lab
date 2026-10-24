@@ -3,6 +3,7 @@
 // Owner: B
 
 import { useState } from "react";
+import { t } from "../../i18n";
 import type { ApiRecord, Saved } from "./recordMutations";
 
 interface Props {
@@ -19,7 +20,11 @@ export function DeleteButton({ record, onDelete, onDeleted, confirm = window.con
 
   async function remove() {
     const name = [record.fields.first_name.value, record.fields.last_name.value].filter(Boolean).join(" ");
-    const question = `למחוק את הרשומה${name ? ` של ${name}` : ""} (${record.source_file}, עמוד ${record.page_number})? אי אפשר לבטל את זה.`;
+    const question = t(name ? "review.delete.questionOf" : "review.delete.question", {
+      name,
+      file: record.source_file,
+      page: record.page_number,
+    });
     if (!confirm(question)) return;
     setBusy(true);
     const message = await onDelete(record);
@@ -39,7 +44,7 @@ export function DeleteButton({ record, onDelete, onDeleted, confirm = window.con
           void remove();
         }}
       >
-        מחיקה
+        {t("review.delete.button")}
       </button>
       {error && (
         <span className="review-cell-error" role="alert">
