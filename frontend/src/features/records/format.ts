@@ -1,6 +1,8 @@
 // How the records screens show dates and statuses. No React here.
 // Owner: B
 
+import { t } from "../../i18n";
+
 const ISO_DATE = /^(\d{4})-(\d{2})-(\d{2})$/;
 
 /** 2026-10-19 → 19/10/2026, the format the lab reads. Anything else as it is. */
@@ -44,7 +46,7 @@ export function senderTag(name: string): number {
 
 /** Every status in text and an icon too, never by color alone (PLAN-DEV-B 3.0). */
 export function statusView(record: { status: string; needs_review: boolean }): StatusView {
-  if (record.status === "approved") return { icon: "✓", text: "אושר", tone: "approved" };
-  if (record.needs_review) return { icon: "⚠", text: "דורש בדיקה", tone: "review" };
-  return { icon: "○", text: "ממתין לאישור", tone: "ready" };
+  if (record.status === "approved") return { icon: "✓", text: t("status.approved"), tone: "approved" };
+  if (record.needs_review) return { icon: "⚠", text: t("status.review"), tone: "review" };
+  return { icon: "○", text: t("status.ready"), tone: "ready" };
 }

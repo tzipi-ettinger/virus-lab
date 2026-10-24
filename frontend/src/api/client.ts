@@ -3,13 +3,14 @@
 // app to sign in again. Types come from schema.d.ts (npm run gen:api).
 // Owner: A in CODEOWNERS; written by B (PLAN-DEV-B 3.2, A8)
 
+import { t } from "../i18n";
 import type { components } from "./schema";
 
 export type Problem = components["schemas"]["Problem"];
 
 const BASE = import.meta.env.VITE_API_BASE_URL ?? "";
 
-export const NETWORK_ERROR = "אין חיבור לשרת. בדקי את החיבור ונסי שוב";
+export const NETWORK_ERROR = t("api.network");
 
 export class ApiError extends Error {
   readonly status: number;
@@ -81,7 +82,7 @@ async function readProblem(response: Response): Promise<Problem> {
   }
   return {
     type: "http_error",
-    title: `השרת החזיר שגיאה (${response.status}). נסי שוב`,
+    title: t("api.server", { status: response.status }),
     status: response.status,
   };
 }

@@ -3,6 +3,7 @@
 // Owner: B
 
 import type { components } from "../../api/schema";
+import { t } from "../../i18n";
 
 type ApiRecord = components["schemas"]["Record"];
 type FormField = components["schemas"]["FormField"];
@@ -33,11 +34,11 @@ export function findRecord(records: ApiRecord[], id: string | null): ApiRecord |
 export type Confidence = "sure" | "check" | "missing" | "corrected" | "confirmed";
 
 export const CONFIDENCE_TEXT: Record<Confidence, string> = {
-  sure: "בטוח",
-  check: "לא בטוח – בדקי",
-  missing: "לא נמצא",
-  corrected: "תוקן",
-  confirmed: "אושר ידנית",
+  sure: t("confidence.sure"),
+  check: t("confidence.check"),
+  missing: t("confidence.missing"),
+  corrected: t("confidence.corrected"),
+  confirmed: t("confidence.confirmed"),
 };
 
 export function confidence(field: FormField): Confidence {
@@ -79,12 +80,12 @@ export function listCell(items: FormField[]): Cell {
 }
 
 export const FIELD_COLUMNS: { name: FieldName; title: string }[] = [
-  { name: "national_id", title: "ת״ז" },
-  { name: "first_name", title: "שם פרטי" },
-  { name: "last_name", title: "שם משפחה" },
-  { name: "commitment_number", title: "מספר התחייבות" },
-  { name: "sender", title: "גורם שולח" },
-  { name: "received_date", title: "תאריך קבלה" },
+  { name: "national_id", title: t("fields.national_id") },
+  { name: "first_name", title: t("fields.first_name") },
+  { name: "last_name", title: t("fields.last_name") },
+  { name: "commitment_number", title: t("fields.commitment_number") },
+  { name: "sender", title: t("fields.sender") },
+  { name: "received_date", title: t("fields.received_date") },
 ];
 
 /**
@@ -133,7 +134,7 @@ export function nextAfter(records: ApiRecord[], currentId: string): ApiRecord | 
 /** A blocking field's name in Hebrew: "national_id" → ת״ז, "central_numbers[1]" → מספר מרכזי 2. */
 export function fieldTitle(name: string): string {
   const central = /^central_numbers\[(\d+)\]$/.exec(name);
-  if (central) return `מספר מרכזי ${Number(central[1]) + 1}`;
+  if (central) return t("fields.centralNumberN", { n: Number(central[1]) + 1 });
   return FIELD_COLUMNS.find((c) => c.name === name)?.title ?? name;
 }
 
@@ -141,22 +142,22 @@ export function fieldTitle(name: string): string {
 export function skipReason(skipped: components["schemas"]["SkippedRecord"]): string {
   switch (skipped.type) {
     case "review_required":
-      return `לא אושרה: יש לטפל ב${(skipped.blocking_fields ?? []).map(fieldTitle).join(", ")}`;
+      return t("review.skipped.blocked", { fields: (skipped.blocking_fields ?? []).map(fieldTitle).join(", ") });
     case "version_conflict":
-      return "לא אושרה: עודכנה בינתיים בחלון אחר";
+      return t("review.skipped.conflict");
     case "record_approved":
-      return "כבר אושרה";
+      return t("review.skipped.approved");
     case "not_found":
-      return "לא אושרה: נמחקה בינתיים";
+      return t("review.skipped.deleted");
   }
 }
 
 export const FORM_TYPE_TEXT: Record<ApiRecord["form_type"], string> = {
-  hmo_form: "טופס קופה",
-  hospital_form: "טופס בית חולים",
-  hospital_system_screenshot: "צילום מסך ממערכת",
-  lab_report: "דוח מעבדה",
-  private_lab: "מעבדה פרטית",
-  government: "גוף ממשלתי",
-  unknown: "לא ידוע",
+  hmo_form: t("formTypes.hmo_form"),
+  hospital_form: t("formTypes.hospital_form"),
+  hospital_system_screenshot: t("formTypes.hospital_system_screenshot"),
+  lab_report: t("formTypes.lab_report"),
+  private_lab: t("formTypes.private_lab"),
+  government: t("formTypes.government"),
+  unknown: t("formTypes.unknown"),
 };

@@ -7,6 +7,7 @@
 
 import { useState, type FormEvent } from "react";
 import { Navigate, useLocation, useNavigate } from "react-router";
+import { t } from "../../i18n";
 import { useAuth } from "./authContext";
 import { greeting } from "./greeting";
 import { loginError } from "./loginError";
@@ -21,11 +22,7 @@ function afterLogin(from: string | undefined): string {
   return from && RECORD_LINK.test(from) ? from : "/upload";
 }
 
-const POINTS = [
-  "קורא שבעה שדות מכל טופס, גם בכתב יד",
-  "מסמן לבדיקה כל ערך שאינו ודאי",
-  "שומר מי אישר, מי תיקן ומתי",
-];
+const POINTS = [t("auth.login.pointRead"), t("auth.login.pointFlag"), t("auth.login.pointHistory")];
 
 export function LoginPage() {
   const { state, login } = useAuth();
@@ -60,12 +57,12 @@ export function LoginPage() {
       <div className="login-glow" aria-hidden="true" />
       <main className="login-main">
         <section className="login-brand">
-          <img className="login-logo" src="/moh-logo.png" alt="משרד הבריאות" />
-          <p className="login-kicker">המעבדה המרכזית לנגיפים</p>
+          <img className="login-logo" src="/moh-logo.png" alt={t("common.ministry")} />
+          <p className="login-kicker">{t("common.lab")}</p>
           <h1 className="login-title">
-            מטופס סרוק{" "}
+            {t("common.tagline")}{" "}
             <br />
-            <span className="login-title-accent">לרשומה מאושרת</span>
+            <span className="login-title-accent">{t("common.taglineAccent")}</span>
           </h1>
           <ul className="login-points">
             {POINTS.map((point) => (
@@ -82,10 +79,10 @@ export function LoginPage() {
         </section>
 
         <form className="login-card" onSubmit={submit} noValidate>
-          <h2>כניסה למערכת</h2>
-          <p className="login-hint">{hello}, טוב לראות אותך.</p>
+          <h2>{t("auth.login.title")}</h2>
+          <p className="login-hint">{t("auth.login.hello", { greeting: hello })}</p>
           <label>
-            שם משתמש
+            {t("auth.login.username")}
             <input
               name="username"
               autoComplete="username"
@@ -96,7 +93,7 @@ export function LoginPage() {
             />
           </label>
           <label>
-            סיסמה
+            {t("auth.login.password")}
             {/* The eye shows the password as text, and hides it again. */}
             <span className="login-password">
               <input
@@ -110,9 +107,9 @@ export function LoginPage() {
               <button
                 type="button"
                 className="login-eye"
-                aria-label={showPassword ? "הסתרת הסיסמה" : "הצגת הסיסמה"}
+                aria-label={showPassword ? t("auth.login.hidePassword") : t("auth.login.showPassword")}
                 aria-pressed={showPassword}
-                title={showPassword ? "הסתרת הסיסמה" : "הצגת הסיסמה"}
+                title={showPassword ? t("auth.login.hidePassword") : t("auth.login.showPassword")}
                 onClick={() => setShowPassword((shown) => !shown)}
               >
                 <EyeIcon open={!showPassword} />
@@ -125,12 +122,12 @@ export function LoginPage() {
             </p>
           )}
           <button type="submit" className="login-submit" disabled={busy || !username.trim() || !password}>
-            {busy ? "נכנסת…" : "כניסה"}
+            {busy ? t("auth.login.signingIn") : t("auth.login.signIn")}
             {!busy && <span aria-hidden="true">←</span>}
           </button>
         </form>
       </main>
-      <footer className="login-footer">משרד הבריאות · המעבדה המרכזית לנגיפים</footer>
+      <footer className="login-footer">{t("common.footer")}</footer>
     </div>
   );
 }

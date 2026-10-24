@@ -5,11 +5,11 @@
 // Owner: B
 
 import { Link } from "react-router";
+import { t } from "../../i18n";
+import { tRich } from "../../i18n/rich";
 import { formatDateTime } from "../records/format";
 import type { ApiRecord } from "./recordMutations";
 import "./DuplicateNotice.css";
-
-const TITLE = "כבר קיים בהיסטוריה — יש לבדוק";
 
 interface DuplicateNoticeProps {
   record: ApiRecord;
@@ -22,22 +22,25 @@ export function DuplicateNotice({ record, newTab = false }: DuplicateNoticeProps
   if (!issue) return null;
   const earlier = issue.duplicate_of ?? []; // records saved before this feature have no list
   return (
-    <section className="duplicate-notice" aria-label="כבר קיים בהיסטוריה">
-      <p className="duplicate-notice-title">⚠ {TITLE}</p>
+    <section className="duplicate-notice" aria-label={t("review.duplicate.label")}>
+      <p className="duplicate-notice-title">⚠ {t("review.duplicate.title")}</p>
       {earlier.length > 0 && (
         <ul className="duplicate-notice-list">
           {earlier.map((copy) => {
             const to = `/records/${encodeURIComponent(copy.record_id)}`;
             return (
               <li key={copy.record_id}>
-                הוכנס ב־{formatDateTime(copy.created_at)} על ידי <bdi>{copy.created_by}</bdi>
+                {tRich("review.duplicate.entered", {
+                  date: formatDateTime(copy.created_at),
+                  who: <bdi>{copy.created_by}</bdi>,
+                })}
                 {" · "}
                 {newTab ? (
                   <a href={to} target="_blank" rel="noopener noreferrer">
-                    פתיחת הרשומה (בכרטיסייה חדשה)
+                    {t("review.duplicate.openNewTab")}
                   </a>
                 ) : (
-                  <Link to={to}>פתיחת הרשומה</Link>
+                  <Link to={to}>{t("review.duplicate.open")}</Link>
                 )}
               </li>
             );

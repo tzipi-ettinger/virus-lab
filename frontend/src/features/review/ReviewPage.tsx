@@ -10,6 +10,7 @@
 // Owner: B
 
 import { useCallback, useState } from "react";
+import { t } from "../../i18n";
 import { useRecordMutations, type ApiRecord } from "./recordMutations";
 import { UploadPanel } from "../upload/UploadPanel";
 import { RecordPanel } from "./RecordPanel";
@@ -60,7 +61,7 @@ export function ReviewPage() {
     setApprovingId(record.record_id);
     if (next) setSelectedId(next.record_id);
     undo.schedule({
-      text: `${recordName(record)} אושרה`,
+      text: t("review.page.approvedToast", { record: recordName(record) }),
       run: async () => {
         const message = await approve(record);
         setApprovingId((id) => (id === record.record_id ? null : id));
@@ -80,7 +81,7 @@ export function ReviewPage() {
     setDeletingId(record.record_id);
     setSelectedId(next?.record_id ?? null);
     undo.schedule({
-      text: `${recordName(record)} נמחקה`,
+      text: t("review.page.deletedToast", { record: recordName(record) }),
       run: async () => {
         const message = await remove(record);
         if (message === null) onRemoved(record.record_id);
@@ -97,25 +98,25 @@ export function ReviewPage() {
   return (
     <div className={showReview ? "review-page is-review" : "review-page is-upload"}>
       <div className="review-page-head">
-        <ol className="review-steps" aria-label="שלבים">
+        <ol className="review-steps" aria-label={t("review.page.steps")}>
           <li className={showReview ? "is-done" : "is-current"} aria-current={showReview ? undefined : "step"}>
             <span className="review-step-dot" aria-hidden="true">{showReview ? "✓" : "1"}</span>
-            העלאת טפסים
+            {t("review.page.stepUpload")}
           </li>
           <li className={showReview ? "is-current" : undefined} aria-current={showReview ? "step" : undefined}>
             <span className="review-step-dot" aria-hidden="true">2</span>
-            בדיקה ואישור
+            {t("review.page.stepReview")}
           </li>
         </ol>
         {showReview && records.length > 0 && (
           <div className="review-progress">
             <span className="review-progress-text">
-              {approved} מתוך {records.length} אושרו
+              {t("review.page.approvedCount", { approved, total: records.length })}
             </span>
             <span
               className="review-progress-bar"
               role="progressbar"
-              aria-label="רשומות שאושרו"
+              aria-label={t("review.page.approvedBar")}
               aria-valuemin={0}
               aria-valuemax={records.length}
               aria-valuenow={approved}
@@ -127,17 +128,17 @@ export function ReviewPage() {
         {busy && showReview && (
           <span className="review-page-busy" role="status">
             <span className="review-page-pulse" aria-hidden="true" />
-            ממשיכה לקרוא קבצים…
+            {t("review.page.stillReading")}
           </span>
         )}
         {showReview ? (
           <button type="button" className="review-page-switch" onClick={() => setView("upload")}>
-            {busy ? "להתקדמות ההעלאה" : "+ העלאת קבצים נוספים"}
+            {busy ? t("review.page.toProgress") : t("review.page.uploadMore")}
           </button>
         ) : (
           records.length > 0 && (
             <button type="button" className="review-page-switch is-primary" onClick={() => setView("review")}>
-              {busy ? `לרשומות שכבר נקראו (${records.length})` : `לרשימת הרשומות (${records.length})`} ←
+              {busy ? t("review.page.toReadRecords", { n: records.length }) : t("review.page.toList", { n: records.length })} ←
             </button>
           )
         )}
@@ -179,7 +180,7 @@ export function ReviewPage() {
 /** "הרשומה של דנה לוי", or "הרשומה" when no name was read: the toast's subject. */
 function recordName(record: ApiRecord): string {
   const name = [record.fields.first_name.value, record.fields.last_name.value].filter(Boolean).join(" ");
-  return name ? `הרשומה של ${name}` : "הרשומה";
+  return name ? t("review.page.recordOf", { name }) : t("review.page.record");
 }
 
 export default ReviewPage;

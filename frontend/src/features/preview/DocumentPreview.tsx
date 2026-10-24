@@ -3,6 +3,8 @@
 // Owner: A
 
 import { useEffect, useRef, useState, type Dispatch, type HTMLAttributes, type SetStateAction } from "react";
+import { t } from "../../i18n";
+import { tRich } from "../../i18n/rich";
 import { FileName } from "../../shared/FileName";
 import {
   MAX_ZOOM,
@@ -38,13 +40,13 @@ export function DocumentPreview({ record, highlight = null, pointerArea, fit = "
   const [zoom, setZoom] = useState<Zoom>("fit");
   return (
     <section className="preview" aria-labelledby="preview-title" {...pointerArea}>
-      <h2 id="preview-title" className="preview-title">הטופס המקורי</h2>
+      <h2 id="preview-title" className="preview-title">{t("preview.title")}</h2>
       {record ? (
         // A different form starts on its first page, at the zoom picked before. Records
         // of the same form (one per commitment) share its pages, so the page stays too.
         <Pages key={record.page_id} record={record} highlight={highlight} fit={fit} zoom={zoom} setZoom={setZoom} />
       ) : (
-        <p className="preview-empty">בחרי שורה בטבלה כדי לראות את הטופס המקורי</p>
+        <p className="preview-empty">{t("preview.empty")}</p>
       )}
     </section>
   );
@@ -99,15 +101,15 @@ function Pages({ record, highlight, fit, zoom, setZoom }: PagesProps) {
   return (
     <>
       <p className="preview-source">
-        <FileName name={record.source_file} />, עמוד {page.pageNumber}
-        {pages.length > 1 && ` (${at + 1} מתוך ${pages.length} בטופס)`}
+        {tRich("common.fileAndPage", { file: <FileName name={record.source_file} />, page: page.pageNumber })}
+        {pages.length > 1 && t("preview.pageOfForm", { at: at + 1, total: pages.length })}
       </p>
       {/* Always there, a line high, so a note coming or going never moves what is below. */}
       <p className="preview-highlight">
         {highlight && <HighlightNote highlight={highlight} pages={pages} page={page} drawn={drawn} />}
       </p>
 
-      <div className="preview-toolbar" role="group" aria-label="תצוגת העמוד">
+      <div className="preview-toolbar" role="group" aria-label={t("preview.toolbar")}>
         {pages.length > 1 && (
           <div className="preview-pages">
             {pages.map((p, i) => (
@@ -118,7 +120,7 @@ function Pages({ record, highlight, fit, zoom, setZoom }: PagesProps) {
                 aria-pressed={i === at}
                 onClick={() => setIndex(i)}
               >
-                עמוד {p.pageNumber}
+                {t("common.page", { page: p.pageNumber })}
               </button>
             ))}
           </div>
@@ -129,7 +131,7 @@ function Pages({ record, highlight, fit, zoom, setZoom }: PagesProps) {
             className="preview-button"
             onClick={() => setZoom(zoomOut)}
             disabled={zoom === "fit"}
-            aria-label="הקטנה"
+            aria-label={t("preview.zoomOut")}
           >
             −
           </button>
@@ -139,19 +141,19 @@ function Pages({ record, highlight, fit, zoom, setZoom }: PagesProps) {
             onClick={() => setZoom("fit")}
             aria-pressed={zoom === "fit"}
           >
-            {fit === "page" ? "עמוד שלם" : "התאמה לרוחב"}
+            {fit === "page" ? t("preview.wholePage") : t("preview.fitWidth")}
           </button>
           <button
             type="button"
             className="preview-button"
             onClick={() => setZoom((z) => (fit === "page" && z === "fit" ? 100 : zoomIn(z)))}
             disabled={zoom === MAX_ZOOM}
-            aria-label="הגדלה"
+            aria-label={t("preview.zoomIn")}
           >
             +
           </button>
           <span className="preview-zoom-level" aria-live="polite">
-            {zoom === "fit" ? (fit === "page" ? "" : "רוחב מלא") : zoom === 100 ? "רוחב מלא" : `${zoom}%`}
+            {zoom === "fit" ? (fit === "page" ? "" : t("preview.fullWidth")) : zoom === 100 ? t("preview.fullWidth") : `${zoom}%`}
           </span>
         </div>
       </div>
@@ -161,12 +163,12 @@ function Pages({ record, highlight, fit, zoom, setZoom }: PagesProps) {
         className={wholePage ? "preview-frame is-page" : "preview-frame"}
         role="region"
         tabIndex={0}
-        aria-label="תמונת העמוד. אפשר לגלול עם החיצים"
+        aria-label={t("preview.frame")}
       >
         {page.imageUrl === null ? (
-          <p className="preview-message">התמונה של העמוד הזה לא זמינה. העמוד שייך לטופס הזה</p>
+          <p className="preview-message">{t("preview.noImage")}</p>
         ) : failed === page.imageUrl ? (
-          <p className="preview-message" role="alert">לא ניתן להציג את תמונת העמוד</p>
+          <p className="preview-message" role="alert">{t("preview.imageFailed")}</p>
         ) : (
           // The boxes sit on the image's own box, so they follow it through every zoom.
           <div
@@ -177,7 +179,7 @@ function Pages({ record, highlight, fit, zoom, setZoom }: PagesProps) {
               key={page.imageUrl}
               className="preview-image"
               src={page.imageUrl}
-              alt={`עמוד ${page.pageNumber} של הטופס`}
+              alt={t("preview.imageAlt", { page: page.pageNumber })}
               onLoad={scrollToMark}
               onError={() => setFailed(page.imageUrl)}
             />
@@ -210,18 +212,14 @@ interface NoteProps {
 // already says which field it is.
 function HighlightNote({ highlight, pages, page, drawn }: NoteProps) {
   const label = <bdi>{highlight.label}</bdi>;
-  if (drawn) return <>מסומן בתמונה: {label}</>;
+  if (drawn) return tRich("preview.marked", { label });
   // Sent elsewhere only to a page the reviewer can turn to and see the box on.
   const turnTo = highlightPageIndex(pages, highlight);
   const elsewhere = turnTo === null ? null : pages[turnTo];
   if (elsewhere && elsewhere !== page && elsewhere.imageUrl !== null) {
-    return (
-      <>
-        {label} נקרא בעמוד {elsewhere.pageNumber}
-      </>
-    );
+    return tRich("preview.elsewhere", { label, page: elsewhere.pageNumber });
   }
-  return <>אין סימון בתמונה ל{label}</>;
+  return tRich("preview.notMarked", { label });
 }
 
 export default DocumentPreview;

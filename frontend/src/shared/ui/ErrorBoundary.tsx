@@ -3,6 +3,7 @@
 // Owner: B
 
 import { Component, type ReactNode } from "react";
+import { t } from "../../i18n";
 
 type Props = { children: ReactNode };
 type State = { failed: boolean };
@@ -18,10 +19,10 @@ export class ErrorBoundary extends Component<Props, State> {
     if (!this.state.failed) return this.props.children;
     return (
       <div className="app-status" role="alert">
-        <h1>משהו השתבש</h1>
-        <p>המסך לא הצליח להיטען. רענון בדרך כלל עוזר. מה שכבר נשמר לא נמחק.</p>
+        <h1>{t("errorBoundary.title")}</h1>
+        <p>{t("errorBoundary.text")}</p>
         <button type="button" onClick={() => window.location.reload()}>
-          רענון
+          {t("errorBoundary.reload")}
         </button>
       </div>
     );

@@ -5,6 +5,7 @@
 
 import { useState } from "react";
 import type { components } from "../../api/schema";
+import { t } from "../../i18n";
 import { centralsEdit, keepCentrals, type ListDraft, type ListItemEdit, type Saved } from "./recordMutations";
 import { CONFIDENCE_TEXT, fieldCell, listCell } from "./reviewRows";
 
@@ -47,12 +48,12 @@ export function CentralNumbersCell({ items, editable, onSave }: Props) {
       onClick={drafts !== null ? (event) => event.stopPropagation() : undefined}
     >
       {drafts !== null ? (
-        <div className="review-list-editor" role="group" aria-label="עריכת מספרים מרכזיים">
+        <div className="review-list-editor" role="group" aria-label={t("review.central.editor")}>
           {drafts.map((d, i) => (
             <div key={i} className="review-list-item">
               <input
                 className="review-cell-input"
-                aria-label={`מספר מרכזי ${i + 1}`}
+                aria-label={t("fields.centralNumberN", { n: i + 1 })}
                 inputMode="numeric"
                 value={d.value}
                 disabled={busy}
@@ -65,7 +66,7 @@ export function CentralNumbersCell({ items, editable, onSave }: Props) {
               />
               <button
                 type="button"
-                aria-label={`הסרת מספר מרכזי ${i + 1}`}
+                aria-label={t("review.central.remove", { n: i + 1 })}
                 disabled={busy}
                 onClick={() => setDrafts(drafts.filter((_, j) => j !== i))}
               >
@@ -75,13 +76,13 @@ export function CentralNumbersCell({ items, editable, onSave }: Props) {
           ))}
           <div className="review-list-actions">
             <button type="button" disabled={busy} onClick={() => setDrafts([...drafts, { idx: null, value: "" }])}>
-              + הוספה
+              {t("review.central.add")}
             </button>
             <button type="button" disabled={busy} onClick={save}>
-              שמירה
+              {t("common.save")}
             </button>
             <button type="button" disabled={busy} onClick={() => setDrafts(null)}>
-              ביטול
+              {t("common.cancel")}
             </button>
           </div>
         </div>
@@ -100,13 +101,13 @@ export function CentralNumbersCell({ items, editable, onSave }: Props) {
                       type="button"
                       className="review-confirm"
                       disabled={busy}
-                      aria-label={`אישור ערך: מספר מרכזי ${idx + 1}`}
+                      aria-label={t("review.confirmLabel", { title: t("fields.centralNumberN", { n: idx + 1 }) })}
                       onClick={(event) => {
                         event.stopPropagation();
                         void send(keepCentrals(items, { [idx]: { confirmed: true } }), true);
                       }}
                     >
-                      ✓ אישור ערך
+                      {t("review.confirm")}
                     </button>
                   )}
                 </li>
@@ -124,7 +125,7 @@ export function CentralNumbersCell({ items, editable, onSave }: Props) {
                 setDrafts(items.map((item, idx) => ({ idx, value: item.value ?? "" })));
               }}
             >
-              עריכת הרשימה
+              {t("review.central.editList")}
             </button>
           )}
         </>

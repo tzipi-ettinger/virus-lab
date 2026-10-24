@@ -3,6 +3,7 @@
 // Owner: B
 
 import { useEffect, useState } from "react";
+import { t } from "../../i18n";
 import { useSenders } from "../../shared/useSenders";
 import { FORM_TYPE_TEXT } from "../review/reviewRows";
 import type { FormType, RecordFilters, RecordStatus } from "./filters";
@@ -24,20 +25,20 @@ export function RecordsFilters({ filters, onChange }: Props) {
     <form className="records-filters" role="search" onSubmit={(event) => event.preventDefault()}>
       <SearchBox value={filters.q} onSearch={(q) => onChange({ q })} />
       <label className="records-filter-status">
-        סטטוס
+        {t("fields.status")}
         <select
           value={filters.status ?? ""}
           onChange={(e) => onChange({ status: (e.target.value || null) as RecordStatus | null })}
         >
-          <option value="">הכול</option>
-          <option value="pending">ממתין</option>
-          <option value="approved">מאושר</option>
+          <option value="">{t("common.all")}</option>
+          <option value="pending">{t("records.filters.pending")}</option>
+          <option value="approved">{t("records.filters.approved")}</option>
         </select>
       </label>
       <label className="records-filter-sender">
-        גורם שולח
+        {t("fields.sender")}
         <select value={filters.sender} onChange={(e) => onChange({ sender: e.target.value })}>
-          <option value="">הכול</option>
+          <option value="">{t("common.all")}</option>
           {senderOptions.map((name) => (
             <option key={name} value={name}>
               {name}
@@ -46,12 +47,12 @@ export function RecordsFilters({ filters, onChange }: Props) {
         </select>
       </label>
       <label className="records-filter-form">
-        סוג טופס
+        {t("fields.form_type")}
         <select
           value={filters.formType ?? ""}
           onChange={(e) => onChange({ formType: (e.target.value || null) as FormType | null })}
         >
-          <option value="">הכול</option>
+          <option value="">{t("common.all")}</option>
           {(Object.entries(FORM_TYPE_TEXT) as [FormType, string][]).map(([value, text]) => (
             <option key={value} value={value}>
               {text}
@@ -61,18 +62,18 @@ export function RecordsFilters({ filters, onChange }: Props) {
       </label>
       {/* One range field, so the two dates never end up on different rows. */}
       <fieldset className="records-dates">
-        <legend>תאריך קבלה</legend>
+        <legend>{t("fields.received_date")}</legend>
         <div className="records-dates-inputs">
           <input
             type="date"
-            aria-label="מתאריך קבלה"
+            aria-label={t("records.filters.dateFrom")}
             value={filters.dateFrom}
             onChange={(e) => onChange({ dateFrom: e.target.value })}
           />
           <span aria-hidden="true">–</span>
           <input
             type="date"
-            aria-label="עד תאריך קבלה"
+            aria-label={t("records.filters.dateTo")}
             value={filters.dateTo}
             onChange={(e) => onChange({ dateTo: e.target.value })}
           />
@@ -99,14 +100,14 @@ function SearchBox({ value, onSearch }: { value: string; onSearch: (q: string) =
 
   return (
     <label className="records-search">
-      חיפוש
+      {t("records.filters.search")}
       <span className="records-search-box">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
           <path d="M20 20l-4-4M18 11a7 7 0 1 1-14 0 7 7 0 0 1 14 0" />
         </svg>
         <input
           type="search"
-          placeholder="שם, ת״ז, מספר מרכזי או התחייבות"
+          placeholder={t("records.filters.searchHint")}
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
         />

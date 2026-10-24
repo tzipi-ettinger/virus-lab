@@ -4,6 +4,7 @@
 
 import type { ReactNode } from "react";
 import { Navigate, useLocation } from "react-router";
+import { t } from "../../i18n";
 import { useAuth } from "./authContext";
 import type { LoginRedirect } from "./LoginPage";
 
@@ -13,13 +14,13 @@ export function RequireAuth({ children }: { children: ReactNode }) {
 
   switch (state.status) {
     case "loading":
-      return <p className="app-status">טוען…</p>;
+      return <p className="app-status">{t("common.loading")}</p>;
     case "error":
       return (
         <div className="app-status" role="alert">
           <p>⚠ {state.message}</p>
           <button type="button" onClick={retry}>
-            נסי שוב
+            {t("common.retry")}
           </button>
         </div>
       );

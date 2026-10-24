@@ -5,6 +5,7 @@
 
 import { Link, useLocation, useNavigate } from "react-router";
 import type { components } from "../../api/schema";
+import { t } from "../../i18n";
 import { FORM_TYPE_TEXT } from "../review/reviewRows";
 import { nextSort, sortDirection, type RecordSort, type SortColumn } from "./filters";
 import { formatDate, senderTag, statusView } from "./format";
@@ -33,14 +34,14 @@ interface Props {
 
 // The name column sorts by last name, as the lab files people.
 const COLUMNS: { title: string; sort: SortColumn | null }[] = [
-  { title: "שם", sort: "last_name" },
-  { title: "ת״ז", sort: "national_id" },
-  { title: "מספר התחייבות", sort: "commitment_number" },
-  { title: "מספרים מרכזיים", sort: null }, // a list: no single value to sort by
-  { title: "גורם שולח", sort: "sender" },
-  { title: "סוג טופס", sort: "form_type" },
-  { title: "תאריך קבלה", sort: "received_date" },
-  { title: "סטטוס", sort: "status" },
+  { title: t("fields.name"), sort: "last_name" },
+  { title: t("fields.national_id"), sort: "national_id" },
+  { title: t("fields.commitment_number"), sort: "commitment_number" },
+  { title: t("fields.central_numbers"), sort: null }, // a list: no single value to sort by
+  { title: t("fields.sender"), sort: "sender" },
+  { title: t("fields.form_type"), sort: "form_type" },
+  { title: t("fields.received_date"), sort: "received_date" },
+  { title: t("fields.status"), sort: "status" },
 ];
 
 const ARROW = { ascending: "▲", descending: "▼", none: "" };
@@ -84,7 +85,7 @@ export function RecordsTable({ items, sort, onSort }: Props) {
         <tbody>
           {items.map((r) => {
             const status = statusView(r);
-            const name = [r.first_name, r.last_name].filter(Boolean).join(" ") || "ללא שם";
+            const name = [r.first_name, r.last_name].filter(Boolean).join(" ") || t("common.noName");
             return (
               <tr key={r.record_id} onClick={() => navigate(`/records/${r.record_id}`, { state: back })}>
                 <td data-label={NAME}>

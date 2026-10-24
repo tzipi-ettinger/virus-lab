@@ -2,17 +2,18 @@
 // Owner: B
 
 import { ApiError } from "../../api/client";
+import { t } from "../../i18n";
 
 /** What to tell the user. The server's own Hebrew title where it has one. */
 export function loginError(failure: unknown): string {
-  if (!(failure instanceof ApiError)) return "משהו השתבש. נסי שוב";
+  if (!(failure instanceof ApiError)) return t("common.failed");
   switch (failure.type) {
     case "invalid_credentials":
-      return "שם המשתמש או הסיסמה שגויים";
+      return t("auth.errors.credentials");
     case "too_many_attempts":
-      return "יותר מדי ניסיונות. נסי שוב בעוד 15 דקות";
+      return t("auth.errors.tooMany");
     case "database_unavailable":
-      return "השרת לא זמין כרגע. נסי שוב בעוד דקה";
+      return t("auth.errors.unavailable");
     default:
       return failure.message;
   }

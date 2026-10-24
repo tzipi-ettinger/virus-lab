@@ -8,6 +8,8 @@ import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { Link, useLocation, useNavigate, useParams } from "react-router";
 import { ApiError, apiFetch } from "../../api/client";
 import type { components } from "../../api/schema";
+import { t } from "../../i18n";
+import { tRich } from "../../i18n/rich";
 import { useSenders } from "../../shared/useSenders";
 import { DocumentPreview } from "../preview/DocumentPreview";
 import { fieldHighlight } from "../preview/previewPages";
@@ -48,7 +50,7 @@ export function RecordPage() {
       (error: unknown) => {
         if (controller.signal.aborted) return;
         if (error instanceof ApiError && error.status === 404) setLoaded({ id: request, notFound: true });
-        else setLoaded({ id: request, error: error instanceof ApiError ? error.message : "משהו השתבש. נסי שוב" });
+        else setLoaded({ id: request, error: error instanceof ApiError ? error.message : t("common.failed") });
       },
     );
     return () => controller.abort();
@@ -62,7 +64,7 @@ export function RecordPage() {
   );
   const backLink = (
     <Link className="record-back" to={back}>
-      → חזרה לרשומות
+      {t("record.back")}
     </Link>
   );
 
@@ -71,7 +73,7 @@ export function RecordPage() {
       <div className="record-page is-loading">
         <div className="record-main">
           <div className="record-card">
-            <Skeleton rows={9} label="טוען את הרשומה…" />
+            <Skeleton rows={9} label={t("record.loading")} />
           </div>
         </div>
         <div className="record-loading-page" aria-hidden="true" />
@@ -81,7 +83,7 @@ export function RecordPage() {
   if ("notFound" in loaded) {
     return (
       <div className="records-empty">
-        <p>הרשומה לא נמצאה. ייתכן שנמחקה.</p>
+        <p>{t("record.notFound")}</p>
         {backLink}
       </div>
     );
@@ -91,7 +93,7 @@ export function RecordPage() {
       <div className="records-banner" role="alert">
         ⚠ {loaded.error}
         <button type="button" onClick={retry}>
-          נסי שוב
+          {t("common.retry")}
         </button>
       </div>
     );
@@ -123,14 +125,16 @@ function RecordDetails({ record, backLink, back, onRecord }: DetailsProps) {
   const more = record.continuation_pages ?? [];
   const editable = record.status === "pending";
   const name = [record.fields.first_name.value, record.fields.last_name.value].filter(Boolean).join(" ");
-  const rows: { title: string; field: FormField; onSave: (edit: FieldEdit) => Promise<Saved> }[] = [
+  const rows: { name: string; title: string; field: FormField; onSave: (edit: FieldEdit) => Promise<Saved> }[] = [
     ...FIELD_COLUMNS.map((c) => ({
+      name: c.name as string,
       title: c.title,
       field: record.fields[c.name],
       onSave: (edit: FieldEdit) => saveField(record, c.name, edit),
     })),
     ...record.central_numbers.map((field, i) => ({
-      title: `מספר מרכזי ${i + 1}`,
+      name: `central_numbers[${i}]`,
+      title: t("fields.centralNumberN", { n: i + 1 }),
       field,
       // One item changes; the others are kept by their position.
       onSave: (edit: FieldEdit) => saveCentrals(record, keepCentrals(record.central_numbers, { [i]: edit })),
@@ -155,12 +159,12 @@ function RecordDetails({ record, backLink, back, onRecord }: DetailsProps) {
               </svg>
             </span>
             <h1 className="records-title">
-              <bdi>{name || "ללא שם"}</bdi>
+              <bdi>{name || t("common.noName")}</bdi>
             </h1>
             <p className={`records-status is-${status.tone}`}>
               <span aria-hidden="true">{status.icon}</span>{" "}
               {record.status === "approved" && record.approved_by
-                ? `אושר על ידי ${record.approved_by} ב־${formatDateTime(record.approved_at)}`
+                ? t("record.approvedBy", { who: record.approved_by, when: formatDateTime(record.approved_at) })
                 : status.text}
             </p>
             <div className="record-actions">
@@ -171,25 +175,25 @@ function RecordDetails({ record, backLink, back, onRecord }: DetailsProps) {
           </div>
           <dl className="record-meta">
             <div>
-              <dt>קובץ</dt>
+              <dt>{t("record.file")}</dt>
               <dd title={record.source_file}>
-                <bdi>{record.source_file}</bdi>, עמוד {record.page_number}
-                {more.length > 0 && ` (ועמודים ${more.join(", ")})`}
+                {tRich("common.fileAndPage", { file: <bdi>{record.source_file}</bdi>, page: record.page_number })}
+                {more.length > 0 && t("record.morePages", { pages: more.join(", ") })}
               </dd>
             </div>
             <div>
-              <dt>סוג טופס</dt>
+              <dt>{t("fields.form_type")}</dt>
               <dd>{FORM_TYPE_TEXT[record.form_type]}</dd>
             </div>
             <div>
-              <dt>נקלט</dt>
+              <dt>{t("record.created")}</dt>
               <dd>{formatDateTime(record.created_at)}</dd>
             </div>
           </dl>
         </header>
 
         {record.issues.length > 0 && (
-          <ul className="record-issues" aria-label="בעיות ברשומה">
+          <ul className="record-issues" aria-label={t("record.issues")}>
             {record.issues.map((issue) => (
               <li key={issue.code}>⚠ {issue.message}</li>
             ))}
@@ -202,13 +206,13 @@ function RecordDetails({ record, backLink, back, onRecord }: DetailsProps) {
           <table className="records-table record-fields" {...areaProps}>
             <thead>
               <tr>
-                <th scope="col">שדה</th>
-                <th scope="col">ערך ורמת ביטחון</th>
-                <th scope="col">מה נקרא בטופס</th>
+                <th scope="col">{t("record.colField")}</th>
+                <th scope="col">{t("record.colValue")}</th>
+                <th scope="col">{t("record.colRead")}</th>
               </tr>
             </thead>
             <tbody>
-              {rows.map(({ title, field, onSave }) => (
+              {rows.map(({ name: fieldName, title, field, onSave }) => (
                 <tr
                   key={title}
                   className={field.needs_review ? "is-flagged" : undefined}
@@ -220,7 +224,7 @@ function RecordDetails({ record, backLink, back, onRecord }: DetailsProps) {
                     field={field}
                     editable={editable}
                     onSave={onSave}
-                    options={title === "גורם שולח" && senders.length > 0 ? senders : undefined}
+                    options={fieldName === "sender" && senders.length > 0 ? senders : undefined}
                   />
                   {/* What was read and how on one line (the evidence whole in the
                       tooltip), then the issues, never cut. */}

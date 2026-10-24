@@ -4,6 +4,7 @@
 // Owner: B
 
 import { useId, useState } from "react";
+import { t } from "../../i18n";
 import type { ApiRecord, Saved } from "./recordMutations";
 import { blockingFields, fieldTitle } from "./reviewRows";
 
@@ -20,7 +21,7 @@ export function ApproveButton({ record, onApprove, queued = false }: Props) {
   const hintId = useId();
 
   if (record.status === "approved" || queued) {
-    return <span className="review-approved">✓ אושר</span>;
+    return <span className="review-approved">{t("review.approved")}</span>;
   }
   const blocking = blockingFields(record);
 
@@ -44,17 +45,17 @@ export function ApproveButton({ record, onApprove, queued = false }: Props) {
         }}
       >
         {busy ? (
-          "מאשרת…"
+          t("review.approving")
         ) : (
           <>
             {blocking.length === 0 && <span aria-hidden="true">✓ </span>}
-            אישור
+            {t("review.approve")}
           </>
         )}
       </button>
       {blocking.length > 0 && (
         <span id={hintId} className="review-blocking">
-          לטפל קודם ב: {blocking.map(fieldTitle).join(", ")}
+          {t("review.fixFirst", { fields: blocking.map(fieldTitle).join(", ") })}
         </span>
       )}
       {error && (
