@@ -136,17 +136,17 @@
   font-weight: 700;
 }
 
-.is-pdf {
+.upload-kind.is-pdf {
   color: var(--color-accent-strong, #17588f);
   background: var(--color-accent-soft, #e7f1fa);
 }
 
-.is-jpg {
+.upload-kind.is-jpg {
   color: #0b6f86;
   background: #e0f5fa;
 }
 
-.is-png {
+.upload-kind.is-png {
   color: #4d6b12;
   background: #eef6dc;
 }
