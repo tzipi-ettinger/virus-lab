@@ -23,49 +23,126 @@
   color: var(--color-text, #12233a);
 }
 
+/* The counts as one row of tabs on a white bar. Each wears its status color, and
+   the pressed one fills with it. */
 .records-counts {
   display: flex;
   flex-wrap: wrap;
-  gap: 10px;
+  gap: 4px;
+  padding: 5px;
+  background: var(--color-surface, #fff);
+  border: 1px solid var(--color-border, #e1e8ef);
+  border-radius: var(--radius-lg, 16px);
+  box-shadow: var(--shadow-card, none);
 }
 
-.records .records-counts button {
+.records .records-counts .records-count {
   display: inline-flex;
   align-items: center;
   gap: 8px;
   min-block-size: 44px;
-  padding: 6px 16px;
-  font-weight: 600;
-  background: var(--color-surface, #fff);
-  border: 1px solid var(--color-border, #e1e8ef);
-  border-radius: 999px;
-  box-shadow: var(--shadow-card, none);
-  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  padding: 4px 14px;
+  font-weight: 700;
+  color: var(--color-text-muted, #56677a);
+  background: transparent;
+  border: 0;
+  border-radius: 12px;
+  transition: background 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
 }
 
-.records .records-counts button:hover {
-  transform: translateY(-1px);
-  box-shadow: var(--shadow-raised, none);
-}
-
-.records-counts strong {
+.records-count strong {
   min-inline-size: 2ch;
-  padding: 2px 10px;
-  font-size: 1.05rem;
+  padding: 0 8px;
+  font-size: 0.875rem;
+  font-weight: 800;
+  text-align: center;
   font-variant-numeric: tabular-nums;
-  color: var(--color-accent-strong, #17588f);
-  background: var(--color-accent-soft, #e7f1fa);
   border-radius: 999px;
 }
 
-.records-counts button:nth-child(2) strong {
+.records-count-dot {
+  inline-size: 10px;
+  block-size: 10px;
+  border-radius: 999px;
+  background: var(--color-accent, #1f6fb2);
+}
+
+.records .records-counts .records-count.is-all strong {
+  color: var(--color-text-muted, #56677a);
+  background: var(--color-surface-muted, #f5f8fb);
+}
+
+.records .records-counts .records-count.is-pending,
+.records .records-counts .records-count.is-pending strong {
+  color: var(--color-accent-strong, #17588f);
+}
+
+.records .records-counts .records-count.is-pending strong {
+  background: var(--color-accent-soft, #e7f1fa);
+}
+
+.records .records-counts .records-count.is-review,
+.records .records-counts .records-count.is-review strong {
   color: var(--color-warning, #8a5300);
+}
+
+.records .records-counts .records-count.is-review strong {
   background: var(--color-warning-soft, #fff4db);
 }
 
-.records-counts button:nth-child(3) strong {
+.records .records-counts .records-count.is-approved,
+.records .records-counts .records-count.is-approved strong {
   color: var(--color-success, #1e6b3a);
+}
+
+.records .records-counts .records-count.is-approved strong {
   background: var(--color-success-soft, #e6f4ea);
+}
+
+.records .records-counts .records-count:hover {
+  background: var(--color-surface-muted, #f5f8fb);
+}
+
+/* Pressed: the tab fills with its color; the count sits on a lighter pill. */
+.records .records-counts .records-count[aria-pressed="true"],
+.records .records-counts .records-count[aria-pressed="true"] strong {
+  color: #ffffff;
+}
+
+.records .records-counts .records-count[aria-pressed="true"] strong {
+  background: rgb(255 255 255 / 0.22);
+}
+
+.records .records-counts .records-count.is-all[aria-pressed="true"] {
+  background: var(--color-text, #12233a);
+}
+
+.records .records-counts .records-count.is-pending[aria-pressed="true"] {
+  background: var(--color-accent, #1f6fb2);
+  box-shadow: 0 4px 12px rgb(31 111 178 / 0.3);
+}
+
+.records .records-counts .records-count.is-pending[aria-pressed="true"] .records-count-dot {
+  background: #ffffff;
+}
+
+.records .records-counts .records-count.is-review[aria-pressed="true"],
+.records .records-counts .records-count.is-review[aria-pressed="true"] strong {
+  color: var(--color-on-warning, #3d2600);
+}
+
+.records .records-counts .records-count.is-review[aria-pressed="true"] {
+  background: var(--color-warning-fill, #f0b429);
+  box-shadow: 0 4px 12px rgb(224 154 0 / 0.35);
+}
+
+.records .records-counts .records-count.is-review[aria-pressed="true"] strong {
+  background: rgb(255 255 255 / 0.55);
+}
+
+.records .records-counts .records-count.is-approved[aria-pressed="true"] {
+  background: var(--color-success, #1e6b3a);
+  box-shadow: 0 4px 12px rgb(30 107 58 / 0.3);
 }
 
 /* Search, filters and export, together on one white card. */
@@ -107,13 +184,6 @@
 .records button:disabled {
   opacity: 0.5;
   cursor: default;
-}
-
-.records .records-counts button[aria-pressed="true"] {
-  color: var(--color-accent-strong, #08515a);
-  background: var(--color-accent-soft, #e5f1f2);
-  border-color: var(--color-accent, #0b6e79);
-  box-shadow: 0 0 0 2px var(--color-accent, #1f6fb2);
 }
 
 .records button:focus-visible,
@@ -192,6 +262,85 @@
 .records-filters select:focus {
   background: var(--color-surface, #fff);
   border-color: var(--color-accent, #1f6fb2);
+}
+
+/* The search: a violet magnifier at its start, and a violet line around it. */
+.records-search-box {
+  position: relative;
+  display: flex;
+}
+
+.records-search-box svg {
+  position: absolute;
+  inset-inline-start: 12px;
+  inset-block-start: 50%;
+  translate: 0 -50%;
+  color: var(--color-violet, #7c5cd6);
+  pointer-events: none;
+}
+
+.records-search-box input {
+  flex: 1;
+  padding-inline-start: 38px;
+  background: var(--color-surface, #fff);
+  border: 1.5px solid var(--color-violet-line, #d1c6f1);
+}
+
+.records-search-box input:hover,
+.records-search-box input:focus {
+  border-color: var(--color-violet, #7c5cd6);
+}
+
+/* The filters in use, as chips under the controls; each × takes one off. */
+.records-active {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.records-active-label {
+  font-size: 0.875rem;
+  color: var(--color-text-muted, #56677a);
+}
+
+.records .records-active .records-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-block-size: 32px;
+  padding: 2px 8px 2px 12px;
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: var(--color-accent-strong, #17588f);
+  background: var(--color-accent-soft, #e7f1fa);
+  border: 1px solid var(--color-accent-line, #cde1f2);
+  border-radius: 999px;
+}
+
+.records .records-active .records-chip.is-review {
+  color: var(--color-warning, #8a5300);
+  background: var(--color-warning-soft, #fff4db);
+  border-color: var(--color-warning-line, #f1dc9f);
+}
+
+.records .records-active .records-chip.is-approved {
+  color: var(--color-success, #1e6b3a);
+  background: var(--color-success-soft, #e6f4ea);
+  border-color: var(--color-success-line, #bfe3cb);
+}
+
+.records .records-active .records-active-clear {
+  padding: 2px 4px;
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: var(--color-accent-strong, #17588f);
+  background: none;
+  border: 0;
+}
+
+.records .records-active .records-active-clear:hover {
+  text-decoration: underline;
 }
 
 /* The received-date range: one title over "from – to". */
@@ -443,6 +592,77 @@
   background: var(--color-warning-soft, #fff4db);
 }
 
+/* The central numbers on a pale blue pill, wrapping between numbers. */
+.records-centrals-list {
+  padding: 1px 8px;
+  font-weight: 700;
+  color: var(--color-accent-strong, #17588f);
+  background: var(--color-accent-soft, #e7f1fa);
+  border-radius: 6px;
+  box-decoration-break: clone;
+}
+
+/* A sender as a tag in its own color (senderTag), the same on every row. */
+.records-sender {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 12px;
+  font-size: 0.875rem;
+  font-weight: 700;
+  border-radius: 999px;
+}
+
+.records-sender::before {
+  content: "";
+  flex: none;
+  inline-size: 8px;
+  block-size: 8px;
+  background: currentColor;
+  border-radius: 999px;
+}
+
+.records-sender.is-tag-1 {
+  color: var(--color-tag-1, #0b6f86);
+  background: var(--color-tag-1-soft, #e0f5f9);
+}
+
+.records-sender.is-tag-2 {
+  color: var(--color-tag-2, #5b3fb0);
+  background: var(--color-tag-2-soft, #f0ecfb);
+}
+
+.records-sender.is-tag-3 {
+  color: var(--color-tag-3, #a0275a);
+  background: var(--color-tag-3-soft, #fcebf2);
+}
+
+.records-sender.is-tag-4 {
+  color: var(--color-tag-4, #3346a8);
+  background: var(--color-tag-4-soft, #eaedfb);
+}
+
+.records-sender.is-tag-5 {
+  color: var(--color-tag-5, #4a6510);
+  background: var(--color-tag-5-soft, #eff6df);
+}
+
+.records-sender.is-tag-6 {
+  color: var(--color-tag-6, #94401c);
+  background: var(--color-tag-6-soft, #fbeee7);
+}
+
+.records-form {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.records-form svg {
+  flex: none;
+  color: var(--color-brand-teal, #0ea5c6);
+}
+
 .records-pages {
   display: flex;
   align-items: center;
@@ -452,6 +672,21 @@
   color: var(--color-text-muted, #56677a);
   font-size: 0.875rem;
   border-block-start: 1px solid var(--color-border, #e1e8ef);
+}
+
+.records-pages span {
+  padding: 4px 14px;
+  font-weight: 700;
+  color: var(--color-accent-strong, #17588f);
+  background: var(--color-accent-soft, #e7f1fa);
+  border-radius: 999px;
+}
+
+.records .records-pages button {
+  min-block-size: 36px;
+  padding-inline: 16px;
+  border-color: var(--color-border, #e1e8ef);
+  border-radius: 999px;
 }
 
 /* On a wide screen the list fits the window: the page is as high as what is left
@@ -957,23 +1192,38 @@
   font-size: 0.875rem;
 }
 
-/* Small pills: a side action under the list, not the main one. */
+/* Small violet pills: CSV filled, JSON soft. A side action, at the end of the row. */
+.records-toolbar .records-export {
+  margin-inline-start: auto;
+}
+
 .records-export a {
   display: inline-flex;
   align-items: center;
-  min-block-size: 28px;
-  padding: 0 12px;
+  min-block-size: 32px;
+  padding: 0 14px;
   font-size: 0.8125rem;
-  font-weight: 600;
-  color: var(--color-accent-strong, #08515a);
+  font-weight: 800;
+  color: var(--color-violet-strong, #543f92);
   text-decoration: none;
-  border: 1px solid var(--color-accent, #0b6e79);
+  background: var(--color-violet-soft, #f2effb);
+  border: 1px solid var(--color-violet-line, #d1c6f1);
   border-radius: 999px;
   transition: background 0.15s ease;
 }
 
+.records-export a:first-of-type {
+  color: #ffffff;
+  background: var(--color-violet, #7c5cd6);
+  border-color: var(--color-violet, #7c5cd6);
+}
+
 .records-export a:hover {
-  background: var(--color-accent-soft, #e5f1f2);
+  background: var(--color-violet-line, #d1c6f1);
+}
+
+.records-export a:first-of-type:hover {
+  background: var(--color-violet-strong, #543f92);
 }
 
 .records-export-none {

@@ -4,6 +4,7 @@
 
 import type { components, operations } from "../../api/schema";
 import { FORM_TYPE_TEXT } from "../review/reviewRows";
+import { formatDate } from "./format";
 
 export type RecordStatus = components["schemas"]["RecordSummary"]["status"];
 export type FormType = components["schemas"]["RecordSummary"]["form_type"];
@@ -119,6 +120,42 @@ export function withChange(filters: RecordFilters, change: Partial<RecordFilters
 
 export function hasFilters(filters: RecordFilters): boolean {
   return toParams({ ...filters, sort: NO_FILTERS.sort, page: 1 }).size > 0;
+}
+
+export interface FilterChip {
+  key: string;
+  label: string;
+  /** The change that takes this filter off. */
+  clear: Partial<RecordFilters>;
+  /** A status chip wears its status color. */
+  tone: "pending" | "review" | "approved" | null;
+}
+
+/** The filters in use, one chip each, in the order of the controls. */
+export function filterChips(filters: RecordFilters): FilterChip[] {
+  const chips: FilterChip[] = [];
+  if (filters.q) chips.push({ key: "q", label: `חיפוש: ${filters.q}`, clear: { q: "" }, tone: null });
+  if (filters.needsReview) {
+    chips.push({ key: "status", label: "דורשות בדיקה", clear: { status: null, needsReview: false }, tone: "review" });
+  } else if (filters.status === "pending") {
+    chips.push({ key: "status", label: "ממתינות", clear: { status: null }, tone: "pending" });
+  } else if (filters.status === "approved") {
+    chips.push({ key: "status", label: "מאושרות", clear: { status: null }, tone: "approved" });
+  }
+  if (filters.sender) {
+    chips.push({ key: "sender", label: `גורם שולח: ${filters.sender}`, clear: { sender: "" }, tone: null });
+  }
+  if (filters.formType) {
+    const label = `סוג טופס: ${FORM_TYPE_TEXT[filters.formType]}`;
+    chips.push({ key: "form", label, clear: { formType: null }, tone: null });
+  }
+  if (filters.dateFrom || filters.dateTo) {
+    const from = formatDate(filters.dateFrom);
+    const to = formatDate(filters.dateTo);
+    const range = !filters.dateTo ? `מ־${from}` : !filters.dateFrom ? `עד ${to}` : `${from}–${to}`;
+    chips.push({ key: "dates", label: `תאריך קבלה: ${range}`, clear: { dateFrom: "", dateTo: "" }, tone: null });
+  }
+  return chips;
 }
 
 export type ExportFormat = "csv" | "json";
