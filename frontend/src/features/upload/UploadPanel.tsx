@@ -138,7 +138,7 @@ export function UploadPanel({ onResult, onBusyChange }: UploadPanelProps) {
     <section className={items.length > 0 ? "upload has-files" : "upload"} aria-labelledby="upload-title">
       <div className="upload-hero">
         <h2 id="upload-title" className="upload-title">
-          העלאת <span className="upload-title-accent">טפסי התחייבות</span>
+          <span className="upload-title-accent">העלאת טפסי התחייבות</span>
         </h2>
         <p className="upload-lead">מעלים את הקבצים, והמערכת קוראת מכל טופס את הנתונים. כל ערך מפוקפק יסומן לבדיקה.</p>
       </div>
