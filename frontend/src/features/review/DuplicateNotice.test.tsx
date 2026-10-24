@@ -12,6 +12,7 @@ import { field, record } from "./testRecords";
 afterEach(cleanup);
 
 const MESSAGE = "כבר קיים בהיסטוריה — אותו מספר התחייבות ואותם מספרים מרכזיים. יש לבדוק";
+const TITLE = "⚠ כבר קיים בהיסטוריה — יש לבדוק";
 
 function duplicate(duplicate_of: { record_id: string; created_at: string; created_by: string }[] | null) {
   return record({
@@ -36,10 +37,17 @@ describe("DuplicateNotice", () => {
     expect(container.innerHTML).toBe("");
   });
 
+  test("the title is short, without the issue's long message", () => {
+    render(<DuplicateNotice record={duplicate(EARLIER)} newTab />);
+
+    screen.getByText(TITLE);
+    expect(screen.queryByText(/אותו מספר התחייבות/)).toBeNull();
+  });
+
   test("names every earlier copy, when and by whom, in Israel time", () => {
     render(<DuplicateNotice record={duplicate(EARLIER)} newTab />);
 
-    screen.getByText(`⚠ ${MESSAGE}`);
+    screen.getByText(TITLE);
     const items = screen.getAllByRole("listitem").map((li) => li.textContent);
     expect(items[0]).toContain("הוכנס ב־19/10/2026 12:00 על ידי דנה");
     expect(items[1]).toContain("הוכנס ב־20/10/2026 14:30 על ידי רות");
@@ -66,10 +74,10 @@ describe("DuplicateNotice", () => {
     expect(link.hasAttribute("target")).toBe(false);
   });
 
-  test("a record flagged before the list existed shows the message only", () => {
+  test("a record flagged before the list existed shows the title only", () => {
     render(<DuplicateNotice record={duplicate(null)} newTab />);
 
-    screen.getByText(`⚠ ${MESSAGE}`);
+    screen.getByText(TITLE);
     expect(screen.queryByRole("list")).toBeNull();
   });
 });
