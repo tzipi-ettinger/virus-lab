@@ -94,14 +94,14 @@ test("each filter shows as a chip: one × takes one off, and 'clear all' keeps t
   const chips = page.getByRole("group", { name: "סינון פעיל" });
   await expect(chips).toHaveCount(0);
 
-  await reloads(page, () => page.getByLabel("גורם שולח").selectOption(sender));
+  await reloads(page, () => page.getByLabel("גורם שולח", { exact: true }).selectOption(sender));
   await expect.poll(() => query(page).get("sender")).toBe(sender);
   await expect(chips.getByRole("button", { name: `הסרת הסינון גורם שולח: ${sender}` })).toBeVisible();
   for (const tag of await rows(page).locator(".records-sender").allTextContents()) expect(tag.trim()).toBe(sender);
 
   await reloads(page, () => page.getByRole("group", { name: "מונים" }).getByRole("button", { name: /דורשות בדיקה/ }).click());
-  await reloads(page, () => page.getByLabel("מתאריך קבלה").fill("2020-01-01"));
-  await reloads(page, () => page.getByLabel("סוג טופס").selectOption("hospital_form"));
+  await reloads(page, () => page.getByLabel("מתאריך קבלה", { exact: true }).fill("2020-01-01"));
+  await reloads(page, () => page.getByLabel("סוג טופס", { exact: true }).selectOption("hospital_form"));
   await expect.poll(() => query(page).get("form_type")).toBe("hospital_form");
   await expect(chips.getByRole("button")).toHaveText([
     /^דורשות בדיקה/,
@@ -118,13 +118,13 @@ test("each filter shows as a chip: one × takes one off, and 'clear all' keeps t
   await expect.poll(() => query(page).has("sender")).toBe(false);
   expect(query(page).get("form_type")).toBe("hospital_form");
   expect(query(page).get("needs_review")).toBe("true");
-  await expect(page.getByLabel("גורם שולח")).toHaveValue("");
+  await expect(page.getByLabel("גורם שולח", { exact: true })).toHaveValue("");
 
   // All of them off; the order stays.
   await chips.getByRole("button", { name: "ניקוי הכול" }).click();
   await expect.poll(() => query(page).toString()).toBe("sort=-last_name");
   await expect(chips).toHaveCount(0);
-  await expect(page.getByLabel("מתאריך קבלה")).toHaveValue("");
+  await expect(page.getByLabel("מתאריך קבלה", { exact: true })).toHaveValue("");
 });
 
 test("search finds a record, and a search with no match says so and offers to clear", async ({ page }) => {
