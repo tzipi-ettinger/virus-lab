@@ -4,6 +4,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { ApiError, apiFetch } from "../../api/client";
 import type { components } from "../../api/schema";
+import { t } from "../../i18n";
 
 export type RecordStats = components["schemas"]["RecordStats"];
 
@@ -22,7 +23,7 @@ export function useStats(): { state: StatsState; reload: () => void } {
       (stats) => setState({ status: "ready", stats }),
       (error: unknown) => {
         if (controller.signal.aborted) return;
-        const message = error instanceof ApiError ? error.message : "הנתונים לא נטענו";
+        const message = error instanceof ApiError ? error.message : t("stats.loadFailed");
         setState({ status: "error", message });
       },
     );

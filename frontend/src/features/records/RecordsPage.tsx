@@ -6,6 +6,7 @@
 import { useCallback } from "react";
 import { useSearchParams } from "react-router";
 import type { components } from "../../api/schema";
+import { t } from "../../i18n";
 import { ExportButton } from "./ExportButton";
 import {
   NO_FILTERS,
@@ -42,7 +43,7 @@ export function RecordsPage() {
     <section className="records" aria-labelledby="records-title" aria-busy={query.status === "loading"}>
       <div className="records-head">
         <h1 id="records-title" className="records-title">
-          רשומות
+          {t("records.title")}
         </h1>
         {data && <Counts counts={data.counts} filters={filters} onPick={change} />}
       </div>
@@ -55,26 +56,26 @@ export function RecordsPage() {
         <div className="records-banner" role="alert">
           ⚠ {query.message}
           <button type="button" onClick={reload}>
-            נסי שוב
+            {t("common.retry")}
           </button>
         </div>
       )}
       {!data && query.status === "loading" && (
         <div className="records-card">
-          <Skeleton rows={10} label="טוען רשומות…" />
+          <Skeleton rows={10} label={t("records.loading")} />
         </div>
       )}
       {data && data.items.length === 0 && (
         <div className="records-empty">
           {hasFilters(filters) ? (
             <>
-              <p>אין רשומות לפי הסינון הנוכחי.</p>
+              <p>{t("records.noMatch")}</p>
               <button type="button" onClick={() => setParams(toParams(NO_FILTERS))}>
-                ניקוי הסינון
+                {t("records.clear")}
               </button>
             </>
           ) : (
-            <p>עוד אין רשומות. רשומות נוצרות כשמעלים טפסים במסך ההעלאה.</p>
+            <p>{t("records.none")}</p>
           )}
         </div>
       )}
@@ -103,14 +104,14 @@ function Counts({
   const approved = filters.status === "approved";
   // One row of tabs; the pressed one fills with its status color.
   return (
-    <div className="records-counts" role="group" aria-label="מונים">
+    <div className="records-counts" role="group" aria-label={t("records.counts.label")}>
       <button
         type="button"
         className="records-count is-all"
         aria-pressed={all}
         onClick={() => onPick({ status: null, needsReview: false })}
       >
-        הכול <strong>{counts.pending + counts.approved}</strong>
+        {t("common.all")} <strong>{counts.pending + counts.approved}</strong>
       </button>
       <button
         type="button"
@@ -118,7 +119,7 @@ function Counts({
         aria-pressed={pending}
         onClick={() => onPick({ status: "pending", needsReview: false })}
       >
-        <span className="records-count-dot" aria-hidden="true" /> ממתינות <strong>{counts.pending}</strong>
+        <span className="records-count-dot" aria-hidden="true" /> {t("records.counts.pending")} <strong>{counts.pending}</strong>
       </button>
       <button
         type="button"
@@ -126,7 +127,7 @@ function Counts({
         aria-pressed={review}
         onClick={() => onPick({ status: "pending", needsReview: true })}
       >
-        <span aria-hidden="true">⚠</span> דורשות בדיקה <strong>{counts.needs_review}</strong>
+        <span aria-hidden="true">⚠</span> {t("records.counts.review")} <strong>{counts.needs_review}</strong>
       </button>
       <button
         type="button"
@@ -134,7 +135,7 @@ function Counts({
         aria-pressed={approved}
         onClick={() => onPick({ status: "approved", needsReview: false })}
       >
-        <span aria-hidden="true">✓</span> מאושרות <strong>{counts.approved}</strong>
+        <span aria-hidden="true">✓</span> {t("records.counts.approved")} <strong>{counts.approved}</strong>
       </button>
     </div>
   );
@@ -151,14 +152,14 @@ function ActiveFilters({
   const chips = filterChips(filters);
   if (chips.length === 0) return null;
   return (
-    <div className="records-active" role="group" aria-label="סינון פעיל">
-      <span className="records-active-label">מסוננות לפי:</span>
+    <div className="records-active" role="group" aria-label={t("records.active.label")}>
+      <span className="records-active-label">{t("records.active.by")}</span>
       {chips.map((chip) => (
         <button
           key={chip.key}
           type="button"
           className={`records-chip${chip.tone ? ` is-${chip.tone}` : ""}`}
-          aria-label={`הסרת הסינון ${chip.label}`}
+          aria-label={t("records.active.remove", { label: chip.label })}
           onClick={() => onChange(chip.clear)}
         >
           {chip.label}
@@ -167,7 +168,7 @@ function ActiveFilters({
       ))}
       {/* The order is not a filter: it stays. */}
       <button type="button" className="records-active-clear" onClick={() => onChange({ ...NO_FILTERS, sort: filters.sort })}>
-        ניקוי הכול
+        {t("records.active.clearAll")}
       </button>
     </div>
   );
@@ -178,15 +179,13 @@ function Pagination({ total, page, onPage }: { total: number; page: number; onPa
   const first = (page - 1) * PAGE_SIZE + 1;
   const last = Math.min(page * PAGE_SIZE, total);
   return (
-    <nav className="records-pages" aria-label="דפדוף">
+    <nav className="records-pages" aria-label={t("records.pages.label")}>
       <button type="button" disabled={page <= 1} onClick={() => onPage(page - 1)}>
-        הקודם
+        {t("records.pages.previous")}
       </button>
-      <span>
-        {first}–{last} מתוך {total}
-      </span>
+      <span>{t("records.pages.range", { first, last, total })}</span>
       <button type="button" disabled={page >= pages} onClick={() => onPage(page + 1)}>
-        הבא
+        {t("records.pages.next")}
       </button>
     </nav>
   );

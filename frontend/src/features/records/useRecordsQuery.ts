@@ -5,6 +5,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { ApiError, apiFetch } from "../../api/client";
 import type { components } from "../../api/schema";
+import { t } from "../../i18n";
 import { listUrl, type RecordFilters } from "./filters";
 
 export type RecordList = components["schemas"]["RecordList"];
@@ -30,7 +31,7 @@ export function useRecordsQuery(filters: RecordFilters): { query: RecordsQuery; 
       (data) => setAnswer({ request, data, error: null }),
       (error: unknown) => {
         if (controller.signal.aborted) return;
-        const message = error instanceof ApiError ? error.message : "משהו השתבש. נסי שוב";
+        const message = error instanceof ApiError ? error.message : t("common.failed");
         setAnswer((last) => ({ request, data: last.data, error: message }));
       },
     );

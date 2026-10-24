@@ -5,6 +5,7 @@
 import { useEffect, useState } from "react";
 import { ApiError, apiFetch } from "../../api/client";
 import type { components } from "../../api/schema";
+import { t } from "../../i18n";
 
 export type RecordEvent = components["schemas"]["RecordEvent"];
 
@@ -22,7 +23,7 @@ export function useRecordHistory(recordId: string, version: number): History {
       (events) => setLoaded({ key, history: { events } }),
       (error: unknown) => {
         if (controller.signal.aborted) return;
-        const message = error instanceof ApiError ? error.message : "ההיסטוריה לא נטענה";
+        const message = error instanceof ApiError ? error.message : t("record.history.loadFailed");
         setLoaded({ key, history: { error: message } });
       },
     );
