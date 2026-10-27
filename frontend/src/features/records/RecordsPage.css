@@ -198,9 +198,13 @@
 /* The filters fill their own row of the toolbar. Each field's flex-basis is
    the narrowest width it still reads well at, and the grow factor is its share
    of any extra room. So the fields shrink together as the screen narrows, and
-   only when one would go below its basis does it wrap to the next row. */
+   only when one would go below its basis does it wrap to the next row.
+   min-inline-size: without it the row is never narrower than the two date
+   inputs side by side, and on a phone with a wider font it pushed the page
+   sideways. */
 .records-toolbar > .records-filters {
   flex: 1 1 100%;
+  min-inline-size: 0;
 }
 
 .records-filters {
