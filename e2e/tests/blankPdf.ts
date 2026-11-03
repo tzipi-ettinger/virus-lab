@@ -1,12 +1,14 @@
-// A one-page blank A4 PDF, built here: the repo keeps no PDF files (.gitignore),
-// so no patient's form can slip in as a test fixture.
+// A blank A4 PDF (one page by default), built here: the repo keeps no PDF files
+// (.gitignore), so no patient's form can slip in as a test fixture.
 // Owner: shared
 
-export function blankPdf(): Buffer {
+export function blankPdf(pages = 1): Buffer {
+  // Objects 1 and 2 are the catalog and the page tree; the pages are 3, 4, ...
+  const pageIds = Array.from({ length: pages }, (_, i) => i + 3);
   const objects = [
     "<< /Type /Catalog /Pages 2 0 R >>",
-    "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
-    "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << >> >>",
+    `<< /Type /Pages /Kids [${pageIds.map((id) => `${id} 0 R`).join(" ")}] /Count ${pages} >>`,
+    ...pageIds.map(() => "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << >> >>"),
   ];
   let pdf = "%PDF-1.4\n";
   const offsets: number[] = [];

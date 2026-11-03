@@ -181,6 +181,8 @@ npm run test:coverage   # כיסוי: הסף ב־vite.config.ts
 
 דפדפן אמיתי מול השרת ומסד הנתונים: כניסה, העלאה, מציאת הרשומה, פתיחתה, ייצוא CSV ויציאה ([e2e/tests/smoke.spec.ts](e2e/tests/smoke.spec.ts)). השרת רץ עם `EXTRACTION_PROVIDER=fake`, בלי מפתח ובלי מכסה. ב־CI זה ה־job `e2e`, מול ה־image של Docker.
 
+**נגישות** ([e2e/tests/a11y.spec.ts](e2e/tests/a11y.spec.ts)): כל מסך נבדק ב־axe-core מול WCAG 2.0 ברמות A ו־AA, במחשב ובטלפון. טקסט על רקע מדורג, ש־axe לא יודע למדוד, נמדד בנפרד מצילום של הפיקסלים מאחוריו ([e2e/tests/contrast.ts](e2e/tests/contrast.ts)). הפרה אחת מכשילה את ה־job.
+
 מקומית, מול שרת שרץ עם `fake` ו־`STATIC_DIR` (או ה־image) ומשתמש `e2e`:
 
 ```powershell
