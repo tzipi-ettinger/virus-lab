@@ -20,6 +20,8 @@ export async function measureContrast(page: Page, selector: string): Promise<Con
   if (!(await element.isVisible())) return null;
 
   const measured = await element.evaluate((node: HTMLElement) => {
+    // Colors as they rest, not partway through a transition.
+    for (const animation of document.getAnimations()) if (animation instanceof CSSTransition) animation.finish();
     node.scrollIntoView({ block: "center", inline: "center" });
     const style = getComputedStyle(node);
     const rgba = (css: string): Rgba => {
@@ -52,14 +54,20 @@ export async function measureContrast(page: Page, selector: string): Promise<Con
     // into the line above, and the edges of its letters would count as background.
     // Icons inside the element go too. Through the CSSOM, which the page's
     // Content-Security-Policy allows (a <style> tag it would block).
+    const all = [...document.querySelectorAll<HTMLElement | SVGElement>("body, body *")];
+    // Gradient text is found before anything changes: once a parent's color is
+    // transparent, a child that inherits it would look like gradient text too.
+    const gradientTexts = new Set(
+      all.filter((el) => {
+        const own = getComputedStyle(el);
+        return rgba(own.color)[3] === 0 && own.backgroundImage.includes("gradient");
+      }),
+    );
     const saved = new Map<HTMLElement | SVGElement, string>();
     (window as unknown as { contrastSaved: typeof saved }).contrastSaved = saved;
-    for (const el of document.querySelectorAll<HTMLElement | SVGElement>("body, body *")) {
+    for (const el of all) {
       saved.set(el, el.style.cssText);
-      const own = getComputedStyle(el);
-      if (rgba(own.color)[3] === 0 && own.backgroundImage.includes("gradient")) {
-        el.style.setProperty("background-image", "none", "important");
-      }
+      if (gradientTexts.has(el)) el.style.setProperty("background-image", "none", "important");
       el.style.setProperty("color", "transparent", "important");
       el.style.setProperty("-webkit-text-fill-color", "transparent", "important");
       el.style.setProperty("text-shadow", "none", "important");
@@ -83,6 +91,9 @@ export async function measureContrast(page: Page, selector: string): Promise<Con
       const holder = window as unknown as { contrastSaved?: Map<HTMLElement | SVGElement, string> };
       for (const [el, cssText] of holder.contrastSaved ?? []) el.style.cssText = cssText;
       delete holder.contrastSaved;
+      // A "transition: color" would fade the text back in from transparent, and the
+      // next element (or axe, on the next screen) would read it half faded.
+      for (const animation of document.getAnimations()) if (animation instanceof CSSTransition) animation.finish();
     });
   }
 

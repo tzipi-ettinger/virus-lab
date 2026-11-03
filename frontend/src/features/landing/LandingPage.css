@@ -179,7 +179,7 @@
   position: absolute;
   inset-block-start: 14px;
   inset-inline-end: 18px;
-  color: var(--color-border, #e1e8ef);
+  color: var(--color-text-faint, #7d8fa3);
   font-size: 2.5rem;
   font-weight: 800;
   line-height: 1;
