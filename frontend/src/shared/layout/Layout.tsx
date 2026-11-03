@@ -2,6 +2,7 @@
 // navigation, who is signed in, and sign-out (PLAN-DEV-B 3.0, "כללי").
 // Owner: B
 
+import type { MouseEvent } from "react";
 import { Link, NavLink, Outlet, useNavigate } from "react-router";
 import { useAuth } from "../../features/auth/authContext";
 import "./Layout.css";
@@ -16,8 +17,19 @@ export function Layout() {
     navigate("/login", { replace: true });
   }
 
+  // Focus, not the URL: a "#main" in the address would stay on every later link.
+  function skipToContent(event: MouseEvent<HTMLAnchorElement>) {
+    event.preventDefault();
+    document.getElementById("main")?.focus();
+  }
+
   return (
     <div className="layout">
+      {/* The first stop on Tab: past the logo and the navigation, straight to the
+          screen itself (WCAG 2.4.1). Out of sight until it has focus. */}
+      <a href="#main" className="layout-skip" onClick={skipToContent}>
+        דלג לתוכן הראשי
+      </a>
       <header className="layout-bar">
         <Link to="/" className="layout-brand" aria-label="דף הבית">
           <img className="layout-logo" src="/moh-logo.png" alt="משרד הבריאות" />
@@ -55,7 +67,7 @@ export function Layout() {
           </button>
         </span>
       </header>
-      <main className="layout-main">
+      <main id="main" className="layout-main" tabIndex={-1}>
         <Outlet />
       </main>
     </div>

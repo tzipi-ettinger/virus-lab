@@ -3,7 +3,7 @@
 // gets the 404 page inside the frame.
 // Owner: shared
 
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { AppRoutes } from "./App";
@@ -58,6 +58,18 @@ describe("AppRoutes", () => {
     expect(screen.getByRole("link", { name: "חזרה להעלאה ובדיקה" }).getAttribute("href")).toBe("/upload");
     expect(screen.getByRole("link", { name: "לכל הרשומות" }).getAttribute("href")).toBe("/records");
     expect(screen.getByRole("link", { name: "לדף הבית" }).getAttribute("href")).toBe("/");
+  });
+
+  test("the skip link comes first and moves focus to the screen, not the URL", async () => {
+    signedIn();
+    renderAt("/no-such-page");
+
+    const skip = await screen.findByRole("link", { name: "דלג לתוכן הראשי" });
+    const links = screen.getAllByRole("link");
+    expect(links[0]).toBe(skip); // before the logo and the navigation
+
+    fireEvent.click(skip);
+    expect(document.activeElement).toBe(screen.getByRole("main"));
   });
 
   test("the home page opens once signed in", async () => {

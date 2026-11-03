@@ -183,6 +183,8 @@ npm run test:coverage   # כיסוי: הסף ב־vite.config.ts
 
 **נגישות** ([e2e/tests/a11y.spec.ts](e2e/tests/a11y.spec.ts)): כל מסך נבדק ב־axe-core מול WCAG 2.0 ברמות A ו־AA, במחשב ובטלפון. טקסט על רקע מדורג, ש־axe לא יודע למדוד, נמדד בנפרד מצילום של הפיקסלים מאחוריו ([e2e/tests/contrast.ts](e2e/tests/contrast.ts)). הפרה אחת מכשילה את ה־job.
 
+**מקלדת** ([e2e/tests/keyboard.spec.ts](e2e/tests/keyboard.spec.ts)): בכל מסך עוברים ב־Tab על כל העצירות. כל אחת צריכה להראות שהיא בפוקוס (WCAG 2.4.7), ו־Tab תמיד ממשיך הלאה (2.1.2). העצירה הראשונה במסכים עם הניווט היא "דלג לתוכן הראשי" (2.4.1).
+
 מקומית, מול שרת שרץ עם `fake` ו־`STATIC_DIR` (או ה־image) ומשתמש `e2e`:
 
 ```powershell
