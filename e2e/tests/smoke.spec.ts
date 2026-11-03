@@ -8,8 +8,9 @@
 // Owner: shared
 
 import { readFile } from "node:fs/promises";
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 import { blankPdf } from "./blankPdf";
+import { PASSWORD, USER, requirePassword, signIn } from "./session";
 
 const SAMPLE = { name: "e2e-sample.pdf", mimeType: "application/pdf", buffer: blankPdf() };
 // From 01_meuhedet_clean.json. The model "read" a 10-digit ID; the rules drop the
@@ -18,18 +19,7 @@ const COMMITMENT = "730578626";
 const RAW_NATIONAL_ID = "0011223344";
 const NATIONAL_ID = "011223344";
 
-const USER = process.env.E2E_USER ?? "e2e";
-const PASSWORD = process.env.E2E_PASSWORD ?? "";
-
-test.beforeAll(() => {
-  if (!PASSWORD) throw new Error("Set E2E_PASSWORD to the password of E2E_USER (default: e2e)");
-});
-
-async function signIn(page: Page) {
-  await page.getByLabel("שם משתמש").fill(USER);
-  await page.getByLabel("סיסמה", { exact: true }).fill(PASSWORD);
-  await page.getByRole("button", { name: /^כניסה/ }).click();
-}
+test.beforeAll(requirePassword);
 
 test("sign in, upload, find the record, export it, sign out", async ({ page }) => {
   // Every screen is behind sign-in, and signing in opens the upload.

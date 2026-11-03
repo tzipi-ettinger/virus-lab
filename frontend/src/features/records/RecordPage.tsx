@@ -24,6 +24,7 @@ import { formatDateTime, statusView } from "./format";
 import { RecordHistory } from "./RecordHistory";
 import { useRecordHistory } from "./useRecordHistory";
 import type { BackTo } from "./RecordsTable";
+import { usePageTitle } from "../../shared/usePageTitle";
 import "./RecordsPage.css";
 
 type ApiRecord = components["schemas"]["Record"];
@@ -35,6 +36,7 @@ type Loaded =
   | { id: string; error: string };
 
 export function RecordPage() {
+  usePageTitle("פרטי רשומה");
   const { recordId = "" } = useParams();
   const back = (useLocation().state as BackTo | null)?.back ?? "/records";
   const [attempt, setAttempt] = useState(0);

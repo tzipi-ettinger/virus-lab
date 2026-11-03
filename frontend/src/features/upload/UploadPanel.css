@@ -27,7 +27,13 @@
 }
 
 .upload-title-accent {
-  background: linear-gradient(120deg, #17588f, var(--color-brand-blue, #1f6fb2) 40%, var(--color-brand-teal, #0ea5c6) 75%, #6f9a1e);
+  background: linear-gradient(
+    120deg,
+    #17588f,
+    var(--color-brand-blue, #1f6fb2) 40%,
+    var(--color-brand-teal-strong, #0b7895) 75%,
+    var(--color-brand-green-strong, #557a17)
+  );
   background-clip: text;
   -webkit-background-clip: text;
   color: transparent;

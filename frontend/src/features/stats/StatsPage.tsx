@@ -8,6 +8,7 @@ import { Skeleton } from "../../shared/ui/Skeleton";
 import { fieldTitle } from "./fieldTitle";
 import { ringGradient } from "./ring";
 import { useStats, type RecordStats } from "./useStats";
+import { usePageTitle } from "../../shared/usePageTitle";
 import "./StatsPage.css";
 
 const percent = new Intl.NumberFormat("he-IL", { style: "percent", maximumFractionDigits: 1 });
@@ -38,6 +39,7 @@ function Icon({ name, size = 20 }: { name: keyof typeof ICONS; size?: number }) 
 }
 
 export function StatsPage() {
+  usePageTitle("תמונת מצב");
   const { state, reload } = useStats();
   const total = state.status === "ready" ? state.stats.pending + state.stats.approved : 0;
   return (

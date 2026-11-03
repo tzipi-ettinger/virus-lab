@@ -8,7 +8,12 @@
   --color-brand-blue: #1f6fb2;
   --color-brand-teal: #0ea5c6;
   --color-brand-green: #9cc33b;
-  --gradient-brand: linear-gradient(120deg, #17588f 0%, #1f6fb2 45%, #0e8fb0 100%);
+  /* The logo's teal and green are too light for text (and white text on them):
+     these are the darkest shades of each, 5:1 against white (WCAG 2.0 AA). */
+  --color-brand-teal-strong: #0b7895;
+  --color-brand-green-strong: #557a17;
+  /* White text sits on it: every stop is at least 5:1 against white. */
+  --gradient-brand: linear-gradient(120deg, #17588f 0%, #1f6fb2 45%, #0b7895 100%);
 
   /* Page and text */
   --color-page: #f2f6fa;
@@ -16,6 +21,8 @@
   --color-surface-muted: #f5f8fb;
   --color-text: #12233a;
   --color-text-muted: #56677a;
+  /* Large text only (24px, or 18.66px bold): 3.3:1 on white, the AA minimum is 3. */
+  --color-text-faint: #7d8fa3;
   --color-border: #e1e8ef;
   --color-border-strong: #a9bccf;
   --color-focus: #1d4ed8;

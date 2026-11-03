@@ -17,6 +17,7 @@ import { ReviewTable } from "./ReviewTable";
 import { findRecord, mergeRecords, nextAfter, replaceRecords } from "./reviewRows";
 import { UndoToast } from "./UndoToast";
 import { useUndo } from "./useUndo";
+import { usePageTitle } from "../../shared/usePageTitle";
 import "./ReviewPage.css";
 
 // "auto": the list once there are records and nothing is being read; the others
@@ -52,6 +53,7 @@ export function ReviewPage() {
     if (sending) setView("auto");
   }, []);
   const showReview = view === "review" || (view === "auto" && !busy && records.length > 0);
+  usePageTitle(showReview ? "בדיקה ואישור" : "העלאת טפסים");
   const approved = records.filter((r) => r.status === "approved" || r.record_id === approvingId).length;
 
   /** Approved on screen now, sent once its "undo" runs out; the next one to fix opens. */

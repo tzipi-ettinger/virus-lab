@@ -21,11 +21,13 @@ import { RecordsFilters } from "./RecordsFilters";
 import { RecordsTable } from "./RecordsTable";
 import { useRecordsQuery } from "./useRecordsQuery";
 import { Skeleton } from "../../shared/ui/Skeleton";
+import { usePageTitle } from "../../shared/usePageTitle";
 import "./RecordsPage.css";
 
 type RecordCounts = components["schemas"]["RecordCounts"];
 
 export function RecordsPage() {
+  usePageTitle("רשומות");
   const [params, setParams] = useSearchParams();
   const filters = parseFilters(params);
   const { query, reload } = useRecordsQuery(filters);
