@@ -16,6 +16,7 @@ import { RecordsPage } from "./features/records/RecordsPage";
 import { ReviewPage } from "./features/review/ReviewPage";
 import { StatsPage } from "./features/stats/StatsPage";
 import { Layout } from "./shared/layout/Layout";
+import { usePageTitle } from "./shared/usePageTitle";
 import { ErrorBoundary } from "./shared/ui/ErrorBoundary";
 
 export function AppRoutes() {
@@ -60,6 +61,7 @@ function App() {
 }
 
 function NotFound() {
+  usePageTitle("הדף לא נמצא");
   return (
     <div className="not-found">
       <p className="not-found-code" aria-hidden="true">

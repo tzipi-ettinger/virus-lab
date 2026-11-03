@@ -10,6 +10,7 @@ import { Navigate, useLocation, useNavigate } from "react-router";
 import { useAuth } from "./authContext";
 import { greeting } from "./greeting";
 import { loginError } from "./loginError";
+import { usePageTitle } from "../../shared/usePageTitle";
 import "./LoginPage.css";
 
 export type LoginRedirect = { from?: string };
@@ -28,6 +29,7 @@ const POINTS = [
 ];
 
 export function LoginPage() {
+  usePageTitle("כניסה");
   const { state, login } = useAuth();
   const navigate = useNavigate();
   const next = afterLogin((useLocation().state as LoginRedirect | null)?.from);

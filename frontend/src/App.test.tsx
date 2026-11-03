@@ -3,7 +3,7 @@
 // gets the 404 page inside the frame.
 // Owner: shared
 
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { AppRoutes } from "./App";
@@ -78,5 +78,30 @@ describe("AppRoutes", () => {
 
     expect(await screen.findByRole("heading", { level: 1 })).toBeTruthy();
     expect(screen.queryByRole("button", { name: /כניסה/ })).toBeNull();
+  });
+
+  // WCAG 2.4.2: each screen names itself; a record's title has no patient details.
+  test.each([
+    ["/", "דף הבית"],
+    ["/upload", "העלאת טפסים"],
+    ["/records", "רשומות"],
+    ["/records/r1", "פרטי רשומה"],
+    ["/stats", "תמונת מצב"],
+    ["/no-such-page", "הדף לא נמצא"],
+  ])("%s has its own title", async (path, title) => {
+    // Signed in, and the screen's own data never comes: the title is set before it.
+    fetchMock.mockImplementation((url) =>
+      String(url) === "/api/v1/auth/me" ? Promise.resolve(json(200, DANA)) : new Promise<Response>(() => {}),
+    );
+    renderAt(path);
+
+    await waitFor(() => expect(document.title).toBe(`${title} · המעבדה המרכזית לנגיפים`));
+  });
+
+  test("sign-in has its own title", async () => {
+    fetchMock.mockResolvedValue(json(401, { type: "unauthenticated", title: "צריך להתחבר", status: 401 }));
+    renderAt("/login");
+
+    await waitFor(() => expect(document.title).toBe("כניסה · המעבדה המרכזית לנגיפים"));
   });
 });

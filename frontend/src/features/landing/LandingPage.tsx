@@ -3,6 +3,7 @@
 // Owner: shared
 
 import { Link } from "react-router";
+import { usePageTitle } from "../../shared/usePageTitle";
 import "./LandingPage.css";
 
 const STEPS = [
@@ -35,6 +36,7 @@ const STEPS = [
 ];
 
 export function LandingPage() {
+  usePageTitle("דף הבית");
   return (
     <div className="landing">
       <div className="landing-glow" aria-hidden="true" />
