@@ -7,7 +7,7 @@
 // ID), so the review and records screens show their warnings too.
 //
 // axe finds about a third of WCAG problems; keyboard use and screen-reader
-// wording still need a person.
+// wording still need a person (docs/ACCESSIBILITY.md).
 // Owner: shared
 
 import AxeBuilder from "@axe-core/playwright";
